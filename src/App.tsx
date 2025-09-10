@@ -35,6 +35,7 @@ import PartnerCandidates from './pages/partner/Candidates';
 // Auth
 import Login from './pages/Login';
 import Landing from './pages/Landing';
+import LandingV2 from './pages/LandingV2';
 
 function App() {
   // TODO: Implement auth check
@@ -57,7 +58,7 @@ function App() {
         <Routes>
         {/* Landing page or redirect based on role */}
         <Route path="/" element={
-          showLanding ? <Landing /> :
+          showLanding ? <LandingV2 /> :
           <Navigate to={
             userRole === ('admin' as UserRole) ? '/admin/kpi-library' :
             userRole === ('partner' as UserRole) ? '/partner/programs' :
