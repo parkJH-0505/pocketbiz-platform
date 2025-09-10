@@ -1,5 +1,5 @@
 // 기본 사용자 타입
-export type UserRole = 'startup' | 'admin' | 'partner';
+export type UserRole = 'startup' | 'admin' | 'partner' | 'internal-builder';
 
 export interface User {
   id: string;

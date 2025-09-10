@@ -16,10 +16,10 @@ const PartnerLayout = () => {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
-      <div className="w-64 bg-green-800">
+      <div className="w-64 bg-gradient-to-b from-green-700 to-green-800">
         <div className="p-6">
-          <h1 className="text-2xl font-bold text-white">Partner Portal</h1>
-          <p className="text-sm text-green-200 mt-1">파트너 관리</p>
+          <h1 className="text-2xl font-bold text-white">파트너 포털</h1>
+          <p className="text-sm text-green-200 mt-1">외부 빌더 환경</p>
         </div>
         
         <nav className="mt-6">

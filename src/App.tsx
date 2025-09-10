@@ -6,6 +6,7 @@ import type { UserRole } from './types';
 import StartupLayout from './layouts/StartupLayout';
 import AdminLayout from './layouts/AdminLayout';
 import PartnerLayout from './layouts/PartnerLayout';
+import InternalBuilderLayout from './layouts/InternalBuilderLayout';
 
 // Startup Pages
 import StartupDashboard from './pages/startup/Dashboard';
@@ -55,6 +56,7 @@ function App() {
           <Navigate to={
             userRole === ('admin' as UserRole) ? '/admin/kpi-library' :
             userRole === ('partner' as UserRole) ? '/partner/programs' :
+            userRole === ('internal-builder' as UserRole) ? '/internal-builder/dashboard' :
             '/startup/dashboard'
           } replace />
         } />
@@ -86,10 +88,22 @@ function App() {
           <Route path="settings" element={<AdminSettings />} />
         </Route>
 
-        {/* Partner Routes */}
+        {/* Partner Routes (외부 빌더) */}
         <Route path="/partner" element={<PartnerLayout />}>
           <Route path="programs" element={<PartnerPrograms />} />
           <Route path="candidates" element={<PartnerCandidates />} />
+        </Route>
+
+        {/* Internal Builder Routes (내부 빌더) */}
+        <Route path="/internal-builder" element={<InternalBuilderLayout />}>
+          <Route path="dashboard" element={<div className="p-8"><h2 className="text-2xl font-bold">내부 빌더 대시보드</h2></div>} />
+          <Route path="startups" element={<div className="p-8"><h2 className="text-2xl font-bold">담당 스타트업 관리</h2></div>} />
+          <Route path="programs" element={<div className="p-8"><h2 className="text-2xl font-bold">빌드업 프로그램</h2></div>} />
+          <Route path="matching" element={<div className="p-8"><h2 className="text-2xl font-bold">스마트 매칭</h2></div>} />
+          <Route path="analytics" element={<div className="p-8"><h2 className="text-2xl font-bold">성과 분석</h2></div>} />
+          <Route path="reports" element={<div className="p-8"><h2 className="text-2xl font-bold">리포트</h2></div>} />
+          <Route path="resources" element={<div className="p-8"><h2 className="text-2xl font-bold">내부 자료실</h2></div>} />
+          <Route path="settings" element={<div className="p-8"><h2 className="text-2xl font-bold">설정</h2></div>} />
         </Route>
 
         {/* 404 */}
