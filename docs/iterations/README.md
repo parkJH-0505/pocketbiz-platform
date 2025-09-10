@@ -5,6 +5,50 @@
 
 이 폴더는 포켓비즈 플랫폼의 Sprint별 상세 개발 계획을 담고 있습니다.
 
+## 🚀 배포 환경 & 링크
+
+### 라이브 환경
+- **프로덕션 URL**: https://pocketbiz-platform.vercel.app/
+- **GitHub Repository**: https://github.com/parkJH-0505/pocketbiz-platform
+- **배포 플랫폼**: Vercel (자동 배포)
+
+### 역할별 접속
+- **랜딩 페이지**: https://pocketbiz-platform.vercel.app/
+- **스타트업**: https://pocketbiz-platform.vercel.app/?role=startup
+- **관리자**: https://pocketbiz-platform.vercel.app/?role=admin
+- **내부 빌더**: https://pocketbiz-platform.vercel.app/?role=internal-builder
+- **외부 빌더**: https://pocketbiz-platform.vercel.app/?role=partner
+
+### 개발 환경
+```bash
+# 로컬 개발 서버
+cd my-startup-app
+npm run dev
+
+# 네트워크 공유 (같은 WiFi)
+npm run dev -- --host
+# http://localhost:5173/
+# http://[IP주소]:5173/
+
+# 빌드
+npm run build
+
+# Git 작업
+git add .
+git commit -m "커밋 메시지"
+git push
+
+# 브랜치
+- main: 프로덕션 (Vercel 자동 배포)
+- feature/v4-migration: 개발 브랜치
+```
+
+### 배포 프로세스
+1. **코드 수정** → 로컬 테스트
+2. **git commit & push** → GitHub 업로드
+3. **Vercel 자동 감지** → 빌드 & 배포 (1-2분)
+4. **라이브 반영** → URL로 확인
+
 ## Phase 1: Core MVP (Sprint 1-6) ✅
 - [Sprint 1: 프로젝트 설정 & 데이터 기반 구축](./1.md)
 - [Sprint 2: 핵심 점수화 엔진 구현](./2.md)
@@ -47,7 +91,9 @@
 - ✅ **프로젝트 기초**
   - Frontend 구현 (React 18 + TypeScript + Vite)
   - Tailwind CSS + 글래스모피즘 디자인 시스템
-  - 3가지 사용자 역할별 레이아웃 (스타트업/관리자/파트너)
+  - 4가지 사용자 역할별 레이아웃 (스타트업/관리자/내부빌더/외부빌더)
+  - 랜딩 페이지 및 역할 선택 UI
+  - GitHub 저장소 및 Vercel 배포 구축
   
 - ✅ **클러스터 시스템**
   - 섹터(S1-S5) × 단계(A1-A5) 분류 체계
@@ -102,3 +148,72 @@
   - API 설계
   - DB 스키마
   - 인증 시스템
+
+## 🛠️ 유용한 명령어 모음
+
+### Git & GitHub
+```bash
+# 현재 상태 확인
+git status
+git log --oneline -5
+
+# 작업 저장 및 푸시
+git add .
+git commit -m "feat: 기능 추가"
+git push
+
+# 브랜치 작업
+git checkout -b feature/새기능
+git checkout main
+git merge feature/새기능
+
+# 이전 상태로 되돌리기
+git checkout 4d65312  # 특정 커밋으로
+git reset --hard HEAD  # 마지막 커밋으로
+```
+
+### 개발 & 테스트
+```bash
+# 개발 서버 실행
+cd my-startup-app
+npm run dev
+
+# 빌드 (타입 체크 없이)
+npm run build
+
+# 빌드 (타입 체크 포함)
+npm run build:check
+
+# 로컬 네트워크 공유
+npm run dev -- --host
+```
+
+### Vercel 배포
+```bash
+# 자동 배포 (push만 하면 됨)
+git push origin main
+
+# 배포 상태 확인
+# https://vercel.com/dashboard 접속
+```
+
+### 문제 해결
+```bash
+# npm 패키지 재설치
+rm -rf node_modules package-lock.json
+npm install
+
+# 캐시 클리어
+npm cache clean --force
+
+# TypeScript 에러 무시하고 빌드
+npm run build  # (build:check 대신)
+```
+
+## 📌 중요 링크 북마크
+
+- **라이브 사이트**: https://pocketbiz-platform.vercel.app/
+- **GitHub**: https://github.com/parkJH-0505/pocketbiz-platform
+- **Vercel 대시보드**: https://vercel.com/dashboard
+- **PRD 문서**: [docs/PRD.md](../PRD.md)
+- **현재 상태**: [docs/iterations/CURRENT_STATUS.md](./CURRENT_STATUS.md)
