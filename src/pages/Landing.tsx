@@ -31,7 +31,7 @@ const Landing = () => {
       icon: Rocket,
       color: 'text-blue-600',
       bgGradient: 'from-blue-50 to-blue-100',
-      role: ''
+      role: 'startup'
     },
     {
       id: 'admin',
@@ -66,7 +66,10 @@ const Landing = () => {
   ];
 
   const handleRoleSelect = (role: string) => {
-    if (role) {
+    // 스타트업은 role 파라미터 없이, 나머지는 role 파라미터 포함
+    if (role === 'startup') {
+      window.location.href = '/?role=startup';
+    } else if (role) {
       window.location.href = `/?role=${role}`;
     } else {
       window.location.href = '/';
