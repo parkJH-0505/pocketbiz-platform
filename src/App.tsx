@@ -34,6 +34,7 @@ import PartnerCandidates from './pages/partner/Candidates';
 
 // Auth
 import Login from './pages/Login';
+import Landing from './pages/Landing';
 
 function App() {
   // TODO: Implement auth check
@@ -41,8 +42,11 @@ function App() {
   
   // URL 파라미터로 역할 전환 (개발/데모용)
   const params = new URLSearchParams(window.location.search);
-  const roleParam = params.get('role') as UserRole;
+  const roleParam = params.get('role') as UserRole | null;
   const userRole: UserRole = roleParam || 'startup';
+  
+  // role 파라미터가 없으면 랜딩 페이지 표시
+  const showLanding = !roleParam && window.location.pathname === '/';
 
   return (
     <ClusterProvider>
@@ -51,8 +55,9 @@ function App() {
       ) : (
       <Router>
         <Routes>
-        {/* Root redirect based on role */}
+        {/* Landing page or redirect based on role */}
         <Route path="/" element={
+          showLanding ? <Landing /> :
           <Navigate to={
             userRole === ('admin' as UserRole) ? '/admin/kpi-library' :
             userRole === ('partner' as UserRole) ? '/partner/programs' :
