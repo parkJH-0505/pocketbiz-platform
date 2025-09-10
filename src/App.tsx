@@ -37,7 +37,11 @@ import Login from './pages/Login';
 function App() {
   // TODO: Implement auth check
   const isAuthenticated = true;
-  const userRole: UserRole = 'startup';
+  
+  // URL 파라미터로 역할 전환 (개발/데모용)
+  const params = new URLSearchParams(window.location.search);
+  const roleParam = params.get('role') as UserRole;
+  const userRole: UserRole = roleParam || 'startup';
 
   return (
     <ClusterProvider>
