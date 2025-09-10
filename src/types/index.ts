@@ -23,6 +23,10 @@ export interface Organization {
 export type Sector = 'S-1' | 'S-2' | 'S-3' | 'S-4' | 'S-5';
 export type Stage = 'A-1' | 'A-2' | 'A-3' | 'A-4' | 'A-5';
 
+// Alias for legacy code
+export type SectorType = Sector;
+export type StageType = Stage;
+
 // 평가축
 export type AxisKey = 'GO' | 'EC' | 'PT' | 'PF' | 'TO';
 
@@ -175,4 +179,11 @@ export interface MatchResult {
   program_id: string;
   match_score: number;
   reasons: string[];
+}
+
+// Choice interface for multi-select inputs
+export interface Choice {
+  label: string;
+  value: number;
+  score: number;
 }
