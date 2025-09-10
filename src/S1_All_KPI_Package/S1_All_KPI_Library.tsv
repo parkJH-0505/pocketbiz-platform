@@ -1,0 +1,42 @@
+kpi_id	sector	axis	name	question	input_type	formula	applicable_stages	input_fields
+S1-[GO]-01	S-1	GO	고객 문제 정의 수준	고객 문제의 실재성을 증명하기 위해 얼마나 파고들었나요?	Rubric		A-1	
+S1-[GO]-02	S-1	GO	목표 시장 검증 수준	우리가 먼저 공략할 구체적 목표시장(SOM)을 어떤 방식으로 검증했나요?	Rubric		A-1,A-2	
+S1-[GO]-03	S-1	GO	재무·런웨이 관리 수준	현재 자금·현금흐름 관리를 어느 수준으로 운영 중입니까?	Stage		A-1,A-2	
+S1-[GO]-04	S-1	GO	총 가입자 수(누적)	지난 달 말 기준 총 가입자 수(누적)는 몇 명입니까?	Numeric	input: s1_go_04_total_users	A-2,A-3,A-4	s1_go_04_total_users
+S1-[GO]-05	S-1	GO	MAU	지난 달 월간 활성 사용자(MAU)는 몇 명입니까?	Numeric	input: s1_go_05_mau	A-2,A-3,A-4,A-5	s1_go_05_mau
+S1-[GO]-06	S-1	GO	방문→가입 전환율	지난 달 방문 대비 가입 전환율(%)은 얼마입니까?	Numeric	input: s1_go_06_visit_signup_conversion_rate	A-2,A-3,A-4	s1_go_06_visit_signup_conversion_rate
+S1-[GO]-07	S-1	GO	활성 사용자 비중	지난 달 말 총 가입자 수(누적)와 MAU를 입력해 주세요.	Calculation	{s1_go_05_mau} / {s1_go_04_total_users}	A-2,A-3,A-4,A-5	s1_go_05_mau,s1_go_04_total_users
+S1-[GO]-08	S-1	GO	30일 유지율(쉬운 표현)	지난 분기에 새로 가입한 고객 중, 한 달 뒤에도 남아 있는 고객 비율은 어느 구간입니까?	Rubric		A-2,A-3,A-4	
+S1-[GO]-09	S-1	GO	스틱니스(DAU/MAU)	지난 달 DAU와 MAU를 입력해 주세요.(Stickness)	Calculation	{s1_go_09_dau} / {s1_go_05_mau}	A-3,A-4,A-5	s1_go_09_dau,s1_go_05_mau
+S1-[GO]-10	S-1	GO	유료 고객 비중	현재 유료 고객 수와 총 가입자 수(누적)를 입력해 주세요.	Calculation	{s1_go_10_paid_users} / {s1_go_04_total_users}	A-3,A-4,A-5	s1_go_10_paid_users,s1_go_04_total_users
+S1-[GO]-11	S-1	GO	기존 고객 매출 유지율(GRR)	지난 분기 기존 고객 매출을 얼마나 지켜냈나요(매출 유지율)?(GRR)	Rubric		A-3,A-4	
+S1-[GO]-12	S-1	GO	고객 이탈률(전체)	지난 분기 전체 고객 중 이탈한 비율은 어느 구간입니까?	Rubric		A-3,A-4,A-5	
+S1-[GO]-13	S-1	GO	MRR 월 성장률	지난 달 MRR의 전월 대비 성장률은 어느 구간입니까?	Rubric		A-3,A-4	
+S1-[GO]-14	S-1	GO	레퍼런스 고객 유형(다중선택)	확보한 레퍼런스 고객 유형을 모두 선택해 주세요.	MultiSelect(Weighted)		A-2,A-3,A-4,A-5	
+S1-[GO]-15	S-1	GO	R&D/정부지원 선정 수준	R&D 과제·정부지원사업 선정 이력 수준을 선택해 주세요.(현재 사업자 기준)	Rubric		A-1,A-2,A-3	
+S1-[EC]-01	S-1	EC	총이익률(분기)	지난 분기 매출과 매출원가를 각각 입력해 주세요.	Calculation	({s1_ec_01_q_revenue} - {s1_ec_01_q_cogs}) / {s1_ec_01_q_revenue}	A-3,A-4,A-5	s1_ec_01_q_revenue,s1_ec_01_q_cogs
+S1-[EC]-02	S-1	EC	ARPA(계정당 월 매출)	현재 계정당 월 매출 수준은 대략 어느 구간에 속하나요?	Rubric		A-2,A-3,A-4	
+S1-[EC]-03	S-1	EC	계정당 월 변동비	현재 하나의 유료 고객 계정을 서비스하는 데 직접 들어간 비용(예: 호스팅·결제수수료 등)은 대략 어느 정도인가요?	Rubric		A-1,A-2	
+S1-[EC]-04	S-1	EC	반복매출 비중(분기)	전체 매출 중 반복적으로 들어오는 매출(구독료·정기 결제)이 차지하는 비중은 어느 정도인가요?	Rubric		A-2,A-3,A-4,A-5	
+S1-[EC]-05	S-1	EC	CAC (고객획득비용)	지난 분기 세일즈·마케팅 비용(원)과 신규 유료 고객 수(명)를 입력해 주세요. (CAC)	Calculation	{s1_ec_05_q_sm_cost} / {s1_ec_05_q_new_paid_users}	A-3,A-4,A-5	s1_ec_05_q_sm_cost,s1_ec_05_q_new_paid_users
+S1-[EC]-06	S-1	EC	Payback(개월)	신규 고객을 유치하는 데 투입된 비용을 회수하는 데 걸리는 평균 기간(Payback)은 몇 개월인가요?	Numeric		A-3,A-4,A-5	s1_ec_06_payback_months
+S1-[EC]-07	S-1	EC	LTV(원)	현재 유료 고객 1계정당 평균 생애 가치(LTV)는 대략 어느 구간에 해당하나요?	Rubric		A-2,A-3,A-4	
+S1-[EC]-08	S-1	EC	Runway(개월)	현재 보유 현금과 최근 소진 속도를 기준으로, 앞으로 버틸 수 있는 예상 개월 수(Runway)는 몇 개월인가요?	Numeric		A-1,A-2	s1_ec_08_runway_months
+S1-[EC]-09	S-1	EC	매출원 다양성(Revenue Mix)	귀사의 전체 매출은 어떤 원천에서 발생하나요? (해당되는 모든 항목을 선택해 주세요)	MultiSelect(Weighted)		A-1,A-2,A-3,A-4,A-5	
+S1-[PT]-01	S-1	PT	제품 릴리스 상태	현재 제품 상태는 어디에 해당하나요?	Stage		A-1,A-2,A-3,A-4,A-5	
+S1-[PT]-02	S-1	PT	제품 차별화 근거(모트)	우리 제품의 차별화 근거를 모두 선택해 주세요.	MultiSelect(Weighted)		A-1,A-2,A-3,A-4,A-5	
+S1-[PT]-03	S-1	PT	내재 확장 메커니즘	우리 제품에서 매출이 자연스럽게 늘어나는 방식은 무엇이 있나요? (해당되는 것 모두 선택)	MultiSelect(Weighted)		A-2,A-3,A-4,A-5	
+S1-[PT]-04	S-1	PT	커스터마이즈 의존도	신규 고객 도입에 프로젝트성 커스터마이즈가 얼마나 필요한가요?	Rubric		A-1,A-2,A-3,A-4,A-5	
+S1-[PT]-05	S-1	PT	고객 고착도 (전환 비용)	현재 우리 고객이 경쟁 제품으로 전환하는 데 따르는 어려움(비용, 시간, 리스크)은 어느 정도인가요?	Rubric		A-2,A-3,A-4,A-5	
+S1-[PF]-01	S-1	PF	사업계획 최신성(전체 재작성)	최근 전체 사업계획을 현재 전략에 맞춰 다시 작성한 것은 몇 개월 전인가요?	Rubric		A-1,A-2,A-3,A-4,A-5	
+S1-[PF]-02	S-1	PF	재무 시나리오·가정 정리	사업계획에 Base·Low·High 시나리오와 핵심 가정(가격·전환·리텐션 등)이 명확히 정리돼 있나요?	Rubric		A-1,A-2,A-3,A-4,A-5	
+S1-[PF]-03	S-1	PF	재무 모델 최신성	재무 모델(파일)을 마지막으로 업데이트한 지 몇 개월 되었나요?	Rubric		A-3,A-4,A-5	
+S1-[PF]-04	S-1	PF	캡테이블 최신성	현재 캡테이블이 최신 라운드와 스톡옵션 부여 현황까지 반영돼 있나요?	Rubric		A-2,A-3,A-4,A-5	
+S1-[PF]-05	S-1	PF	1-pager & FAQ 충실도	Investor 1-pager & FAQ에 최신 핵심 지표/마일스톤과 예상 질문에 대한 답변(리스크 포함)이 정리돼 있나요?	Rubric		A-1,A-2,A-3,A-4,A-5	
+S1-[PF]-06	S-1	PF	필수 섹션 충실도	사업계획의 필수 섹션이 얼마나 잘 준비되어 있나요? 아래 항목 중 ‘자신 있게 제출 가능’하다고 판단되는 섹션을 모두 선택해 주세요.	MultiSelect		A-1,A-2,A-3,A-4,A-5	
+S1-[TO]-01	S-1	TO	창업자 도메인 경력(평균)	핵심 창업자들(C-레벨)의 해당 산업/도메인 평균 경력은 몇 년인가요?	Rubric		A-1,A-2,A-3,A-4,A-5	
+S1-[TO]-02	S-1	TO	창업·엑싯 트랙레코드	창업팀의 이전 창업/엑싯 경험 수준은 어느 단계인가요?	Rubric		A-1,A-2,A-3	
+S1-[TO]-03	S-1	TO	공동창업자 풀타임 비율	핵심 창업팀의 업무 몰입도는 어느 수준인가요?	Rubric		A-1,A-2,A-3	
+S1-[TO]-04	S-1	TO	핵심 포지션 커버리지	지금 팀이 보유한 핵심 포지션을 모두 선택해 주세요.	MultiSelect(Weighted)		A-1,A-2,A-3,A-4,A-5	
+S1-[TO]-05	S-1	TO	시니어 핵심 인재 보유	시니어급 핵심 인재(리드/매니저 이상, 창업팀 제외)를 어느 정도 보유하고 있나요?	Rubric		A-1,A-2,A-3,A-4,A-5	
+S1-[TO]-06	S-1	TO	파트너·생태계 구축	현재 확보한 파트너십/생태계 네트워크를 모두 선택해 주세요.	MultiSelect(Weighted)		A-3,A-4,A-5	

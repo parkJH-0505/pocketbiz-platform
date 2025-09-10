@@ -1,0 +1,16 @@
+kpi_id,field_key,field_label
+S1-[GO]-04,s1_go_04_total_users,총 가입자 수(누적)
+S1-[GO]-05,s1_go_05_mau,월간 활성 사용자(MAU)
+S1-[GO]-06,s1_go_06_visit_signup_conversion_rate,방문→가입 전환율(%)
+S1-[GO]-07,s1_go_05_mau,월간 활성 사용자(MAU)
+S1-[GO]-07,s1_go_04_total_users,총 가입자 수(누적)
+S1-[GO]-09,s1_go_09_dau,일간 활성 사용자(DAU)
+S1-[GO]-09,s1_go_05_mau,월간 활성 사용자(MAU)
+S1-[GO]-10,s1_go_10_paid_users,유료 고객 수
+S1-[GO]-10,s1_go_04_total_users,총 가입자 수(누적)
+S1-[EC]-01,s1_ec_01_q_revenue,지난 분기 매출
+S1-[EC]-01,s1_ec_01_q_cogs,지난 분기 매출원가
+S1-[EC]-05,s1_ec_05_q_sm_cost,지난 분기 세일즈·마케팅 비용
+S1-[EC]-05,s1_ec_05_q_new_paid_users,지난 분기 신규 유료 고객 수
+S1-[EC]-06,s1_ec_06_payback_months,Payback 기간(개월)
+S1-[EC]-08,s1_ec_08_runway_months,Runway(개월)

@@ -1,0 +1,10 @@
+kpi_id,sector,axis,name,question,input_type,formula,applicable_stages,input_fields
+S1-[GO]-01,S1,GO,고객 문제 정의 수준,고객 문제의 실재성을 증명하기 위해 얼마나 파고들었나요?,Rubric,,A-1,
+S1-[GO]-02,S1,GO,목표 시장 검증 수준,우리가 먼저 공략할 구체적 목표시장(SOM)을 어떤 방식으로 검증했나요?,Rubric,,"A-1,A-2",
+S1-[GO]-03,S1,GO,재무·런웨이 관리 수준,현재 자금·현금흐름 관리를 어느 수준으로 운영 중입니까?,Stage,,"A-1,A-2",
+S1-[GO]-04,S1,GO,총 가입자 수(누적),지난 달 말 기준 총 가입자 수(누적)는 몇 명입니까?,Numeric,,"A-2,A-3,A-4",s1_go_04_total_users
+S1-[GO]-05,S1,GO,MAU,지난 달 월간 활성 사용자(MAU)는 몇 명입니까?,Numeric,,"A-2,A-3,A-4,A-5",s1_go_05_mau
+S1-[GO]-06,S1,GO,방문→가입 전환율,지난 달 방문 대비 가입 전환율(%)은 얼마입니까?,Numeric,,"A-2,A-3,A-4",s1_go_06_visit_signup_conversion_rate
+S1-[GO]-07,S1,GO,활성 사용자 비중,지난 달 말 총 가입자 수(누적)와 MAU를 입력해 주세요.,Calculation,{s1_go_05_mau} / {s1_go_04_total_users},"A-2,A-3,A-4,A-5","s1_go_05_mau, s1_go_04_total_users"
+S1-[GO]-08,S1,GO,30일 유지율(쉬운 표현),"지난 분기에 새로 가입한 고객 중, 한 달 뒤에도 남아 있는 고객 비율은 어느 구간입니까?",Rubric,,"A-2,A-3,A-4",
+S1-[GO]-09,S1,GO,스틱니스(DAU/MAU),지난 달 DAU와 MAU를 입력해 주세요.(Stickness),Calculation,{s1_go_09_dau} / {s1_go_05_mau},"A-3,A-4,A-5","s1_go_09_dau, s1_go_05_mau"

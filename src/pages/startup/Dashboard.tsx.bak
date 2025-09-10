@@ -1,0 +1,144 @@
+import { RadarChart } from '../../components/common/RadarChart';
+import { ArrowRight, TrendingUp, AlertCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+const Dashboard = () => {
+  // Mock data
+  const mockRadarData = {
+    run_id: '2025Q3-0001',
+    cluster: { sector: 'S-1' as const, stage: 'A-3' as const },
+    axis_scores: [
+      { axis: 'GO' as const, score: 78, delta: 6 },
+      { axis: 'EC' as const, score: 63, delta: 2 },
+      { axis: 'PT' as const, score: 55, delta: -3 },
+      { axis: 'PF' as const, score: 71, delta: 1 },
+      { axis: 'TO' as const, score: 60, delta: 0 },
+    ],
+    overlays: {
+      prev: { GO: 72, EC: 61, PT: 58, PF: 70, TO: 60 },
+      peer_avg: { GO: 65, EC: 66, PT: 60, PF: 68, TO: 62 },
+      target: { GO: 80, EC: 75, PT: 70, PF: 80, TO: 70 },
+    },
+  };
+
+  const todoItems = [
+    { id: 1, label: 'MAU 데이터 입력', axis: 'GO' },
+    { id: 2, label: '유료 전환율 업데이트', axis: 'EC' },
+    { id: 3, label: '팀 구성 정보 확인', axis: 'TO' },
+  ];
+
+  const recentPrograms = [
+    { id: 1, name: 'TIPS 프로그램', deadline: '2025.04.15', match: 85 },
+    { id: 2, name: 'Series A 투자유치', deadline: '2025.05.01', match: 78 },
+    { id: 3, name: '정부 R&D 지원', deadline: '2025.03.30', match: 72 },
+  ];
+
+  return (
+    <div className="p-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">대시보드</h1>
+        <p className="text-gray-600 mt-2">스타트업 평가 현황을 한눈에 확인하세요</p>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-4 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">현재 등급</p>
+              <p className="text-2xl font-bold">A-3</p>
+            </div>
+            <div className="bg-blue-100 p-3 rounded-full">
+              <TrendingUp className="text-blue-600" size={24} />
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">종합 점수</p>
+              <p className="text-2xl font-bold">65.4</p>
+            </div>
+            <div className="text-green-600 text-sm font-medium">+3.2</div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">섹터</p>
+              <p className="text-2xl font-bold">S-1</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">진단 완료율</p>
+              <p className="text-2xl font-bold">87%</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-6">
+        {/* Radar Chart */}
+        <div className="col-span-2">
+          <RadarChart data={mockRadarData} />
+        </div>
+
+        {/* Right Panel */}
+        <div className="space-y-6">
+          {/* To-do List */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900">미완료 항목</h3>
+              <span className="text-sm text-gray-500">{todoItems.length}개</span>
+            </div>
+            <div className="space-y-3">
+              {todoItems.map(item => (
+                <Link
+                  key={item.id}
+                  to="/startup/assessments"
+                  className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="text-yellow-500" size={18} />
+                    <span className="text-sm">{item.label}</span>
+                  </div>
+                  <ArrowRight size={16} className="text-gray-400" />
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Recommended Programs */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900">추천 프로그램</h3>
+              <Link to="/startup/matches" className="text-sm text-blue-600 hover:text-blue-800">
+                전체보기
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {recentPrograms.map(program => (
+                <div key={program.id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-gray-900">{program.name}</h4>
+                    <span className="text-sm font-medium text-green-600">{program.match}%</span>
+                  </div>
+                  <p className="text-sm text-gray-500">마감: {program.deadline}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
