@@ -9,7 +9,8 @@ import {
   RubricInput, 
   MultiSelectInput, 
   CalculationInput, 
-  StageInput 
+  StageInput,
+  ChecklistInput 
 } from '../kpi';
 
 interface CSVKPICardProps {
@@ -158,6 +159,16 @@ export const CSVKPICard: React.FC<CSVKPICardProps> = ({
           />
         );
 
+      case 'Checklist':
+        return (
+          <ChecklistInput
+            choices={stageRule.choices || []}
+            selectedIndices={typeof value === 'object' && 'selectedIndices' in value ? value.selectedIndices : []}
+            onChange={(val) => handleValueChange({ selectedIndices: val.selectedIndices })}
+            weight={stageRule.weight}
+          />
+        );
+
       default:
         return (
           <div className="p-4 bg-neutral-light rounded-lg">
@@ -175,7 +186,7 @@ export const CSVKPICard: React.FC<CSVKPICardProps> = ({
     }`}>
       {/* 글래스모피즘 카드 */}
       <div className={`
-        relative overflow-hidden rounded-2xl transition-all duration-300
+        relative rounded-2xl transition-all duration-300
         backdrop-blur-md bg-white/70 border border-white/20
         hover:shadow-2xl hover:bg-white/80
         ${
@@ -186,7 +197,7 @@ export const CSVKPICard: React.FC<CSVKPICardProps> = ({
         }
       `}>
         {/* 배경 그라데이션 효과 */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-light/5 via-transparent to-secondary-light/5 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-light/5 via-transparent to-secondary-light/5 pointer-events-none rounded-2xl" />
         
         <div className="relative p-6">
       {/* Header */}
@@ -220,8 +231,8 @@ export const CSVKPICard: React.FC<CSVKPICardProps> = ({
             </button>
             
             {showDetails && (
-              <div className="absolute right-0 top-10 z-50 w-72 p-4 rounded-xl
-                bg-white/95 backdrop-blur-lg border border-white/20 shadow-2xl animate-fade-in">
+              <div className="absolute right-0 top-10 z-[100] w-72 p-4 rounded-xl
+                bg-white border border-neutral-border shadow-2xl animate-fade-in">
                 <div className="space-y-2">
                   <div>
                     <p className="text-xs font-semibold text-neutral-gray mb-1">KPI ID</p>
@@ -312,6 +323,8 @@ function getDefaultValue(inputType: string): RawValue {
       return { selectedIndices: [] };
     case 'Stage':
       return { stage: '', score: 0 };
+    case 'Checklist':
+      return { selectedIndices: [] };
     default:
       return { value: 0 };
   }

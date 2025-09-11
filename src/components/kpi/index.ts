@@ -3,3 +3,4 @@ export * from './RubricInput';
 export * from './MultiSelectInput';
 export * from './CalculationInput';
 export * from './StageInput';
+export * from './ChecklistInput';

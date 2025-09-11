@@ -17,7 +17,8 @@ import {
   RubricInputV2, 
   MultiSelectInputV2, 
   CalculationInputV2, 
-  StageInputV2 
+  StageInputV2,
+  ChecklistInputV2 
 } from '../kpi/v2';
 import { ScoreIndicator } from './ScoreIndicator';
 
@@ -121,6 +122,14 @@ export const CSVKPICardV2: React.FC<CSVKPICardV2Props> = ({
           }, 0);
         }
         break;
+      case 'Checklist':
+        if (typeof value === 'object' && 'selectedIndices' in value) {
+          return value.selectedIndices.reduce((sum, idx) => {
+            const choice = stageRule?.choices?.[idx];
+            return sum + (choice?.score || 0);
+          }, 0);
+        }
+        break;
     }
     return null;
   };
@@ -202,6 +211,16 @@ export const CSVKPICardV2: React.FC<CSVKPICardV2Props> = ({
           />
         );
 
+      case 'Checklist':
+        return (
+          <ChecklistInputV2
+            choices={stageRule.choices || []}
+            selectedIndices={typeof value === 'object' && 'selectedIndices' in value ? value.selectedIndices : []}
+            onChange={(val) => handleValueChange({ selectedIndices: val.selectedIndices })}
+            weight={stageRule.weight}
+          />
+        );
+
       default:
         return (
           <div className="p-4 bg-neutral-light/50 rounded-xl">
@@ -223,7 +242,7 @@ export const CSVKPICardV2: React.FC<CSVKPICardV2Props> = ({
     `}>
       {/* 글래스모피즘 카드 */}
       <div className={`
-        relative overflow-hidden rounded-2xl transition-all duration-300
+        relative rounded-2xl transition-all duration-300
         backdrop-blur-md bg-white/70 border border-white/20
         hover:shadow-2xl hover:scale-[1.02] hover:bg-white/80
         ${isNA ? 'opacity-60' : ''}
@@ -232,7 +251,7 @@ export const CSVKPICardV2: React.FC<CSVKPICardV2Props> = ({
         ${isValid ? 'ring-2 ring-secondary-main/50' : ''}
       `}>
         {/* 배경 그라데이션 효과 */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-light/5 via-transparent to-secondary-light/5 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-light/5 via-transparent to-secondary-light/5 pointer-events-none rounded-2xl" />
         
         {/* Header */}
         <div className="p-6 pb-4">
@@ -272,8 +291,8 @@ export const CSVKPICardV2: React.FC<CSVKPICardV2Props> = ({
                 </button>
                 
                 {showDetails && (
-                  <div className="absolute right-0 top-10 z-50 w-80 p-4 rounded-xl
-                    bg-white/95 backdrop-blur-lg border border-white/20 shadow-2xl
+                  <div className="absolute right-0 top-10 z-[100] w-80 p-4 rounded-xl
+                    bg-white border border-neutral-border shadow-2xl
                     animate-fade-in">
                     <div className="space-y-3">
                       <div>
@@ -315,8 +334,8 @@ export const CSVKPICardV2: React.FC<CSVKPICardV2Props> = ({
                 </button>
                 
                 {showMoreMenu && (
-                  <div className="absolute right-0 top-10 z-50 w-48 py-2 rounded-xl
-                    bg-white/95 backdrop-blur-lg border border-white/20 shadow-2xl
+                  <div className="absolute right-0 top-10 z-[100] w-48 py-2 rounded-xl
+                    bg-white border border-neutral-border shadow-2xl
                     animate-fade-in">
                     <button
                       onClick={() => setIsExpanded(!isExpanded)}
@@ -400,6 +419,8 @@ function getDefaultValue(inputType: string): RawValue {
       return { selectedIndices: [] };
     case 'Stage':
       return { stage: '', score: 0 };
+    case 'Checklist':
+      return { selectedIndices: [] };
     default:
       return { value: 0 };
   }

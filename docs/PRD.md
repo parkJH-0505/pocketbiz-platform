@@ -1,6 +1,7 @@
 # 포켓비즈 (PocketBiz) - 스타트업 성장 네비게이션 플랫폼 PRD
 
-> 최종 업데이트: 2025-01-10
+> 최종 업데이트: 2025-01-11
+> 통합 문서 및 마스터 플랜 작성 완료
 
 ## 1. 제품 개요
 
@@ -112,18 +113,24 @@
 
 ## 3. 스타트업 사용자 환경
 
-### 3.1 메인 네비게이션
+### 3.1 메인 네비게이션 ✅ 확정
 ```
 [포켓비즈 로고] 대시보드 | KPI 진단 | 포켓빌드업 | 스마트 매칭 | VDR/마이프로필
                                                     [알림🔔] [프로필👤]
 ```
+> **통합 결정**: Sprint 3 PRD v4.0 기준으로 확정
+> - 기존 Assessments, Results → KPI 진단으로 통합
+> - 설정 메뉴 → 좌측 하단 또는 프로필 내부로 이동
 
-### 3.2 대시보드 - 월요일 아침 3분 성장 네비게이션
+### 3.2 대시보드 - 월요일 아침 3분 성장 네비게이션 ✅ 확정
 
-#### 설계 철학
+#### 설계 철학 (iteration-16 기준)
 - **Zero Thinking**: 생각할 필요 없는 명확한 다음 액션
 - **FOMO & Motivation**: 긴급성과 성취감의 균형
 - **자동 조종 장치**: 선택하게 만들지 않고 따라가게 만드는 환경
+
+> **통합 결정**: iteration-16을 최종 사양으로 채택
+> - Sprint 6 v1은 단계적 구현 참고용
 
 #### 화면 구성
 1. **내 현재 위치**
@@ -152,22 +159,23 @@
    - 담당 PM 정보
    - 다음 마일스톤
 
-### 3.3 KPI 진단
+### 3.3 KPI 진단 ✅ 통합 완료
 
-#### 탭 구성
+#### 탭 구성 (Sprint 17 기준)
 ```
 [진단하기] [결과 보기] [상세 분석] [벤치마킹] [액션 플랜]
 ```
 
 #### 주요 기능
-- **진단하기**: `/startup/assessments` 기능 활용
+- **진단하기**: 기존 `/startup/assessments` 통합
   - 5축 KPI 입력 (GO/EC/PT/PF/TO)
+  - 축별 서브탭 구조 (Sprint 4)
   - 진행률 표시
   - 증빙 자료 업로드
 
-- **결과 보기**: `/startup/results` 기능 활용
+- **결과 보기**: 기존 `/startup/results` 통합
   - 종합 점수 및 군집 위치
-  - 레이더 차트 (군집 평균 vs 우리)
+  - 레이더 차트 (Sprint 5 컴포넌트)
   - 강점/약점 분석
 
 - **상세 분석**
@@ -590,9 +598,15 @@
 - **검증**: 실시간 교차 검증 시스템
 - **저장**: localStorage 기반 임시 저장
 
-#### Backend (예정)
-- **API**: Node.js + Express
-- **Database**: PostgreSQL
+#### Backend (BACKEND_COLLECTION.md 기준) ✅ 설계 완료
+- **API**: Node.js + Express + TypeScript
+- **Database**: PostgreSQL + Prisma ORM
+- **인증**: JWT + 역할 기반 접근 제어 (RBAC)
+- **캐싱**: Redis + IndexedDB
+- **실시간**: WebSocket/SSE
+- **파일 저장**: AWS S3
+- **이메일**: SendGrid/AWS SES
+- **PDF**: Puppeteer/jsPDF
 - **Deployment**: Vercel/Netlify
 - **Analytics**: Google Analytics, Mixpanel
 - **Monitoring**: Sentry, LogRocket
@@ -772,7 +786,17 @@ interface AssessmentResult {
 - [UI/UX 가이드](./design.md)
 - [테스트 계획](./test-plan.md)
 
+### 🆕 통합 문서 (2025-01-11)
+- [SOURCE_COLLECTION.md](./SOURCE_COLLECTION.md) - 모든 UI/대시보드/탭 구조 통합
+- [BACKEND_COLLECTION.md](./BACKEND_COLLECTION.md) - 모든 백엔드 시스템 통합
+- [MASTER_PLAN.md](./MASTER_PLAN.md) - 충돌 해결 및 통합 구현 계획
+
 ### 변경 이력
+- v4.1 (2025-01-11): 통합 문서 작성 및 충돌 해결
+  - SOURCE_COLLECTION.md: UI/대시보드 통합
+  - BACKEND_COLLECTION.md: 백엔드 시스템 통합
+  - MASTER_PLAN.md: 충돌 해결 및 구현 계획
+  - 네비게이션, 대시보드, KPI 진단 확정
 - v4.0 (2025-01-10): 스타트업 사용자 환경 전면 재설계
   - 대시보드 상세 설계 (Zero Thinking, FOMO 트리거)
   - 스마트 매칭 기능 구체화
@@ -785,7 +809,7 @@ interface AssessmentResult {
 
 ---
 
-*Last Updated: 2025-01-10*
-*Version: 4.0*
+*Last Updated: 2025-01-11*
+*Version: 4.1*
 *Author: PocketBiz Team*
 *Contact: admin@pocketbiz.io*

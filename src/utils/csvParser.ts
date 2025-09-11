@@ -182,6 +182,47 @@ function parseInputFields(csv: string): {
 function parseRulesetText(rulesetText: string): Partial<StageRule> {
   if (!rulesetText) return {};
   
+  // 3단계 Rubric 형식 체크: "0점: X 미만\n50점: X ~ Y\n100점: Z 이상"
+  // 줄바꿈으로 구분된 형식 처리
+  const lines = rulesetText.split('\n').map(line => line.trim()).filter(line => line);
+  if (lines.length >= 3 && lines[0].includes('0점:') && lines[1].includes('50점:') && lines[2].includes('100점:')) {
+    const choices: Choice[] = [];
+    
+    // 0점 항목 파싱
+    const zeroMatch = lines[0].match(/0점:\s*(.+)/);
+    if (zeroMatch) {
+      choices.push({
+        index: 0,
+        label: zeroMatch[1].trim(),
+        score: 0
+      });
+    }
+    
+    // 50점 항목 파싱
+    const fiftyMatch = lines[1].match(/50점:\s*(.+)/);
+    if (fiftyMatch) {
+      choices.push({
+        index: 1,
+        label: fiftyMatch[1].trim(),
+        score: 50
+      });
+    }
+    
+    // 100점 항목 파싱
+    const hundredMatch = lines[2].match(/100점:\s*(.+)/);
+    if (hundredMatch) {
+      choices.push({
+        index: 2,
+        label: hundredMatch[1].trim(),
+        score: 100
+      });
+    }
+    
+    if (choices.length > 0) {
+      return { choices };
+    }
+  }
+  
   // Numeric 타입: "0점: 100명 미만\n100점: 1,000명 이상"
   if (rulesetText.includes('점:') && !rulesetText.includes('1.')) {
     const minMatch = rulesetText.match(/0점:\s*([0-9,]+%?)\s*[^0-9]*미만/);
@@ -192,17 +233,6 @@ function parseRulesetText(rulesetText: string): Partial<StageRule> {
       const maxStr = maxMatch[1].replace(/[,%]/g, '');
       const min = parseFloat(minStr);
       const max = parseFloat(maxStr);
-      
-      return {
-        minMax: { min, max, minScore: 0, maxScore: 100 }
-      };
-    }
-    
-    // 3단계 형식: "0점: X 미만, 50점: X ~ Y, 100점: Z 이상"
-    const threeStepMatch = rulesetText.match(/0점:\s*([0-9,]+%?)\s*[^0-9]*[^,]+,?\s*50점:\s*([0-9,]+%?)\s*~\s*([0-9,]+%?)[^,]+,?\s*100점:\s*([0-9,]+%?)\s*[^0-9]*이상/);
-    if (threeStepMatch) {
-      const min = parseFloat(threeStepMatch[1].replace(/[,%]/g, ''));
-      const max = parseFloat(threeStepMatch[4].replace(/[,%]/g, ''));
       
       return {
         minMax: { min, max, minScore: 0, maxScore: 100 }

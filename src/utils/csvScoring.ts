@@ -22,18 +22,29 @@ export async function calculateNormalizedScore(
     const stageRule = await getKPIStageRule(kpiId, userStage);
     if (!stageRule) return 0;
 
-    // Rubric/MultiSelect ?�??- choices 기반
+    // Rubric/MultiSelect/Checklist 타입 - choices 기반
     if (stageRule.choices && Array.isArray(stageRule.choices)) {
+      // Rubric 타입 - 단일 선택
       if (typeof value === 'object' && 'selectedIndex' in value) {
         const choice = stageRule.choices[value.selectedIndex];
         
-        // MultiSelect ?�??- weight�??�수�??�용
+        // MultiSelect 가중치 점수 적용
         if (choice?.weight !== undefined) {
           return Math.min((choice.weight / 15) * 100, 100); // 최대 15점을 100점으로 정규화
         }
         
-        // Rubric ?�??- score�?직접 ?�용
+        // Rubric 타입 - score 직접 적용
         return choice?.score || 0;
+      }
+      
+      // MultiSelect/Checklist 타입 - 다중 선택
+      if (typeof value === 'object' && 'selectedIndices' in value) {
+        const indices = value.selectedIndices as number[];
+        const totalScore = indices.reduce((sum, idx) => {
+          const choice = stageRule.choices?.[idx];
+          return sum + (choice?.score || 0);
+        }, 0);
+        return totalScore;
       }
     }
     
