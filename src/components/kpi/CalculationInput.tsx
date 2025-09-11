@@ -68,6 +68,9 @@ export const CalculationInput: React.FC<CalculationInputProps> = ({
     try {
       let processedFormula = formula;
       
+      console.log('Calculation Input - Original formula:', formula);
+      console.log('Calculation Input - Input values:', values);
+      
       // 모든 필드가 채워졌는지 확인
       for (const field of inputFields) {
         if (!values[field] && values[field] !== 0) {
@@ -77,8 +80,12 @@ export const CalculationInput: React.FC<CalculationInputProps> = ({
         processedFormula = processedFormula.replace(`{${field}}`, values[field].toString());
       }
       
+      console.log('Calculation Input - Processed formula:', processedFormula);
+      
       // 안전한 수식 계산
       const result = Function(`"use strict"; return (${processedFormula})`)();
+      
+      console.log('Calculation Input - Result:', result);
       
       if (isNaN(result)) {
         setError('계산 결과가 올바르지 않습니다');
@@ -88,6 +95,7 @@ export const CalculationInput: React.FC<CalculationInputProps> = ({
       setError(null);
       return result;
     } catch (err) {
+      console.error('Calculation Input - Error:', err);
       setError('계산 중 오류가 발생했습니다');
       return null;
     }
@@ -98,19 +106,25 @@ export const CalculationInput: React.FC<CalculationInputProps> = ({
     const newInputValues = { ...inputValues, [field]: value };
     setInputValues(newInputValues);
     
+    // 모든 필드가 채워졌는지 확인
     const numericValues: Record<string, number> = {};
-    let allValid = true;
+    let allFieldsFilled = true;
     
-    for (const [key, val] of Object.entries(newInputValues)) {
-      const num = parseFloat(val);
-      if (isNaN(num)) {
-        allValid = false;
+    for (const inputField of inputFields) {
+      const val = newInputValues[inputField];
+      if (!val && val !== '0') {
+        allFieldsFilled = false;
         break;
       }
-      numericValues[key] = num;
+      const num = parseFloat(val);
+      if (isNaN(num)) {
+        allFieldsFilled = false;
+        break;
+      }
+      numericValues[inputField] = num;
     }
     
-    if (allValid && Object.keys(numericValues).length === inputFields.length) {
+    if (allFieldsFilled) {
       const result = calculate(numericValues);
       if (result !== null) {
         setCalculatedValue(result);

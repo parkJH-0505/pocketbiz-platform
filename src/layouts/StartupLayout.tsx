@@ -3,28 +3,31 @@ import { useState } from 'react';
 import { 
   LayoutDashboard, 
   FileText, 
-  ChartPie, 
-  Sparkles, 
-  History, 
+  Rocket,
+  Target,
+  User,
   Settings,
-  LogOut
+  LogOut,
+  Bell
 } from 'lucide-react';
 
 const StartupLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  
+  console.log('StartupLayout rendering, location:', location.pathname);
 
+  // MASTER_PLAN.md 기준 5개 메뉴 (Sprint 3 PRD v4.0)
   const menuItems = [
     { path: '/startup/dashboard', label: '대시보드', icon: LayoutDashboard },
-    { path: '/startup/assessments', label: '진단', icon: FileText },
-    { path: '/startup/results', label: '결과', icon: ChartPie },
-    { path: '/startup/matches', label: '추천 & 매칭', icon: Sparkles },
-    { path: '/startup/history', label: '히스토리', icon: History },
-    { path: '/startup/settings', label: '설정', icon: Settings },
+    { path: '/startup/kpi', label: 'KPI 진단', icon: FileText },
+    { path: '/startup/buildup', label: '포켓빌드업', icon: Rocket },
+    { path: '/startup/matching', label: '스마트 매칭', icon: Target },
+    { path: '/startup/profile', label: 'VDR/마이프로필', icon: User },
   ];
 
   return (
-    <div className="flex h-screen bg-neutral-light">
+    <div className="flex h-screen bg-neutral-light" style={{ minHeight: '100vh', backgroundColor: '#f0f0f0' }}>
       {/* Sidebar */}
       <div className={`${collapsed ? 'w-20' : 'w-64'} bg-neutral-dark transition-all duration-300 ease-in-out relative flex flex-col`}>
         <div className="p-6 border-b border-neutral-gray">
@@ -71,7 +74,17 @@ const StartupLayout = () => {
           })}
         </nav>
         
-        <div className="p-6 border-t border-neutral-gray">
+        <div className="p-6 border-t border-neutral-gray space-y-3">
+          {/* Settings - moved to bottom */}
+          <Link
+            to="/startup/settings"
+            className={`flex items-center gap-3 text-sm text-neutral-lighter hover:text-white transition-colors ${collapsed ? 'justify-center' : ''}`}
+          >
+            <Settings size={18} className="flex-shrink-0" />
+            <span className={`${collapsed ? 'hidden' : 'block'}`}>설정</span>
+          </Link>
+          
+          {/* Logout */}
           <button className={`flex items-center gap-3 text-sm text-neutral-lighter hover:text-white transition-colors w-full ${collapsed ? 'justify-center' : ''}`}>
             <LogOut size={18} className="flex-shrink-0" />
             <span className={`${collapsed ? 'hidden' : 'block'}`}>로그아웃</span>
@@ -85,7 +98,7 @@ const StartupLayout = () => {
         <div className="bg-white border-b border-neutral-border px-8 py-4 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-neutral-dark">
-              {menuItems.find(item => location.pathname === item.path)?.label || 'Dashboard'}
+              {menuItems.find(item => location.pathname.startsWith(item.path))?.label || 'Dashboard'}
             </h2>
             <div className="flex items-center gap-4">
               <span className="text-sm text-neutral-gray">
@@ -96,6 +109,17 @@ const StartupLayout = () => {
                   weekday: 'long'
                 })}
               </span>
+              
+              {/* Notification Icon */}
+              <button className="relative p-2 text-neutral-gray hover:text-neutral-dark transition-colors">
+                <Bell size={20} />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+              </button>
+              
+              {/* Profile Icon */}
+              <button className="p-2 text-neutral-gray hover:text-neutral-dark transition-colors">
+                <User size={20} />
+              </button>
             </div>
           </div>
         </div>

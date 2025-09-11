@@ -74,8 +74,8 @@ export async function calculateNormalizedScore(
   }
 }
 
-// CSV 기반 축별 ?�수 계산
-export async function calculateAxisScore(
+// CSV 기반 축별 점수 계산 (비동기 버전)
+export async function calculateAxisScoreAsync(
   responses: Record<string, KPIResponse>, 
   axis: AxisKey,
   userStage: string = 'A-2'
@@ -125,7 +125,7 @@ export async function calculateTotalScore(
   const axes: AxisKey[] = ['GO', 'EC', 'PT', 'PF', 'TO'];
   
   const axisScores = await Promise.all(
-    axes.map(axis => calculateAxisScore(responses, axis, userStage))
+    axes.map(axis => calculateAxisScoreAsync(responses, axis, userStage))
   );
   
   const validScores = axisScores.filter(score => score > 0);
@@ -181,7 +181,102 @@ export async function getTopContributors(
   }
 }
 
-// Calculation ?�??KPI??�?계산
+// 동기 버전: CSV 기반 축별 점수 계산 (이미 로드된 데이터 사용)
+export function calculateAxisScore(
+  axis: AxisKey,
+  responses: Record<string, KPIResponse>,
+  kpiLibraries: any[],
+  stageRules: Map<string, Map<string, StageRule>>,
+  userStage: string = 'A-2'
+): number {
+  try {
+    // 해당 축과 단계에 해당하는 KPI 필터링
+    const axisKPIs = kpiLibraries.filter(kpi => 
+      kpi.axis === axis && 
+      kpi.applicable_stages?.includes(userStage)
+    );
+    
+    if (axisKPIs.length === 0) return 0;
+    
+    let totalWeightedScore = 0;
+    let totalWeight = 0;
+    
+    // 먼저 모든 KPI의 총 weight를 계산
+    for (const kpi of axisKPIs) {
+      const stageRuleMap = stageRules.get(kpi.kpi_id);
+      const stageRule = stageRuleMap?.get(userStage);
+      if (stageRule) {
+        totalWeight += getWeightValue(stageRule.weight);
+      }
+    }
+    
+    // 응답이 있는 KPI의 점수만 계산
+    for (const kpi of axisKPIs) {
+      const stageRuleMap = stageRules.get(kpi.kpi_id);
+      const stageRule = stageRuleMap?.get(userStage);
+      if (!stageRule) continue;
+      
+      const weight = getWeightValue(stageRule.weight);
+      const response = responses[kpi.kpi_id];
+      
+      // 응답이 없으면 0점으로 처리 (weight는 이미 totalWeight에 포함됨)
+      let normalizedScore = 0;
+      
+      // NA가 아닌 응답이 있을 때만 점수 계산
+      if (response && response.status !== 'na') {
+        // Rubric/MultiSelect/Checklist 타입 - choices 기반
+        if (stageRule.choices && Array.isArray(stageRule.choices)) {
+          // Rubric 타입 - 단일 선택
+          if (typeof response.raw === 'object' && 'selectedIndex' in response.raw) {
+            const choice = stageRule.choices[response.raw.selectedIndex];
+            if (choice?.weight !== undefined) {
+              normalizedScore = Math.min((choice.weight / 15) * 100, 100);
+            } else {
+              normalizedScore = choice?.score || 0;
+            }
+          }
+          
+          // MultiSelect/Checklist 타입 - 다중 선택
+          if (typeof response.raw === 'object' && 'selectedIndices' in response.raw) {
+            const indices = response.raw.selectedIndices as number[];
+            normalizedScore = indices.reduce((sum, idx) => {
+              const choice = stageRule.choices?.[idx];
+              return sum + (choice?.score || 0);
+            }, 0);
+          }
+        }
+        
+        // Numeric 타입 - minMax 기반
+        if (stageRule.minMax && typeof response.raw === 'object' && 'value' in response.raw) {
+          const { min, max, minScore, maxScore } = stageRule.minMax;
+          const value = response.raw.value;
+          
+          if (value <= min) {
+            normalizedScore = minScore;
+          } else if (value >= max) {
+            normalizedScore = maxScore;
+          } else {
+            const ratio = (value - min) / (max - min);
+            normalizedScore = minScore + (maxScore - minScore) * ratio;
+          }
+        }
+      }
+      
+      // 점수에 weight를 곱해서 누적 (totalWeight는 이미 계산됨)
+      totalWeightedScore += normalizedScore * weight;
+    }
+    
+    const finalScore = totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
+    console.log(`Axis ${axis} score:`, finalScore, `(${axisKPIs.length} KPIs)`);
+    return finalScore;
+    
+  } catch (error) {
+    console.error(`Error calculating axis score for ${axis}:`, error);
+    return 0;
+  }
+}
+
+// Calculation 타입 KPI 값 계산
 export async function calculateFormulaValue(
   kpiId: string,
   formula: string,

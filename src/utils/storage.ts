@@ -1,6 +1,8 @@
-import type { KPIResponse } from '../types';
+import type { KPIResponse, ClusterInfo } from '../types';
 
 const STORAGE_KEY = 'pocketbiz_assessment_draft';
+const RUN_KEY = 'pocketbiz_current_run';
+const RUNS_KEY = 'pocketbiz_assessment_runs';
 
 export interface AssessmentDraft {
   responses: Record<string, KPIResponse>;
@@ -8,7 +10,73 @@ export interface AssessmentDraft {
   runId: string;
 }
 
+export interface AssessmentRun {
+  runId: string;
+  cluster: ClusterInfo;
+  responses: Record<string, KPIResponse>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const assessmentStorage = {
+  // Run 관리
+  getCurrentRunId: (): string | null => {
+    try {
+      return localStorage.getItem(RUN_KEY);
+    } catch (error) {
+      console.error('Failed to get current run ID:', error);
+      return null;
+    }
+  },
+
+  createRun: (cluster: ClusterInfo): string => {
+    try {
+      const runId = `run_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem(RUN_KEY, runId);
+      
+      const run: AssessmentRun = {
+        runId,
+        cluster,
+        responses: {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      const runs = JSON.parse(localStorage.getItem(RUNS_KEY) || '{}');
+      runs[runId] = run;
+      localStorage.setItem(RUNS_KEY, JSON.stringify(runs));
+      
+      return runId;
+    } catch (error) {
+      console.error('Failed to create run:', error);
+      return `run_${Date.now()}`;
+    }
+  },
+
+  getResponses: (runId: string): Record<string, KPIResponse> | null => {
+    try {
+      const runs = JSON.parse(localStorage.getItem(RUNS_KEY) || '{}');
+      return runs[runId]?.responses || null;
+    } catch (error) {
+      console.error('Failed to get responses:', error);
+      return null;
+    }
+  },
+
+  saveResponses: (runId: string, responses: Record<string, KPIResponse>) => {
+    try {
+      const runs = JSON.parse(localStorage.getItem(RUNS_KEY) || '{}');
+      if (runs[runId]) {
+        runs[runId].responses = responses;
+        runs[runId].updatedAt = new Date().toISOString();
+        localStorage.setItem(RUNS_KEY, JSON.stringify(runs));
+      }
+      return true;
+    } catch (error) {
+      console.error('Failed to save responses:', error);
+      return false;
+    }
+  },
   // 임시 저장
   saveDraft: (responses: Record<string, KPIResponse>, runId: string = 'current') => {
     try {

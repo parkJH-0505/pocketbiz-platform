@@ -69,14 +69,27 @@ export function parseCSVToKPIData(
 // KPI Library CSV 파싱
 function parseKPILibrary(csv: string): KPIDefinition[] {
   const lines = csv.trim().split('\n');
-  const headers = lines[0].replace(/^\uFEFF/, '').split(','); // BOM 제거
+  // 헤더도 parseCSVLine을 사용하여 파싱해야 함
+  const headerLine = lines[0].replace(/^\uFEFF/, ''); // BOM 제거
+  const headers = parseCSVLine(headerLine).map(h => h.trim());
   
   return lines.slice(1).filter(line => line.trim()).map(line => {
     const values = parseCSVLine(line);
     const row = headers.reduce((obj, header, index) => {
-      obj[header.trim()] = values[index]?.trim() || '';
+      obj[header] = values[index]?.trim() || '';
       return obj;
     }, {} as any) as KPILibraryCSV;
+    
+    // applicable_stages는 이미 parseCSVLine에서 따옴표가 제거된 상태
+    // 예: "A-1,A-2" -> A-1,A-2
+    const stages = row.applicable_stages ? 
+      row.applicable_stages.split(',').map(s => s.trim()).filter(s => s) : 
+      [];
+    
+    // 디버깅: 처음 몇 개 KPI의 stages 확인
+    if (row.kpi_id.startsWith('S1-[GO]')) {
+      console.log(`Parsing ${row.kpi_id}: applicable_stages="${row.applicable_stages}" -> stages=[${stages.join(', ')}]`);
+    }
     
     return {
       kpi_id: row.kpi_id,
@@ -86,7 +99,7 @@ function parseKPILibrary(csv: string): KPIDefinition[] {
       question: row.question,
       input_type: normalizeInputType(row.input_type),
       formula: row.formula || undefined,
-      applicable_stages: row.applicable_stages.split(',').map(s => s.trim()),
+      applicable_stages: stages,
       input_fields: row.input_fields ? row.input_fields.split(',').map(s => s.trim()) : [],
       weight: 'x1', // 기본값, 실제로는 stage rules에서 가져옴
       validation_rules: {},
@@ -148,7 +161,8 @@ function parseInputFields(csv: string): {
   inputLabels: Map<string, Record<string, string>> 
 } {
   const lines = csv.trim().split('\n');
-  const headers = lines[0].replace(/^\uFEFF/, '').split(',').map(h => h.trim());
+  const headerLine = lines[0].replace(/^\uFEFF/, ''); // BOM 제거
+  const headers = parseCSVLine(headerLine).map(h => h.trim());
   
   const inputFieldsMap = new Map<string, string[]>();
   const inputLabelsMap = new Map<string, Record<string, string>>();

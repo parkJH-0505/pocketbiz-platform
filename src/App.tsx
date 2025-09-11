@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ClusterProvider } from './contexts/ClusterContext';
+import { KPIDiagnosisProvider } from './contexts/KPIDiagnosisContext';
 import type { UserRole } from './types';
 
 // Layouts
@@ -11,12 +12,11 @@ import InternalBuilderLayout from './layouts/InternalBuilderLayout';
 // Startup Pages
 import StartupDashboard from './pages/startup/Dashboard';
 import StartupOnboarding from './pages/startup/Onboarding';
-import StartupAssessments from './pages/startup/Assessments';
-import StartupResults from './pages/startup/Results';
 import StartupMatches from './pages/startup/Matches';
 import StartupHistory from './pages/startup/History';
 import StartupSettings from './pages/startup/Settings';
 import TestPage from './pages/startup/TestPage';
+import KPIDiagnosisPage from './pages/startup/KPIDiagnosisPage';
 
 // Admin Pages
 import AdminKPILibrary from './pages/admin/KPILibrary';
@@ -50,16 +50,29 @@ function App() {
   const roleParam = params.get('role') as UserRole | null;
   const userRole: UserRole = roleParam || 'startup';
   
-  // role 파라미터가 없으면 랜딩 페이지 표시
-  const showLanding = !roleParam && window.location.pathname === '/';
+  // role 파라미터가 없고 루트 경로일 때만 랜딩 페이지 표시
+  // startup 경로들은 role 파라미터 없어도 작동하도록 수정
+  const showLanding = !roleParam && window.location.pathname === '/' && !window.location.pathname.includes('/startup');
+
+  console.log('App rendering:', {
+    isAuthenticated,
+    roleParam,
+    userRole,
+    showLanding,
+    pathname: window.location.pathname,
+    search: window.location.search
+  });
+
+  if (!isAuthenticated) {
+    console.log('Not authenticated, showing Login');
+    return <Login />;
+  }
 
   return (
     <ClusterProvider>
-      {!isAuthenticated ? (
-        <Login />
-      ) : (
-      <Router>
-        <Routes>
+      <KPIDiagnosisProvider>
+        <Router>
+          <Routes>
         {/* Landing page or redirect based on role */}
         <Route path="/" element={
           showLanding ? <LandingV3 /> :
@@ -71,19 +84,31 @@ function App() {
           } replace />
         } />
 
-        {/* Startup Routes */}
+        {/* Startup Routes - MASTER_PLAN.md 기준 재구성 */}
         <Route path="/startup" element={<StartupLayout />}>
+          <Route index element={<Navigate to="/startup/dashboard" replace />} />
           <Route path="dashboard" element={<StartupDashboard />} />
           <Route path="onboarding" element={<StartupOnboarding />} />
           <Route path="test" element={<TestPage />} />
-          <Route path="assessments" element={<StartupAssessments />} />
-          <Route path="assessments/new" element={<div>New Assessment</div>} />
-          <Route path="assessments/:runId" element={<div>Assessment Detail</div>} />
-          <Route path="results" element={<StartupResults />} />
-          <Route path="results/:runId" element={<div>Result Detail</div>} />
-          <Route path="matches" element={<StartupMatches />} />
+          
+          {/* KPI 진단 통합 페이지 (Sprint 17) */}
+          <Route path="kpi" element={<KPIDiagnosisPage />} />
+          
+          {/* 신규 페이지 (Sprint 18) - 플레이스홀더 */}
+          <Route path="buildup" element={<div className="p-8 text-center">포켓빌드업 (개발중)</div>} />
+          <Route path="matching" element={<StartupMatches />} />
+          <Route path="profile" element={<div className="p-8 text-center">VDR/마이프로필 (개발중)</div>} />
+          
+          {/* 기타 페이지 */}
           <Route path="history" element={<StartupHistory />} />
           <Route path="settings" element={<StartupSettings />} />
+          
+          {/* 리다이렉션 - 기존 경로를 새 경로로 */}
+          <Route path="assessments" element={<Navigate to="/startup/kpi?tab=assess" replace />} />
+          <Route path="assessments/*" element={<Navigate to="/startup/kpi?tab=assess" replace />} />
+          <Route path="results" element={<Navigate to="/startup/kpi?tab=results" replace />} />
+          <Route path="results/*" element={<Navigate to="/startup/kpi?tab=results" replace />} />
+          <Route path="matches" element={<Navigate to="/startup/matching" replace />} />
         </Route>
 
         {/* Admin Routes */}
@@ -118,9 +143,9 @@ function App() {
 
         {/* 404 */}
         <Route path="*" element={<div className="p-8 text-center">페이지를 찾을 수 없습니다.</div>} />
-      </Routes>
-    </Router>
-      )}
+        </Routes>
+      </Router>
+      </KPIDiagnosisProvider>
     </ClusterProvider>
   );
 }
