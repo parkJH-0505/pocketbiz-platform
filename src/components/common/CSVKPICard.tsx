@@ -204,9 +204,9 @@ export const CSVKPICard: React.FC<CSVKPICardProps> = ({
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h4 className="font-semibold text-lg text-neutral-dark">{kpi.title}</h4>
+            <h4 className="font-semibold text-xl text-neutral-dark">{kpi.title}</h4>
             {stageRule?.weight && stageRule.weight !== 'x1' && (
-              <span className={`text-xs font-semibold px-2 py-1 rounded ${
+              <span className={`text-sm font-semibold px-2 py-1 rounded ${
                 stageRule.weight === 'x3' ? 'bg-accent-red-light text-accent-red' :
                 stageRule.weight === 'x2' ? 'bg-accent-orange-light text-accent-orange' :
                 'bg-neutral-light text-neutral-gray'
@@ -215,7 +215,7 @@ export const CSVKPICard: React.FC<CSVKPICardProps> = ({
               </span>
             )}
           </div>
-          <p className="text-sm text-neutral-gray mt-1">{kpi.question}</p>
+          <p className="text-base text-neutral-gray mt-1">{kpi.question}</p>
         </div>
         
         <div className="flex items-center gap-2">

@@ -67,7 +67,7 @@ export const MultiSelectInput: React.FC<MultiSelectInputProps> = ({
       {/* 안내 메시지 */}
       <div className="flex items-start gap-2 p-3 bg-primary-light bg-opacity-20 rounded-lg">
         <Info size={16} className="text-primary-main mt-0.5" />
-        <p className="text-xs text-neutral-gray">
+        <p className="text-sm text-neutral-gray">
           해당되는 항목을 모두 선택하세요. 각 항목별로 가중치가 다르게 적용됩니다.
         </p>
       </div>
@@ -107,10 +107,10 @@ export const MultiSelectInput: React.FC<MultiSelectInputProps> = ({
                 
                 <div className="flex-1">
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-sm font-medium text-neutral-dark">
+                    <span className="text-base font-medium text-neutral-dark">
                       {choice.label}
                     </span>
-                    <span className={`text-sm font-semibold px-2 py-1 rounded ${getWeightBgColor(choice.weight || 0)} ${getWeightColor(choice.weight || 0)}`}>
+                    <span className={`text-base font-semibold px-2 py-1 rounded ${getWeightBgColor(choice.weight || 0)} ${getWeightColor(choice.weight || 0)}`}>
                       {choice.weight || 0}점
                     </span>
                   </div>
@@ -125,8 +125,8 @@ export const MultiSelectInput: React.FC<MultiSelectInputProps> = ({
       <div className="mt-3 p-4 rounded-lg bg-neutral-light">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-neutral-gray">선택된 항목</span>
-            <span className="text-sm font-medium text-neutral-dark">
+            <span className="text-base text-neutral-gray">선택된 항목</span>
+            <span className="text-base font-medium text-neutral-dark">
               {selectedIndices.length}개
             </span>
           </div>

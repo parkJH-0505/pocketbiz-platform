@@ -144,15 +144,6 @@ const KPIDiagnosisPageContent = () => {
         </div>
       </div>
 
-      {/* Tab Description Bar */}
-      <div className="bg-primary-light/10 px-6 py-3 border-b border-neutral-border">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-sm text-neutral-gray">
-            {tabs.find(t => t.key === currentTab)?.description}
-          </p>
-        </div>
-      </div>
-
       {/* Tab Content */}
       <div className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto p-6">

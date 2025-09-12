@@ -48,7 +48,7 @@ export const NumericInput: React.FC<NumericInputProps> = ({
     if (!minMax) return null;
     
     return (
-      <div className="text-xs text-neutral-gray mt-1">
+      <div className="text-sm text-neutral-gray mt-1">
         <span>0점: {minMax.min.toLocaleString()}{unit} 미만</span>
         <span className="mx-2">|</span>
         <span>100점: {minMax.max.toLocaleString()}{unit} 이상</span>
@@ -79,21 +79,21 @@ export const NumericInput: React.FC<NumericInputProps> = ({
           value={inputValue}
           onChange={handleChange}
           placeholder={placeholder}
-          className={`flex-1 px-3 py-2 border rounded-lg text-sm transition-all
+          className={`flex-1 px-3 py-2 border rounded-lg text-base transition-all
             ${error 
               ? 'border-accent-red focus:border-accent-red' 
               : 'border-neutral-border focus:border-primary-main'
             } focus:outline-none focus:ring-2 focus:ring-primary-light focus:ring-opacity-50`}
         />
         {unit && (
-          <span className="flex items-center px-3 text-sm text-neutral-gray bg-neutral-light rounded-lg">
+          <span className="flex items-center px-3 text-base text-neutral-gray bg-neutral-light rounded-lg">
             {unit}
           </span>
         )}
       </div>
       
       {error && (
-        <div className="flex items-center gap-1 text-xs text-accent-red">
+        <div className="flex items-center gap-1 text-sm text-accent-red">
           <AlertCircle size={12} />
           {error}
         </div>

@@ -1,6 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
 import { ClusterProvider } from './contexts/ClusterContext';
 import { KPIDiagnosisProvider } from './contexts/KPIDiagnosisContext';
+import { BuildupProvider } from './contexts/BuildupContext';
 import type { UserRole } from './types';
 
 // Layouts
@@ -17,6 +20,13 @@ import StartupHistory from './pages/startup/History';
 import StartupSettings from './pages/startup/Settings';
 import TestPage from './pages/startup/TestPage';
 import KPIDiagnosisPage from './pages/startup/KPIDiagnosisPage';
+
+// Buildup Pages
+import BuildupLayout from './pages/startup/buildup';
+import BuildupDashboard from './pages/startup/buildup/BuildupDashboard';
+import ServiceCatalog from './pages/startup/buildup/ServiceCatalog';
+import ProjectManagement from './pages/startup/buildup/ProjectManagement';
+import ProjectDetail from './pages/startup/buildup/ProjectDetail';
 
 // Admin Pages
 import AdminKPILibrary from './pages/admin/KPILibrary';
@@ -69,10 +79,12 @@ function App() {
   }
 
   return (
-    <ClusterProvider>
-      <KPIDiagnosisProvider>
-        <Router>
-          <Routes>
+    <DndProvider backend={HTML5Backend}>
+      <ClusterProvider>
+        <KPIDiagnosisProvider>
+          <BuildupProvider>
+            <Router>
+            <Routes>
         {/* Landing page or redirect based on role */}
         <Route path="/" element={
           showLanding ? <LandingV3 /> :
@@ -94,8 +106,14 @@ function App() {
           {/* KPI 진단 통합 페이지 (Sprint 17) */}
           <Route path="kpi" element={<KPIDiagnosisPage />} />
           
-          {/* 신규 페이지 (Sprint 18) - 플레이스홀더 */}
-          <Route path="buildup" element={<div className="p-8 text-center">포켓빌드업 (개발중)</div>} />
+          {/* 포켓빌드업 페이지 */}
+          <Route path="buildup" element={<BuildupLayout />}>
+            <Route index element={<Navigate to="/startup/buildup/dashboard" replace />} />
+            <Route path="dashboard" element={<BuildupDashboard />} />
+            <Route path="catalog" element={<ServiceCatalog />} />
+            <Route path="projects" element={<ProjectManagement />} />
+            <Route path="projects/:projectId" element={<ProjectDetail />} />
+          </Route>
           <Route path="matching" element={<StartupMatches />} />
           <Route path="profile" element={<div className="p-8 text-center">VDR/마이프로필 (개발중)</div>} />
           
@@ -145,8 +163,10 @@ function App() {
         <Route path="*" element={<div className="p-8 text-center">페이지를 찾을 수 없습니다.</div>} />
         </Routes>
       </Router>
+        </BuildupProvider>
       </KPIDiagnosisProvider>
     </ClusterProvider>
+    </DndProvider>
   );
 }
 

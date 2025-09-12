@@ -220,16 +220,51 @@ const kpiTabs = [
 ### Sprint 18: 신규 페이지 구현 (iteration/18.md)
 
 #### 포켓빌드업 페이지
-- **3개 탭 구조**:
+- **최신 구조 (2025년 1월 업데이트)**:
   ```typescript
-  const buildupTabs = [
-    { key: 'ongoing', label: '진행중', badge: count },
-    { key: 'catalog', label: '카탈로그' },
-    { key: 'completed', label: '완료 내역' }
+  const buildupRoutes = [
+    '/startup/buildup/dashboard',     // 프로젝트 대시보드
+    '/startup/buildup/catalog',       // 서비스 카탈로그
+    '/startup/buildup/projects',      // 프로젝트 관리
+    '/startup/buildup/projects/:id'   // 프로젝트 상세
   ];
   ```
-- **컴포넌트**: OngoingProjects, BuildupCatalog, CompletedProjects
-- **경로**: `/startup/buildup`
+
+- **주요 컴포넌트**:
+  - `BuildupDashboard`: 메트릭, 오늘의 포커스, 진행중 프로젝트, 활동 타임라인
+  - `ServiceCatalog`: 카테고리 필터, 서비스 카드, 상세보기 모달
+  - `ProjectManagement`: 프로젝트 목록 및 필터
+  - `ProjectDetail`: 6개 탭 (개요, 작업스트림, 산출물, 팀, 리스크, 커뮤니케이션)
+  - `ContractFlowModal`: 5단계 계약 진행 (장바구니→옵션→견적서→서명→결제)
+  - `ServiceDetailModal`: 5개 탭 (개요, 프로세스, 포트폴리오, 리뷰, FAQ)
+
+- **Context & State**:
+  - `BuildupContext`: 서비스, 카트, 프로젝트 통합 관리
+  - 자동 샘플 프로젝트 2개 (MVP 개발, IR 덱 컨설팅)
+  - 실시간 가격 계산 (번들 할인, 긴급 진행, 부가세)
+
+- **데이터 구조**:
+  ```typescript
+  interface Project {
+    id, title, status, category, contract,
+    progress: { overall, milestones, deliverables },
+    timeline: { kickoff_date, current_phase, next_milestone },
+    workstreams: Workstream[],
+    deliverables: Deliverable[],
+    team: { pm, members, client_contact },
+    risks: Risk[],
+    meetings: Meeting[],
+    communication: { unread_messages, last_activity },
+    kpi_impact: { baseline, current, target }
+  }
+  ```
+
+- **UI/UX 특징**:
+  - 그라데이션 스텝퍼 디자인
+  - AI 견적서 생성 애니메이션
+  - PDF 다운로드 (jsPDF + html2canvas)
+  - 호버시 나타나는 빠른 작업 버튼
+  - 긴급도 필터링 (D-3 강조)
 
 #### VDR/마이프로필 페이지
 - **4개 탭 구조**:

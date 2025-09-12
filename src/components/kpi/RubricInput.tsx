@@ -78,10 +78,10 @@ export const RubricInput: React.FC<RubricInputProps> = ({
                 
                 <div className="flex-1">
                   <div className="flex items-start justify-between gap-4">
-                    <span className="text-sm font-medium text-neutral-dark">
+                    <span className="text-base font-medium text-neutral-dark">
                       {choice.label}
                     </span>
-                    <span className={`text-sm font-semibold ${getScoreColor(choice.score)}`}>
+                    <span className={`text-base font-semibold ${getScoreColor(choice.score)}`}>
                       {choice.score}점                    </span>
                   </div>
                 </div>
