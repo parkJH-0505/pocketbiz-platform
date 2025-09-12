@@ -45,11 +45,11 @@ const AssessmentPanel = () => {
   const [showStageDropdown, setShowStageDropdown] = useState(false);
 
   const axes = [
-    { key: 'GO', label: 'Growth', color: 'purple', bgClass: 'bg-purple-500', description: '성장 지향성' },
-    { key: 'EC', label: 'Economics', color: 'green', bgClass: 'bg-green-500', description: '효율성 및 역량' },
-    { key: 'PT', label: 'Product', color: 'orange', bgClass: 'bg-orange-500', description: '제품 및 기술' },
-    { key: 'PF', label: 'Performance', color: 'blue', bgClass: 'bg-blue-500', description: '성과' },
-    { key: 'TO', label: 'Team & Org', color: 'red', bgClass: 'bg-red-500', description: '팀 및 조직' }
+    { key: 'GO', label: 'Growth & Ops', color: 'purple', bgClass: 'bg-purple-500', description: '성장·운영' },
+    { key: 'EC', label: 'Economics', color: 'green', bgClass: 'bg-green-500', description: '경제성·자본' },
+    { key: 'PT', label: 'Product & Tech', color: 'orange', bgClass: 'bg-orange-500', description: '제품·기술력' },
+    { key: 'PF', label: 'Proof', color: 'blue', bgClass: 'bg-blue-500', description: '증빙·딜레디' },
+    { key: 'TO', label: 'Team & Org', color: 'red', bgClass: 'bg-red-500', description: '팀·조직 역량' }
   ];
 
   // CSV 데이터에서 KPI 필터링

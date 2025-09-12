@@ -1,8 +1,0 @@
-kpi_id	field_name	type	validation	hint
-S1-[GO]-04	s1_go_04_total_users	number	min>=0	명 단위 정수/숫자
-S1-[GO]-05	s1_go_05_mau	number	min>=0	명 단위 정수/숫자
-S1-[GO]-06	s1_go_06_visit_signup_conversion_rate	number	0<=value<=100	퍼센트(%)로 입력
-S1-[GO]-07	s1_go_05_mau	number	min>=0	명 단위 정수/숫자
-S1-[GO]-07	s1_go_04_total_users	number	min>0	분모 입력값 (0 불가)
-S1-[GO]-09	s1_go_09_dau	number	min>=0	명 단위 정수/숫자
-S1-[GO]-09	s1_go_05_mau	number	min>0	분모 입력값 (0 불가)

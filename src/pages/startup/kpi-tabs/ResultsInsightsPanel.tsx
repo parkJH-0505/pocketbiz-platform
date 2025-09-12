@@ -51,11 +51,11 @@ const ResultsInsightsPanel = () => {
 
   // 축 정의
   const axes = [
-    { key: 'GO', label: 'Growth', color: '#9333ea', description: '성장 지향성', fullName: '성장 지향성' },
-    { key: 'EC', label: 'Economics', color: '#10b981', description: '효율성', fullName: '경제성 및 효율성' },
-    { key: 'PT', label: 'Product', color: '#f97316', description: '제품력', fullName: '제품 및 기술' },
-    { key: 'PF', label: 'Performance', color: '#3b82f6', description: '성과', fullName: '성과 지표' },
-    { key: 'TO', label: 'Team & Org', color: '#ef4444', description: '조직', fullName: '팀 및 조직' }
+    { key: 'GO', label: 'Growth & Ops', color: '#9333ea', description: '성장·운영', fullName: '성장·운영' },
+    { key: 'EC', label: 'Economics', color: '#10b981', description: '경제성·자본', fullName: '경제성·자본' },
+    { key: 'PT', label: 'Product & Tech', color: '#f97316', description: '제품·기술력', fullName: '제품·기술력' },
+    { key: 'PF', label: 'Proof', color: '#3b82f6', description: '증빙·딜레디', fullName: '증빙·딜레디' },
+    { key: 'TO', label: 'Team & Org', color: '#ef4444', description: '팀·조직 역량', fullName: '팀·조직 역량' }
   ];
 
   // 피어 평균 데이터

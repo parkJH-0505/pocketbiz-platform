@@ -22,11 +22,11 @@ const Dashboard = () => {
   
   // 축 정의
   const axes = [
-    { key: 'GO', label: 'Growth', fullName: '성장 지향성' },
-    { key: 'EC', label: 'Economics', fullName: '경제성 및 효율성' },
-    { key: 'PT', label: 'Product', fullName: '제품 및 기술' },
-    { key: 'PF', label: 'Performance', fullName: '성과 지표' },
-    { key: 'TO', label: 'Team & Org', fullName: '팀 및 조직' }
+    { key: 'GO', label: 'Growth & Ops', fullName: '성장·운영' },
+    { key: 'EC', label: 'Economics', fullName: '경제성·자본' },
+    { key: 'PT', label: 'Product & Tech', fullName: '제품·기술력' },
+    { key: 'PF', label: 'Proof', fullName: '증빙·딜레디' },
+    { key: 'TO', label: 'Team & Org', fullName: '팀·조직 역량' }
   ];
   
   // 피어 평균 데이터 (임시 - 추후 API 연동)

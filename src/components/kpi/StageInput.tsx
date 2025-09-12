@@ -61,40 +61,6 @@ export const StageInput: React.FC<StageInputProps> = ({
         </div>
       )}
 
-      {/* Stage 진행 표시 */}
-      <div className="flex items-center justify-between gap-2 mb-4">
-        {stages.map((stage, index) => {
-          const isSelected = selectedStage === stage.value;
-          const isPassed = selectedStage && stages.findIndex(s => s.value === selectedStage) >= index;
-          
-          return (
-            <div key={stage.value} className="flex items-center flex-1">
-              <button
-                onClick={() => handleSelect(stage)}
-                onMouseEnter={() => setHoveredStage(stage.value)}
-                onMouseLeave={() => setHoveredStage(null)}
-                className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all
-                  ${isPassed 
-                    ? isSelected 
-                      ? `${getStageColor(index, true)} bg-opacity-10` 
-                      : 'border-neutral-gray bg-neutral-light'
-                    : 'border-neutral-lighter bg-white'
-                  }
-                  ${hoveredStage === stage.value ? 'transform scale-110' : ''}
-                `}
-              >
-                <span className="text-lg">{getStageIcon(index)}</span>
-              </button>
-              {index < stages.length - 1 && (
-                <div className={`flex-1 h-0.5 mx-2 transition-colors
-                  ${isPassed ? 'bg-neutral-gray' : 'bg-neutral-lighter'}
-                `} />
-              )}
-            </div>
-          );
-        })}
-      </div>
-
       {/* Stage 카드 */}
       <div className="grid grid-cols-2 gap-3">
         {stages.map((stage, index) => {

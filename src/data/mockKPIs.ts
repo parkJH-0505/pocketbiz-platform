@@ -241,7 +241,7 @@ export const mockKPIs: KPIDefinition[] = [
     weight: 'x2'
   },
 
-  // PF (Performance Finance) - 파란색
+  // PF (Proof) - 파란색
   {
     kpi_id: 'S1-PF-01',
     axis: 'PF',
@@ -385,9 +385,9 @@ export function getKPIsByAxis(axis: string): KPIDefinition[] {
 
 // 모든 축 정보
 export const axes = [
-  { key: 'GO', name: 'Growth Opportunity', description: '성장 기회 및 시장성' },
-  { key: 'EC', name: 'Economic Value', description: '경제적 가치 창출' },
-  { key: 'PT', name: 'Product Technology', description: '제품 기술력' },
-  { key: 'PF', name: 'Performance Finance', description: '재무 성과' },
-  { key: 'TO', name: 'Team Organization', description: '팀 조직력' }
+  { key: 'GO', name: 'Growth & Ops', description: '성장·운영' },
+  { key: 'EC', name: 'Economics', description: '경제성·자본' },
+  { key: 'PT', name: 'Product & Tech', description: '제품·기술력' },
+  { key: 'PF', name: 'Proof', description: '증빙·딜레디' },
+  { key: 'TO', name: 'Team & Org', description: '팀·조직 역량' }
 ];

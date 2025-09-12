@@ -153,11 +153,11 @@ const ActionPlanPanel = () => {
 
   // 축 정의
   const axes = [
-    { key: 'GO' as AxisKey, label: '성장 지향성', color: '#9333ea' },
-    { key: 'EC' as AxisKey, label: '경제성', color: '#10b981' },
-    { key: 'PT' as AxisKey, label: '제품/기술', color: '#f97316' },
-    { key: 'PF' as AxisKey, label: '성과 지표', color: '#3b82f6' },
-    { key: 'TO' as AxisKey, label: '팀/조직', color: '#ef4444' }
+    { key: 'GO' as AxisKey, label: '성장·운영', color: '#9333ea' },
+    { key: 'EC' as AxisKey, label: '경제성·자본', color: '#10b981' },
+    { key: 'PT' as AxisKey, label: '제품·기술력', color: '#f97316' },
+    { key: 'PF' as AxisKey, label: '증빙·딜레디', color: '#3b82f6' },
+    { key: 'TO' as AxisKey, label: '팀·조직 역량', color: '#ef4444' }
   ];
 
   // 약점 분석 (하위 3개 축)
