@@ -4,6 +4,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { ClusterProvider } from './contexts/ClusterContext';
 import { KPIDiagnosisProvider } from './contexts/KPIDiagnosisContext';
 import { BuildupProvider } from './contexts/BuildupContext';
+import { BuildupServiceProvider } from './contexts/BuildupServiceContext';
 import type { UserRole } from './types';
 
 // Layouts
@@ -83,7 +84,8 @@ function App() {
       <ClusterProvider>
         <KPIDiagnosisProvider>
           <BuildupProvider>
-            <Router>
+            <BuildupServiceProvider>
+              <Router>
             <Routes>
         {/* Landing page or redirect based on role */}
         <Route path="/" element={
@@ -163,6 +165,7 @@ function App() {
         <Route path="*" element={<div className="p-8 text-center">페이지를 찾을 수 없습니다.</div>} />
         </Routes>
       </Router>
+            </BuildupServiceProvider>
         </BuildupProvider>
       </KPIDiagnosisProvider>
     </ClusterProvider>

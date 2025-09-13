@@ -282,7 +282,7 @@ export default function BuildupDashboard() {
               <div className="p-5 border-b border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                   <Zap className="w-5 h-5 text-yellow-500" />
-                  오늘의 포커스
+                  다가오는 빌드업 일정
                 </h2>
               </div>
               
@@ -528,7 +528,7 @@ export default function BuildupDashboard() {
           <div className="p-5 border-b border-gray-200 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <Activity className="w-5 h-5 text-gray-600" />
-              최근 활동
+              최근 업데이트된 활동
             </h2>
             <button className="text-sm text-gray-600 hover:text-gray-900">
               전체보기

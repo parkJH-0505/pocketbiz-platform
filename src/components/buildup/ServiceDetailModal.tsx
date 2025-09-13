@@ -3,7 +3,6 @@ import {
   X,
   Info,
   Clock,
-  TrendingUp,
   Users,
   FileText,
   Star,
@@ -118,26 +117,6 @@ export default function ServiceDetailModal({ service, onClose, onAddToCart }: Se
                   </ul>
                 </div>
 
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-green-600" />
-                    기대 효과
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">개선 축</span>
-                      <span className="font-medium">{service.target_axis.join(', ')}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">예상 개선도</span>
-                      <span className="font-medium text-green-600">+{service.expected_improvement}점</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">완료율</span>
-                      <span className="font-medium">{service.completion_rate}%</span>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               <div>

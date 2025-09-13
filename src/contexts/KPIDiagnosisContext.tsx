@@ -169,16 +169,8 @@ export const KPIDiagnosisProvider: React.FC<KPIDiagnosisProviderProps> = ({ chil
       setPreviousScores({ GO: 0, EC: 0, PT: 0, PF: 0, TO: 0 });
     }
     
-    // 진단 완료율이 80% 이상일 때 히스토리 자동 저장
-    if (progress && progress.percentage >= 80) {
-      saveDiagnosticSnapshot(
-        cluster,
-        newScores,
-        avgScore,
-        responses,
-        progress.percentage
-      );
-    }
+    // 자동 저장 제거 - 수동 저장으로 변경
+    // 사용자가 명시적으로 저장 버튼을 눌렀을 때만 저장
   }, [responses, kpiData, cluster.stage]);
   
   // Calculate progress with useMemo for real-time updates

@@ -1,19 +1,203 @@
 export type ServiceCategory = '문서작업' | '개발' | '마케팅' | '투자' | '컨설팅';
 export type ServiceProvider = '포켓' | '파트너사';
 export type ServiceFormat = 'online' | 'offline' | 'hybrid';
-export type ServiceStatus = 'active' | 'inactive' | 'coming_soon';
+export type ServiceStatus = 'active' | 'inactive' | 'coming_soon' | 'soldout';
 export type AxisKey = 'GO' | 'EC' | 'PT' | 'PF' | 'TO';
 export type StageType = 'A1' | 'A2' | 'A3' | 'A4' | 'A5';
 
+// Enhanced BuildupService structure
 export interface BuildupService {
+  service_id: string;
+  category: string;
+  subcategory?: string;
+  name: string;
+  subtitle: string;
+  description: string;
+  badge?: 'HOT' | '신규' | '할인' | '추천';
+  tags: string[];
+  
+  // Pricing
+  price: {
+    original: number;
+    discounted?: number;
+    unit: '프로젝트' | '월' | '회';
+    discount_rate?: number;
+  };
+  
+  // Duration
+  duration: {
+    weeks: number;
+    display: string;
+    urgent_available: boolean;
+    urgent_days?: number;
+  };
+  
+  // Provider
+  provider: {
+    name: string;
+    type: ServiceProvider;
+    certification?: string[];
+    experience?: string;
+    success_rate?: number;
+  };
+  
+  // Target
+  target: {
+    stage: string[];
+    industry?: string[];
+    employee_count?: string;
+  };
+  
+  // Benefits
+  benefits: {
+    target_areas: string[];
+    expected_outcome: string;
+    kpi_improvement: {
+      GO: number;
+      EC: number;
+      PT: number;
+      PF: number;
+      TO: number;
+    };
+  };
+  
+  // Deliverables
+  deliverables: {
+    main: string[];
+    additional?: string[];
+    format?: string[];
+  };
+  
+  // Process
+  process: {
+    steps: ProcessStep[];
+    total_steps: number;
+    methodology: '워터폴' | '애자일' | '하이브리드';
+  };
+  
+  // Portfolio
+  portfolio: {
+    total_count: number;
+    highlights: PortfolioHighlight[];
+    success_stories?: number;
+  };
+  
+  // Reviews
+  reviews: {
+    avg_rating: number;
+    total_count: number;
+    rating_distribution: {
+      5: number;
+      4: number;
+      3: number;
+      2: number;
+      1: number;
+    };
+    recent_reviews: ReviewItem[];
+  };
+  
+  // FAQ
+  faq: FAQItem[];
+  
+  // Options
+  options: {
+    scope_levels: ScopeLevel[];
+    addons?: AddonOption[];
+  };
+  
+  // Bundle
+  bundle?: {
+    recommended_with: string[];
+    bundle_discount: number;
+    package_name: string;
+  };
+  
+  // Metadata
+  metadata: {
+    created_date: string;
+    updated_date: string;
+    view_count: number;
+    purchase_count: number;
+    wishlist_count: number;
+    completion_rate: number;
+    avg_completion_days: number;
+    satisfaction_rate: number;
+    repeat_rate: number;
+  };
+  
+  // Search & Display
+  search_keywords: string[];
+  is_active: boolean;
+  is_featured: boolean;
+  priority: number;
+  
+  // Media
+  media: {
+    thumbnail?: string;
+    images?: string[];
+    video_url?: string;
+    brochure_url?: string;
+  };
+}
+
+export interface ProcessStep {
+  order: number;
+  name: string;
+  duration: string;
+  description: string;
+  deliverable: string;
+}
+
+export interface PortfolioHighlight {
+  project_id: string;
+  client_type: string;
+  industry: string;
+  outcome: string;
+  date: string;
+  testimonial?: string;
+}
+
+export interface ReviewItem {
+  review_id: string;
+  client_name: string;
+  company: string;
+  rating: number;
+  date: string;
+  content: string;
+  verified: boolean;
+  helpful_count?: number;
+}
+
+export interface FAQItem {
+  question: string;
+  answer: string;
+  category: string;
+}
+
+export interface ScopeLevel {
+  name: string;
+  price_multiplier: number;
+  features: string[];
+}
+
+export interface AddonOption {
+  name: string;
+  price: number;
+  description: string;
+}
+
+// Legacy interface for backward compatibility
+// 구버전 타입 정의 - 현재 사용하지 않지만 호환성을 위해 유지
+// TODO: 마이그레이션 완료 후 삭제 예정
+export interface BuildupServiceLegacy {
   service_id: string;
   category: ServiceCategory;
   name: string;
   subtitle: string;
   description: string;
-  target_axis: AxisKey[];
+  target_axis: string[];
   expected_improvement: number;
-  target_stage: StageType[];
+  target_stage: string[];
   duration_weeks: number;
   price_base: number;
   price_urgent: number;
@@ -29,12 +213,7 @@ export interface BuildupService {
   status: ServiceStatus;
 }
 
-export interface ProcessStep {
-  name: string;
-  duration: string;
-  description?: string;
-}
-
+// Service Detail Modal Types
 export interface ServiceDetailModal {
   service: BuildupService;
   tabs: {

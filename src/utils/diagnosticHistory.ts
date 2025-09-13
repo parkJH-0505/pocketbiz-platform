@@ -139,40 +139,30 @@ export function getWeeklyChange(): WeeklyChange | null {
 }
 
 /**
- * 월간 트렌드 데이터 생성 (최근 6개월)
+ * 진단 트렌드 데이터 생성 (각 진단을 독립적으로 표시)
  */
 export function getMonthlyTrend(): MonthlyTrend[] {
   const history = getHistory();
-  const monthlyData: Map<string, number[]> = new Map();
   
-  // 월별로 그룹화
-  history.forEach(snapshot => {
-    const monthKey = `${snapshot.year}-${String(snapshot.month).padStart(2, '0')}`;
-    if (!monthlyData.has(monthKey)) {
-      monthlyData.set(monthKey, []);
-    }
-    monthlyData.get(monthKey)!.push(snapshot.scores.overall);
-  });
+  // 최근 12개 진단만 표시 (너무 많으면 그래프가 복잡해짐)
+  const recentHistory = history.slice(0, 12).reverse(); // 오래된 것부터 순서대로
   
-  // 월별 평균 계산
   const trends: MonthlyTrend[] = [];
   let previousScore = 0;
   
-  Array.from(monthlyData.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .slice(-6) // 최근 6개월
-    .forEach(([month, scores]) => {
-      const avgScore = scores.reduce((sum, s) => sum + s, 0) / scores.length;
-      const change = previousScore > 0 ? avgScore - previousScore : 0;
-      
-      trends.push({
-        month: formatMonth(month),
-        score: Math.round(avgScore * 10) / 10,
-        change: Math.round(change * 10) / 10
-      });
-      
-      previousScore = avgScore;
+  recentHistory.forEach((snapshot, index) => {
+    const date = new Date(snapshot.timestamp);
+    const dateStr = `${date.getMonth() + 1}/${date.getDate()}`; // M/D 형식
+    const change = previousScore > 0 ? snapshot.scores.overall - previousScore : 0;
+    
+    trends.push({
+      month: dateStr, // 월/일로 표시
+      score: Math.round(snapshot.scores.overall * 10) / 10,
+      change: Math.round(change * 10) / 10
     });
+    
+    previousScore = snapshot.scores.overall;
+  });
   
   return trends;
 }

@@ -19,13 +19,16 @@ import {
   ChevronDown,
   ArrowRight,
   X,
-  CircleAlert
+  CircleAlert,
+  RotateCcw,
+  Trash2
 } from 'lucide-react';
 import { crossValidate } from '../../../utils/validation';
 import { setupCSVWatcher } from '../../../utils/csvWatcher';
 import type { AxisKey, KPIDefinition } from '../../../types';
+import { FloatingProgressButton } from '../../../components/assessment/FloatingProgressButton';
 
-const AssessmentPanel = () => {
+export const AssessmentPanel = () => {
   const { cluster, updateStage, getStageInfo } = useCluster();
   const { 
     responses, 
@@ -43,6 +46,8 @@ const AssessmentPanel = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [crossValidationErrors, setCrossValidationErrors] = useState<string[]>([]);
   const [showStageDropdown, setShowStageDropdown] = useState(false);
+  const [showResetDropdown, setShowResetDropdown] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState<'current' | 'all' | null>(null);
 
   const axes = [
     { key: 'GO', label: 'Growth & Ops', color: 'purple', bgClass: 'bg-purple-500', description: '성장·운영' },
@@ -87,6 +92,24 @@ const AssessmentPanel = () => {
     }
     return filteredKPIs;
   };
+  
+  // 현재 축의 진행률 계산
+  const calculateCurrentAxisProgress = () => {
+    const currentAxisKPIs = getKPIsByAxis(currentAxis);
+    if (currentAxisKPIs.length === 0) return 0;
+    
+    const completedCount = currentAxisKPIs.filter(kpi => {
+      const response = responses[kpi.kpi_id];
+      return response && (response.status === 'valid' || response.status === 'na');
+    }).length;
+    
+    return Math.round((completedCount / currentAxisKPIs.length) * 100);
+  };
+  
+  const currentAxisProgress = calculateCurrentAxisProgress();
+  const currentAxisInfo = axes.find(a => a.key === currentAxis);
+  const isLastAxis = currentAxis === 'TO';
+  const isFirstAxis = currentAxis === 'GO';
 
   // CSV watcher setup
   useEffect(() => {
@@ -107,6 +130,19 @@ const AssessmentPanel = () => {
       window.removeEventListener('csv-updated', handleCSVUpdate);
     };
   }, []);
+
+  // Handle previousAxis event from StartupLayout
+  useEffect(() => {
+    const handlePreviousAxis = () => {
+      const prevIndex = axes.findIndex(a => a.key === currentAxis) - 1;
+      if (prevIndex >= 0) {
+        setCurrentAxis(axes[prevIndex].key as AxisKey);
+      }
+    };
+    
+    window.addEventListener('previousAxis', handlePreviousAxis);
+    return () => window.removeEventListener('previousAxis', handlePreviousAxis);
+  }, [currentAxis]);
 
 
   const currentKPIs = getKPIsByAxis(currentAxis);
@@ -173,7 +209,8 @@ const AssessmentPanel = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="relative">
+      <div className="space-y-6">
       {/* 헤더 섹션 */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
@@ -187,6 +224,68 @@ const AssessmentPanel = () => {
             </p>
           </div>
           <div className="flex items-center gap-4">
+            {/* 초기화 드롭다운 */}
+            <div className="relative">
+              <button
+                onClick={() => setShowResetDropdown(!showResetDropdown)}
+                onBlur={() => setTimeout(() => setShowResetDropdown(false), 200)}
+                className="bg-white text-error-main border border-error-light
+                  hover:bg-error-light hover:border-error-main
+                  px-4 py-2 text-sm inline-flex items-center justify-center gap-2
+                  font-medium rounded-default transition-all duration-150"
+              >
+                <RotateCcw size={16} />
+                초기화
+                <ChevronDown size={14} className={`transition-transform ${showResetDropdown ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {showResetDropdown && (
+                <div className="absolute top-full right-0 mt-1 w-48 rounded-lg shadow-lg border z-50" 
+                     style={{ backgroundColor: 'white', borderColor: '#e5e5e5' }}>
+                  <div
+                    onClick={() => {
+                      setShowResetConfirm('current');
+                      setShowResetDropdown(false);
+                    }}
+                    className="w-full px-4 py-3 text-left text-sm transition-colors cursor-pointer flex items-center gap-2"
+                    style={{ color: '#333333', backgroundColor: 'white' }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#fee2e2';
+                      e.currentTarget.style.color = '#dc2626';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'white';
+                      e.currentTarget.style.color = '#333333';
+                    }}
+                  >
+                    <RotateCcw size={16} style={{ color: 'currentColor' }} />
+                    <span style={{ color: 'inherit' }}>현재 축 초기화</span>
+                    <span className="ml-auto text-xs" style={{ color: '#666666' }}>{currentAxis}</span>
+                  </div>
+                  <div
+                    onClick={() => {
+                      setShowResetConfirm('all');
+                      setShowResetDropdown(false);
+                    }}
+                    className="w-full px-4 py-3 text-left text-sm transition-colors cursor-pointer flex items-center gap-2"
+                    style={{ color: '#333333', backgroundColor: 'white', borderTop: '1px solid #e5e5e5' }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#fee2e2';
+                      e.currentTarget.style.color = '#dc2626';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'white';
+                      e.currentTarget.style.color = '#333333';
+                    }}
+                  >
+                    <Trash2 size={16} style={{ color: 'currentColor' }} />
+                    <span style={{ color: 'inherit' }}>전체 초기화</span>
+                    <span className="ml-auto text-xs" style={{ color: '#666666' }}>모든 축</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button 
               onClick={() => {
                 const searchParams = new URLSearchParams(window.location.search);
@@ -433,18 +532,6 @@ const AssessmentPanel = () => {
         </button>
         
         <div className="flex gap-3">
-          {axes.findIndex(a => a.key === currentAxis) > 0 && (
-            <button 
-              onClick={() => {
-                const prevIndex = axes.findIndex(a => a.key === currentAxis) - 1;
-                setCurrentAxis(axes[prevIndex].key as AxisKey);
-              }}
-              className="px-4 py-2 border border-neutral-border rounded-lg hover:bg-neutral-light transition-colors"
-            >
-              이전 축
-            </button>
-          )}
-          
           {axes.findIndex(a => a.key === currentAxis) < axes.length - 1 ? (
             <button 
               onClick={() => {
@@ -474,6 +561,108 @@ const AssessmentPanel = () => {
         </div>
       </div>
 
+      </div>
+      
+      {/* 초기화 확인 모달 */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 bg-error-light rounded-full">
+                <AlertCircle className="text-error-main" size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-neutral-dark">
+                  {showResetConfirm === 'current' ? '현재 축 초기화' : '전체 초기화'}
+                </h3>
+                <p className="text-sm text-neutral-gray mt-1">
+                  {showResetConfirm === 'current' 
+                    ? `${currentAxis} 축의 모든 입력값이 삭제됩니다.`
+                    : '모든 축의 입력값이 삭제됩니다.'
+                  }
+                  이 작업은 되돌릴 수 없습니다.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowResetConfirm(null)}
+                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+                style={{ 
+                  color: '#333333',
+                  backgroundColor: 'white',
+                  border: '1px solid #e5e5e5'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f5f5f5';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  if (showResetConfirm === 'current') {
+                    // 현재 축만 초기화
+                    const currentAxisKPIs = getKPIsByAxis(currentAxis);
+                    currentAxisKPIs.forEach(kpi => {
+                      updateResponse(kpi.kpi_id, undefined, 'unanswered');
+                    });
+                  } else {
+                    // 전체 초기화
+                    Object.keys(responses).forEach(kpiId => {
+                      updateResponse(kpiId, undefined, 'unanswered');
+                    });
+                  }
+                  setShowResetConfirm(null);
+                }}
+                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+                style={{ 
+                  color: 'white',
+                  backgroundColor: '#dc2626'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#b91c1c';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#dc2626';
+                }}
+              >
+                초기화
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 플로팅 진행률 버튼 */}
+      <FloatingProgressButton
+        currentAxisProgress={currentAxisProgress}
+        isLastAxis={isLastAxis}
+        isFirstAxis={isFirstAxis}
+        axisName={currentAxisInfo?.label || currentAxis}
+        nextAxisName={!isLastAxis ? axes[axes.findIndex(a => a.key === currentAxis) + 1]?.label : undefined}
+        prevAxisName={!isFirstAxis ? axes[axes.findIndex(a => a.key === currentAxis) - 1]?.label : undefined}
+        onNext={() => {
+          if (isLastAxis) {
+            // 결과 탭으로 이동
+            const searchParams = new URLSearchParams(window.location.search);
+            searchParams.set('tab', 'insights');
+            window.history.pushState({}, '', `${window.location.pathname}?${searchParams}`);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          } else {
+            // 다음 축으로 이동
+            const nextIndex = axes.findIndex(a => a.key === currentAxis) + 1;
+            setCurrentAxis(axes[nextIndex].key as AxisKey);
+          }
+        }}
+        onPrevious={() => {
+          // 이전 축 기능 비활성화
+        }}
+      />
     </div>
   );
 };

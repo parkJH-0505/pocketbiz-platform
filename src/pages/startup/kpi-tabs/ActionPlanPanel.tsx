@@ -376,8 +376,8 @@ const ActionPlanPanel = () => {
                       </p>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm text-neutral-gray">예상 개선</div>
-                      <div className="text-xl font-bold text-primary-main">+{program.expectedImprovement}점</div>
+                      <div className="text-sm text-neutral-gray">소요 시간</div>
+                      <div className="text-xl font-bold text-primary-main">{program.duration}</div>
                     </div>
                   </div>
 
@@ -509,8 +509,8 @@ const ActionPlanPanel = () => {
                     <h4 className="font-semibold text-neutral-dark">{win.title}</h4>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs text-neutral-gray">예상 개선</div>
-                    <div className="text-lg font-bold text-primary-main">+{win.expectedImpact}점</div>
+                    <div className="text-xs text-neutral-gray">우선순위</div>
+                    <div className="text-lg font-bold text-primary-main">{win.priority}</div>
                   </div>
                 </div>
 

@@ -34,18 +34,9 @@ import {
   Loader2,
   Sparkles
 } from 'lucide-react';
+import type { BuildupService } from '../../types/buildup.types';
 
-interface ServiceItem {
-  id: string;
-  title: string;
-  provider: string;
-  category: string;
-  price: {
-    original: number;
-    discounted?: number;
-    unit: string;
-  };
-  duration: string;
+interface CartItem extends BuildupService {
   quantity: number;
   options?: {
     scope: '기본' | '프리미엄' | '커스텀';
@@ -97,7 +88,7 @@ const sampleCartItems: ServiceItem[] = [
 interface ContractFlowModalProps {
   isOpen: boolean;
   onClose: () => void;
-  cartItems: ServiceItem[];
+  cartItems: CartItem[];
   onComplete: (contractData: any) => void;
 }
 

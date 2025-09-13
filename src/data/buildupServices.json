@@ -1,0 +1,430 @@
+{
+  "services": [
+    {
+      "service_id": "DOC001",
+      "category": "문서작업",
+      "subcategory": "ir",
+      "name": "정부지원 빌드업 B",
+      "subtitle": "정부 2차 발표·IR 덱 동시 준비",
+      "description": "정부지원 2차 발표평가와 민간 엑셀러레이팅 IR 덱을 동시 준비. 스토리·디자인·Q&A까지 포함해 심사역과 투자자를 설득합니다.",
+      "badge": "추천",
+      "tags": ["정부과제", "발표평가", "IR Deck", "투자유치", "엑셀러레이팅"],
+      "price": {
+        "original": 6800000,
+        "discounted": 5220000,
+        "unit": "프로젝트",
+        "discount_rate": 23
+      },
+      "duration": {
+        "weeks": 4,
+        "display": "4주",
+        "urgent_available": true,
+        "urgent_days": 7
+      },
+      "provider": {
+        "name": "포켓",
+        "type": "포켓",
+        "certification": ["벤처지원 경력"],
+        "experience": "25개 기업 지원",
+        "success_rate": 92
+      },
+      "target": {
+        "stage": ["Seed", "Series A"],
+        "industry": ["IT", "바이오", "제조"],
+        "employee_count": "10-50명"
+      },
+      "benefits": {
+        "target_areas": ["정부지원", "투자유치", "피칭"],
+        "expected_outcome": "발표 합격률 및 투자 레디니스 동시 강화",
+        "kpi_improvement": {
+          "GO": 8,
+          "EC": 0,
+          "PT": 0,
+          "PF": 14,
+          "TO": 6
+        }
+      },
+      "deliverables": {
+        "main": [
+          "발표평가용 PPT 20~25P",
+          "IR Deck(엑셀러레이팅용)",
+          "발표 스크립트"
+        ],
+        "additional": [
+          "예상 Q&A 10문",
+          "목업·비주얼 요소",
+          "매출추정·DCF 엑셀"
+        ],
+        "format": ["문서", "컨설팅", "교육"]
+      },
+      "process": {
+        "steps": [
+          { "order": 1, "name": "킥오프", "duration": "1일", "description": "목표 확인·자료 점검", "deliverable": "요구사항 체크리스트" },
+          { "order": 2, "name": "스토리설계", "duration": "5일", "description": "평가포인트 반영 구조", "deliverable": "스토리보드" },
+          { "order": 3, "name": "초안제작", "duration": "7일", "description": "IR/PPT 초안 및 1차 디자인", "deliverable": "초안 PPT" },
+          { "order": 4, "name": "디자인고도화", "duration": "5일", "description": "비주얼·목업 강화", "deliverable": "2차 시안" },
+          { "order": 5, "name": "리허설", "duration": "2일", "description": "발표 연습·Q&A 대비", "deliverable": "스크립트·Q&A" },
+          { "order": 6, "name": "최종납품", "duration": "1일", "description": "원본 전달·활용 가이드", "deliverable": "최종 파일 패키지" }
+        ],
+        "total_steps": 6,
+        "methodology": "워터폴"
+      },
+      "portfolio": {
+        "total_count": 25,
+        "highlights": [
+          {
+            "project_id": "PRJ-GOV-024",
+            "client_type": "Series A 스타트업",
+            "industry": "핀테크",
+            "outcome": "정부 R&D 2차 통과",
+            "date": "2024-11",
+            "testimonial": "짧은 기간에 발표 완성도가 크게 높아졌습니다."
+          },
+          {
+            "project_id": "PRJ-ACC-011",
+            "client_type": "Seed 스타트업",
+            "industry": "헬스케어",
+            "outcome": "민간 엑셀러레이팅 선발",
+            "date": "2025-03",
+            "testimonial": "IR 덱과 스크립트가 설득력을 높였습니다."
+          }
+        ],
+        "success_stories": 9
+      },
+      "reviews": {
+        "avg_rating": 4.6,
+        "total_count": 18,
+        "rating_distribution": { "5": 11, "4": 5, "3": 2, "2": 0, "1": 0 },
+        "recent_reviews": [
+          {
+            "review_id": "RV-2025-001",
+            "client_name": "김대표",
+            "company": "A스타트업",
+            "rating": 5,
+            "date": "2025-06-18",
+            "content": "발표 대비가 체계적이라 합격에 도움됐습니다.",
+            "verified": true,
+            "helpful_count": 7
+          },
+          {
+            "review_id": "RV-2025-002",
+            "client_name": "이대표",
+            "company": "B바이오",
+            "rating": 4,
+            "date": "2025-07-02",
+            "content": "IR 덱 완성도 높고 일정 관리가 좋았습니다.",
+            "verified": true
+          }
+        ]
+      },
+      "faq": [
+        { "question": "VC 매칭도 포함되나요?", "answer": "본 상품은 발표·IR 제작 중심이며, 매칭은 별도 서비스입니다.", "category": "범위" },
+        { "question": "자료 보안은 어떻게 관리되나요?", "answer": "NDA 체결 후 전용 폴더·접근권한으로 관리합니다.", "category": "보안" },
+        { "question": "긴급 진행이 가능한가요?", "answer": "가능합니다. 통상 1주 단축되며 추가 비용이 발생합니다.", "category": "일정" }
+      ],
+      "options": {
+        "scope_levels": [
+          { "name": "기본", "price_multiplier": 1.0, "features": ["발표 PPT", "스크립트", "Q&A 10문"] },
+          { "name": "프리미엄", "price_multiplier": 1.3, "features": ["IR Deck 추가", "디자인 고도화", "리허설 1회 추가"] }
+        ],
+        "addons": [
+          { "name": "긴급 처리", "price": 800000, "description": "1주 단축, 우선 리소스 배정" },
+          { "name": "디자인 확장", "price": 500000, "description": "맞춤 일러스트·목업 추가" }
+        ]
+      },
+      "bundle": {
+        "recommended_with": ["INV-FMODEL-001", "DOC-PLAN-STD-001"],
+        "bundle_discount": 10,
+        "package_name": "투자유치 풀패키지"
+      },
+      "metadata": {
+        "created_date": "2025-09-12",
+        "updated_date": "2025-09-12",
+        "view_count": 0,
+        "purchase_count": 0,
+        "wishlist_count": 0,
+        "completion_rate": 92,
+        "avg_completion_days": 28,
+        "satisfaction_rate": 92,
+        "repeat_rate": 18
+      },
+      "search_keywords": ["정부지원", "발표평가", "IR덱", "엑셀러레이팅", "투자유치"],
+      "is_active": true,
+      "is_featured": true,
+      "priority": 80,
+      "media": {
+        "thumbnail": "",
+        "images": [],
+        "video_url": "",
+        "brochure_url": ""
+      }
+    },
+    {
+      "service_id": "DEV001",
+      "category": "개발",
+      "subcategory": "mvp",
+      "name": "MVP 개발 패키지",
+      "subtitle": "빠른 시장 검증을 위한 MVP 구축",
+      "description": "스타트업의 핵심 가치를 담은 MVP를 빠르게 개발합니다. 노코드/로우코드 솔루션을 활용해 비용과 시간을 절감합니다.",
+      "badge": "HOT",
+      "tags": ["MVP", "노코드", "웹앱", "시장검증", "빠른개발"],
+      "price": {
+        "original": 12000000,
+        "discounted": 9990000,
+        "unit": "프로젝트",
+        "discount_rate": 17
+      },
+      "duration": {
+        "weeks": 8,
+        "display": "8주",
+        "urgent_available": true,
+        "urgent_days": 14
+      },
+      "provider": {
+        "name": "포켓",
+        "type": "포켓",
+        "certification": ["스타트업 개발 전문"],
+        "experience": "56개 프로젝트 완료",
+        "success_rate": 88
+      },
+      "target": {
+        "stage": ["예비", "초기"],
+        "industry": ["IT", "이커머스", "O2O"],
+        "employee_count": "1-10명"
+      },
+      "benefits": {
+        "target_areas": ["제품 개발", "시장 검증", "기술 구현"],
+        "expected_outcome": "빠른 시장 진입을 위한 효율적인 MVP 개발",
+        "kpi_improvement": {
+          "GO": 12,
+          "EC": 5,
+          "PT": 20,
+          "PF": 0,
+          "TO": 3
+        }
+      },
+      "deliverables": {
+        "main": [
+          "웹앱 MVP",
+          "관리자 페이지",
+          "기술 문서"
+        ],
+        "additional": [
+          "API 문서",
+          "배포 가이드",
+          "소스코드"
+        ],
+        "format": ["개발", "문서", "교육"]
+      },
+      "process": {
+        "steps": [
+          { "order": 1, "name": "요구분석", "duration": "3일", "description": "기능 정의 및 기술스택 결정", "deliverable": "요구사항 명세서" },
+          { "order": 2, "name": "UI/UX 설계", "duration": "1주", "description": "화면 설계 및 프로토타입", "deliverable": "디자인 시안" },
+          { "order": 3, "name": "개발", "duration": "4주", "description": "핵심 기능 구현", "deliverable": "베타 버전" },
+          { "order": 4, "name": "테스트", "duration": "1주", "description": "버그 수정 및 최적화", "deliverable": "테스트 리포트" },
+          { "order": 5, "name": "배포", "duration": "3일", "description": "서버 배포 및 설정", "deliverable": "라이브 서비스" }
+        ],
+        "total_steps": 5,
+        "methodology": "애자일"
+      },
+      "portfolio": {
+        "total_count": 56,
+        "highlights": [
+          {
+            "project_id": "PRJ-DEV-045",
+            "client_type": "초기 스타트업",
+            "industry": "이커머스",
+            "outcome": "3개월 내 1000명 가입",
+            "date": "2025-05",
+            "testimonial": "빠른 개발로 시장 진입에 성공했습니다."
+          }
+        ],
+        "success_stories": 23
+      },
+      "reviews": {
+        "avg_rating": 4.7,
+        "total_count": 56,
+        "rating_distribution": { "5": 35, "4": 15, "3": 5, "2": 1, "1": 0 },
+        "recent_reviews": [
+          {
+            "review_id": "RV-DEV-001",
+            "client_name": "박대표",
+            "company": "C테크",
+            "rating": 5,
+            "date": "2025-08-10",
+            "content": "기대 이상의 퀄리티로 빠르게 완성되었습니다.",
+            "verified": true,
+            "helpful_count": 12
+          }
+        ]
+      },
+      "faq": [
+        { "question": "유지보수도 제공하나요?", "answer": "3개월 무상 유지보수가 포함되며, 이후 별도 계약 가능합니다.", "category": "서비스" },
+        { "question": "기술스택을 선택할 수 있나요?", "answer": "프로젝트 특성에 맞는 최적의 기술스택을 추천드립니다.", "category": "기술" }
+      ],
+      "options": {
+        "scope_levels": [
+          { "name": "기본", "price_multiplier": 1.0, "features": ["웹앱", "관리자페이지", "기본 기능"] },
+          { "name": "프리미엄", "price_multiplier": 1.5, "features": ["모바일 앱 추가", "고급 기능", "분석 대시보드"] }
+        ],
+        "addons": [
+          { "name": "모바일 앱", "price": 3000000, "description": "iOS/Android 앱 추가 개발" },
+          { "name": "AI 기능", "price": 2000000, "description": "AI 추천/분석 기능 탑재" }
+        ]
+      },
+      "metadata": {
+        "created_date": "2025-09-12",
+        "updated_date": "2025-09-12",
+        "view_count": 0,
+        "purchase_count": 0,
+        "wishlist_count": 0,
+        "completion_rate": 88,
+        "avg_completion_days": 56,
+        "satisfaction_rate": 89,
+        "repeat_rate": 34
+      },
+      "search_keywords": ["MVP", "웹개발", "앱개발", "노코드", "빠른개발"],
+      "is_active": true,
+      "is_featured": true,
+      "priority": 90,
+      "media": {
+        "thumbnail": "",
+        "images": [],
+        "video_url": "",
+        "brochure_url": ""
+      }
+    },
+    {
+      "service_id": "MKT001",
+      "category": "마케팅",
+      "subcategory": "digital",
+      "name": "디지털 마케팅 스타터",
+      "subtitle": "초기 스타트업을 위한 마케팅 전략 수립 및 실행",
+      "description": "데이터 기반의 디지털 마케팅 전략을 수립하고 실행합니다. 타겟 고객을 정확히 찾아 효율적인 성장을 돕습니다.",
+      "tags": ["디지털마케팅", "SNS", "광고", "그로스해킹", "퍼포먼스"],
+      "price": {
+        "original": 3000000,
+        "discounted": 2500000,
+        "unit": "월",
+        "discount_rate": 17
+      },
+      "duration": {
+        "weeks": 12,
+        "display": "3개월",
+        "urgent_available": false
+      },
+      "provider": {
+        "name": "포켓",
+        "type": "포켓",
+        "certification": ["구글 파트너", "메타 파트너"],
+        "experience": "102개 캠페인 운영",
+        "success_rate": 85
+      },
+      "target": {
+        "stage": ["초기", "성장"],
+        "industry": ["이커머스", "SaaS", "컨텐츠"],
+        "employee_count": "5-30명"
+      },
+      "benefits": {
+        "target_areas": ["마케팅 전략", "고객 획득", "브랜드 인지도"],
+        "expected_outcome": "초기 스타트업에 최적화된 디지털 마케팅 전략",
+        "kpi_improvement": {
+          "GO": 18,
+          "EC": 12,
+          "PT": 3,
+          "PF": 5,
+          "TO": 0
+        }
+      },
+      "deliverables": {
+        "main": [
+          "마케팅 전략서",
+          "3개월 실행 계획",
+          "광고 세팅"
+        ],
+        "additional": [
+          "월간 리포트",
+          "A/B 테스트 결과",
+          "개선 제안서"
+        ],
+        "format": ["전략", "실행", "리포트"]
+      },
+      "process": {
+        "steps": [
+          { "order": 1, "name": "시장분석", "duration": "1주", "description": "타겟 시장 및 경쟁사 분석", "deliverable": "시장 분석 리포트" },
+          { "order": 2, "name": "전략수립", "duration": "1주", "description": "채널별 마케팅 전략 수립", "deliverable": "마케팅 전략서" },
+          { "order": 3, "name": "캠페인실행", "duration": "8주", "description": "광고 집행 및 최적화", "deliverable": "캠페인 운영" },
+          { "order": 4, "name": "성과분석", "duration": "2주", "description": "성과 분석 및 개선안 도출", "deliverable": "최종 리포트" }
+        ],
+        "total_steps": 4,
+        "methodology": "애자일"
+      },
+      "portfolio": {
+        "total_count": 102,
+        "highlights": [
+          {
+            "project_id": "PRJ-MKT-089",
+            "client_type": "초기 스타트업",
+            "industry": "이커머스",
+            "outcome": "CAC 50% 감소",
+            "date": "2025-07",
+            "testimonial": "효율적인 광고 운영으로 비용을 크게 절감했습니다."
+          }
+        ],
+        "success_stories": 45
+      },
+      "reviews": {
+        "avg_rating": 4.6,
+        "total_count": 102,
+        "rating_distribution": { "5": 58, "4": 32, "3": 10, "2": 2, "1": 0 },
+        "recent_reviews": [
+          {
+            "review_id": "RV-MKT-001",
+            "client_name": "최대표",
+            "company": "D커머스",
+            "rating": 5,
+            "date": "2025-08-25",
+            "content": "구체적인 데이터와 함께 성과를 개선해주셨습니다.",
+            "verified": true,
+            "helpful_count": 8
+          }
+        ]
+      },
+      "faq": [
+        { "question": "광고비는 별도인가요?", "answer": "네, 광고비는 별도이며 예산에 맞춰 운영합니다.", "category": "비용" },
+        { "question": "어떤 채널을 운영하나요?", "answer": "구글, 메타, 네이버 등 주요 채널을 운영합니다.", "category": "채널" }
+      ],
+      "options": {
+        "scope_levels": [
+          { "name": "기본", "price_multiplier": 1.0, "features": ["2개 채널", "주간 리포트", "기본 최적화"] },
+          { "name": "프리미엄", "price_multiplier": 1.5, "features": ["4개 채널", "일간 리포트", "고급 최적화"] }
+        ],
+        "addons": [
+          { "name": "콘텐츠 제작", "price": 1000000, "description": "월 10개 콘텐츠 제작" },
+          { "name": "인플루언서 마케팅", "price": 2000000, "description": "인플루언서 섭외 및 관리" }
+        ]
+      },
+      "metadata": {
+        "created_date": "2025-09-12",
+        "updated_date": "2025-09-12",
+        "view_count": 0,
+        "purchase_count": 0,
+        "wishlist_count": 0,
+        "completion_rate": 85,
+        "avg_completion_days": 90,
+        "satisfaction_rate": 86,
+        "repeat_rate": 45
+      },
+      "search_keywords": ["마케팅", "광고", "SNS", "퍼포먼스", "그로스"],
+      "is_active": true,
+      "is_featured": false,
+      "priority": 75,
+      "media": {
+        "thumbnail": "",
+        "images": [],
+        "video_url": "",
+        "brochure_url": ""
+      }
+    }
+  ]
+}

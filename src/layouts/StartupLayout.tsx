@@ -1,5 +1,5 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { Outlet, Link, useLocation, useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -8,12 +8,19 @@ import {
   User,
   Settings,
   LogOut,
-  Bell
+  Bell,
+  ChevronLeft
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const StartupLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  
+  // KPI 진단 페이지의 평가 탭인지 확인
+  const isKPIAssessmentTab = location.pathname === '/startup/kpi' && 
+    (!searchParams.get('tab') || searchParams.get('tab') === 'assess');
   
   console.log('StartupLayout rendering, location:', location.pathname);
 
@@ -129,6 +136,7 @@ const StartupLayout = () => {
           <Outlet />
         </div>
       </div>
+      
     </div>
   );
 };
