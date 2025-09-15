@@ -1,430 +1,1797 @@
 {
   "services": [
     {
-      "service_id": "DOC001",
+      "service_id": "SVC-DOC-001",
       "category": "문서작업",
       "subcategory": "ir",
-      "name": "정부지원 빌드업 B",
-      "subtitle": "정부 2차 발표·IR 덱 동시 준비",
-      "description": "정부지원 2차 발표평가와 민간 엑셀러레이팅 IR 덱을 동시 준비. 스토리·디자인·Q&A까지 포함해 심사역과 투자자를 설득합니다.",
-      "badge": "추천",
-      "tags": ["정부과제", "발표평가", "IR Deck", "투자유치", "엑셀러레이팅"],
+      "name": "IR 덱 제작",
+      "subtitle": "투자유치를 위한 전문 IR 덱 제작",
+      "description": "시리즈 A 투자유치를 위한 20-25페이지 분량의 전문 IR 덱을 제작합니다. 스토리텔링, 시장분석, 재무모델링까지 포함된 완벽한 투자 제안서입니다.",
+      "badge": "HOT",
+      "tags": ["투자유치", "IR", "피칭", "스토리텔링", "재무모델"],
+
       "price": {
-        "original": 6800000,
-        "discounted": 5220000,
+        "original": 5000000,
+        "discounted": 4500000,
         "unit": "프로젝트",
-        "discount_rate": 23
+        "discount_rate": 10
       },
+
+      "duration": {
+        "weeks": 3,
+        "display": "3주",
+        "urgent_available": true,
+        "urgent_days": 10
+      },
+
+      "provider": {
+        "name": "포켓",
+        "type": "포켓",
+        "certification": ["IR 전문가", "투자유치 컨설턴트"],
+        "experience": "42개 기업 지원",
+        "success_rate": 85
+      },
+
+      "target": {
+        "stage": ["Seed", "Series A", "Series B"],
+        "industry": ["IT", "바이오", "커머스", "핀테크"],
+        "employee_count": "10-50명",
+        "company_situation": [
+          "3-6개월 내 투자유치 계획",
+          "VC 미팅은 진행중이나 성과 부족",
+          "기존 IR 자료 전면 개편 필요"
+        ],
+        "pain_points": [
+          "투자자 관점의 스토리텔링 부족",
+          "재무 모델링 전문성 부족",
+          "경쟁사 대비 차별점 설명 어려움"
+        ],
+        "prerequisites": [
+          "MVP 또는 베타 서비스 보유",
+          "최소 3개월 이상 운영 데이터",
+          "핵심 팀 구성 완료"
+        ],
+        "ideal_customer": "시리즈 A 투자유치를 준비하며 전문적인 IR 덱이 필요한 스타트업",
+        "not_suitable_for": [
+          "아이디어 단계 팀",
+          "피봇 검토중인 팀",
+          "정부지원사업만 목표인 팀"
+        ],
+        "success_indicators": [
+          "월 매출 5천만원 이상 또는 MAU 5만 이상",
+          "YoY 100% 이상 성장",
+          "명확한 Product-Market Fit"
+        ],
+        "urgency_level": "high",
+        "budget_range": {
+          "min": 4000000,
+          "max": 8000000,
+          "note": "투자유치 성공시 추가 컨설팅 가능"
+        }
+      },
+
+      "benefits": {
+        "target_areas": ["투자유치", "사업전략", "시장분석"],
+        "expected_outcome": "투자자 미팅 성공률 및 투자 유치 가능성 극대화",
+        "kpi_improvement": {
+          "GO": 8,
+          "EC": 6,
+          "PT": 0,
+          "PF": 10,
+          "TO": 5
+        }
+      },
+
+      "deliverables": {
+        "main": [
+          "IR 덱 20-25페이지",
+          "Financial Model (Excel)",
+          "발표 스크립트",
+          "예상 Q&A 답변서"
+        ],
+        "additional": [
+          "Executive Summary",
+          "투자제안서 요약본",
+          "피칭 코칭 2시간"
+        ],
+        "format": ["PPT", "PDF", "Excel"]
+      },
+
+      "process": {
+        "steps": [
+          { "order": 1, "name": "킥오프 미팅", "duration": "1일", "description": "요구사항 분석 및 목표 설정", "deliverable": "요구사항 정의서" },
+          { "order": 2, "name": "자료 수집 및 분석", "duration": "3일", "description": "시장조사 및 경쟁사 분석", "deliverable": "시장 분석 보고서" },
+          { "order": 3, "name": "초안 작성", "duration": "5일", "description": "IR 덱 초안 작성", "deliverable": "IR 덱 초안" },
+          { "order": 4, "name": "피드백 반영", "duration": "3일", "description": "클라이언트 피드백 반영", "deliverable": "IR 덱 2차안" },
+          { "order": 5, "name": "최종 납품", "duration": "2일", "description": "최종본 전달 및 발표 코칭", "deliverable": "최종 IR 덱 패키지" }
+        ],
+        "total_steps": 5,
+        "methodology": "워터폴"
+      },
+
+      "portfolio": {
+        "total_count": 42,
+        "highlights": [
+          {
+            "project_id": "PRJ-IR-024",
+            "client_type": "Series A 스타트업",
+            "industry": "AI/ML",
+            "outcome": "시리즈 A 30억 투자유치 성공",
+            "date": "2024-11",
+            "testimonial": "체계적인 스토리텔링과 시장 분석이 투자자들에게 좋은 인상을 남겼습니다."
+          },
+          {
+            "project_id": "PRJ-IR-025",
+            "client_type": "Pre-A 스타트업",
+            "industry": "헬스케어",
+            "outcome": "프리 시리즈 A 15억 투자유치",
+            "date": "2024-09",
+            "testimonial": "재무 모델링이 정교하고 설득력 있었습니다."
+          },
+          {
+            "project_id": "PRJ-IR-026",
+            "client_type": "Seed 스타트업",
+            "industry": "이커머스",
+            "outcome": "시드 투자 8억 유치",
+            "date": "2024-07",
+            "testimonial": "짧은 시간 내에 퀄리티 높은 IR 덱을 받을 수 있었습니다."
+          }
+        ],
+        "success_stories": 35
+      },
+
+      "reviews": {
+        "avg_rating": 4.8,
+        "total_count": 156,
+        "rating_distribution": {
+          "5": 98,
+          "4": 42,
+          "3": 12,
+          "2": 3,
+          "1": 1
+        },
+        "recent_reviews": [
+          {
+            "review_id": "RV-2024-156",
+            "client_name": "김대표",
+            "company": "AI 스타트업",
+            "rating": 5,
+            "date": "2024-12-15",
+            "content": "투자자 미팅에서 매우 좋은 반응을 얻었습니다. 특히 시장 분석 부분이 탄탄했습니다.",
+            "verified": true,
+            "helpful_count": 12
+          },
+          {
+            "review_id": "RV-2024-155",
+            "client_name": "이대표",
+            "company": "바이오텍",
+            "rating": 4.5,
+            "date": "2024-11-20",
+            "content": "전문적이고 체계적인 작업 프로세스가 인상적이었습니다.",
+            "verified": true,
+            "helpful_count": 8
+          },
+          {
+            "review_id": "RV-2024-154",
+            "client_name": "박대표",
+            "company": "핀테크",
+            "rating": 5,
+            "date": "2024-10-30",
+            "content": "기대 이상의 결과물을 받았습니다. 강력 추천합니다.",
+            "verified": true,
+            "helpful_count": 15
+          }
+        ]
+      },
+
+      "faq": [
+        { "question": "IR 덱 제작 기간은 얼마나 걸리나요?", "answer": "표준 일정은 3주이며, 긴급 진행 시 2주 내 완성 가능합니다.", "category": "일정" },
+        { "question": "수정은 몇 번까지 가능한가요?", "answer": "기본 3회 수정이 포함되어 있으며, 추가 수정은 별도 협의가 필요합니다.", "category": "프로세스" },
+        { "question": "재무 모델링도 포함되나요?", "answer": "네, 5개년 재무 예측 모델이 Excel 파일로 제공됩니다.", "category": "산출물" },
+        { "question": "발표 코칭도 받을 수 있나요?", "answer": "최종 납품 시 2시간의 발표 코칭 세션이 포함됩니다.", "category": "부가서비스" }
+      ],
+
+      "options": {
+        "scope_levels": [
+          { "name": "기본", "price_multiplier": 1.0, "features": ["IR 덱", "재무모델", "스크립트"] },
+          { "name": "프리미엄", "price_multiplier": 1.3, "features": ["기본 + 디자인 고도화", "추가 수정 2회", "코칭 추가"] },
+          { "name": "엔터프라이즈", "price_multiplier": 1.8, "features": ["프리미엄 + 영문 번역", "VC 네트워킹", "6개월 AS"] }
+        ],
+        "addons": [
+          { "name": "긴급 진행", "price": 800000, "description": "1주 단축, 전담팀 우선 배정" },
+          { "name": "영문 번역", "price": 1500000, "description": "네이티브 검수 포함 영문 IR 덱" },
+          { "name": "디자인 고도화", "price": 500000, "description": "프리미엄 디자인 및 인포그래픽" }
+        ]
+      },
+
+      "bundle": {
+        "recommended_with": ["SVC-DOC-002", "SVC-CON-001"],
+        "bundle_discount": 15,
+        "package_name": "투자유치 풀패키지"
+      },
+
+      "metadata": {
+        "created_date": "2024-01-15",
+        "updated_date": "2024-12-20",
+        "view_count": 2341,
+        "purchase_count": 156,
+        "wishlist_count": 423,
+        "completion_rate": 98,
+        "avg_completion_days": 21,
+        "satisfaction_rate": 95,
+        "repeat_rate": 23
+      },
+
+      "search_keywords": ["IR", "투자유치", "피칭", "IR덱", "투자제안서", "시리즈A"],
+      "is_active": true,
+      "is_featured": true,
+      "priority": 95,
+
+      "media": {
+        "thumbnail": "/images/services/ir-deck-thumb.jpg",
+        "images": ["/images/services/ir-deck-1.jpg", "/images/services/ir-deck-2.jpg"],
+        "video_url": "https://youtube.com/watch?v=sample",
+        "brochure_url": "/downloads/ir-deck-brochure.pdf"
+      }
+    },
+    {
+      "service_id": "SVC-DEV-001",
+      "category": "개발",
+      "subcategory": "mvp",
+      "name": "MVP 개발",
+      "subtitle": "빠르고 효율적인 MVP 개발",
+      "description": "스타트업의 핵심 가치를 담은 MVP를 4주 내에 개발합니다. React/Node.js 기반으로 확장 가능한 구조로 설계합니다.",
+      "badge": "추천",
+      "tags": ["MVP", "웹개발", "React", "Node.js", "프로토타입"],
+
+      "price": {
+        "original": 8000000,
+        "discounted": 7200000,
+        "unit": "프로젝트",
+        "discount_rate": 10
+      },
+
       "duration": {
         "weeks": 4,
         "display": "4주",
         "urgent_available": true,
-        "urgent_days": 7
+        "urgent_days": 21
       },
+
       "provider": {
         "name": "포켓",
         "type": "포켓",
-        "certification": ["벤처지원 경력"],
-        "experience": "25개 기업 지원",
+        "certification": ["풀스택 개발", "클라우드 아키텍처"],
+        "experience": "38개 MVP 개발",
         "success_rate": 92
       },
+
       "target": {
-        "stage": ["Seed", "Series A"],
-        "industry": ["IT", "바이오", "제조"],
-        "employee_count": "10-50명"
-      },
-      "benefits": {
-        "target_areas": ["정부지원", "투자유치", "피칭"],
-        "expected_outcome": "발표 합격률 및 투자 레디니스 동시 강화",
-        "kpi_improvement": {
-          "GO": 8,
-          "EC": 0,
-          "PT": 0,
-          "PF": 14,
-          "TO": 6
+        "stage": ["Pre-Seed", "Seed", "Series A"],
+        "industry": ["모든 산업"],
+        "employee_count": "1-20명",
+        "company_situation": [
+          "아이디어 검증을 위한 MVP 필요",
+          "기술 창업자 부재로 개발 어려움",
+          "투자 유치 전 실제 제품 필요"
+        ],
+        "pain_points": [
+          "개발자 채용 비용과 시간 부담",
+          "기술적 의사결정 어려움",
+          "빠른 시장 진입 필요"
+        ],
+        "prerequisites": [
+          "명확한 제품 기획서",
+          "핵심 기능 정의",
+          "기본 디자인 가이드"
+        ],
+        "ideal_customer": "비기술 창업자 또는 빠른 시장 검증이 필요한 스타트업",
+        "not_suitable_for": [
+          "대규모 엔터프라이즈 솔루션",
+          "복잡한 규제 요구사항",
+          "이미 성장한 서비스의 리빌드"
+        ],
+        "success_indicators": [
+          "명확한 고객 문제 정의",
+          "초기 고객 50명 이상 확보",
+          "3개월 내 시장 반응 검증 계획"
+        ],
+        "urgency_level": "high",
+        "budget_range": {
+          "min": 7000000,
+          "max": 20000000,
+          "note": "단계별 개발 가능, 정부지원금 활용 가능"
         }
       },
-      "deliverables": {
-        "main": [
-          "발표평가용 PPT 20~25P",
-          "IR Deck(엑셀러레이팅용)",
-          "발표 스크립트"
-        ],
-        "additional": [
-          "예상 Q&A 10문",
-          "목업·비주얼 요소",
-          "매출추정·DCF 엑셀"
-        ],
-        "format": ["문서", "컨설팅", "교육"]
-      },
-      "process": {
-        "steps": [
-          { "order": 1, "name": "킥오프", "duration": "1일", "description": "목표 확인·자료 점검", "deliverable": "요구사항 체크리스트" },
-          { "order": 2, "name": "스토리설계", "duration": "5일", "description": "평가포인트 반영 구조", "deliverable": "스토리보드" },
-          { "order": 3, "name": "초안제작", "duration": "7일", "description": "IR/PPT 초안 및 1차 디자인", "deliverable": "초안 PPT" },
-          { "order": 4, "name": "디자인고도화", "duration": "5일", "description": "비주얼·목업 강화", "deliverable": "2차 시안" },
-          { "order": 5, "name": "리허설", "duration": "2일", "description": "발표 연습·Q&A 대비", "deliverable": "스크립트·Q&A" },
-          { "order": 6, "name": "최종납품", "duration": "1일", "description": "원본 전달·활용 가이드", "deliverable": "최종 파일 패키지" }
-        ],
-        "total_steps": 6,
-        "methodology": "워터폴"
-      },
-      "portfolio": {
-        "total_count": 25,
-        "highlights": [
-          {
-            "project_id": "PRJ-GOV-024",
-            "client_type": "Series A 스타트업",
-            "industry": "핀테크",
-            "outcome": "정부 R&D 2차 통과",
-            "date": "2024-11",
-            "testimonial": "짧은 기간에 발표 완성도가 크게 높아졌습니다."
-          },
-          {
-            "project_id": "PRJ-ACC-011",
-            "client_type": "Seed 스타트업",
-            "industry": "헬스케어",
-            "outcome": "민간 엑셀러레이팅 선발",
-            "date": "2025-03",
-            "testimonial": "IR 덱과 스크립트가 설득력을 높였습니다."
-          }
-        ],
-        "success_stories": 9
-      },
-      "reviews": {
-        "avg_rating": 4.6,
-        "total_count": 18,
-        "rating_distribution": { "5": 11, "4": 5, "3": 2, "2": 0, "1": 0 },
-        "recent_reviews": [
-          {
-            "review_id": "RV-2025-001",
-            "client_name": "김대표",
-            "company": "A스타트업",
-            "rating": 5,
-            "date": "2025-06-18",
-            "content": "발표 대비가 체계적이라 합격에 도움됐습니다.",
-            "verified": true,
-            "helpful_count": 7
-          },
-          {
-            "review_id": "RV-2025-002",
-            "client_name": "이대표",
-            "company": "B바이오",
-            "rating": 4,
-            "date": "2025-07-02",
-            "content": "IR 덱 완성도 높고 일정 관리가 좋았습니다.",
-            "verified": true
-          }
-        ]
-      },
-      "faq": [
-        { "question": "VC 매칭도 포함되나요?", "answer": "본 상품은 발표·IR 제작 중심이며, 매칭은 별도 서비스입니다.", "category": "범위" },
-        { "question": "자료 보안은 어떻게 관리되나요?", "answer": "NDA 체결 후 전용 폴더·접근권한으로 관리합니다.", "category": "보안" },
-        { "question": "긴급 진행이 가능한가요?", "answer": "가능합니다. 통상 1주 단축되며 추가 비용이 발생합니다.", "category": "일정" }
-      ],
-      "options": {
-        "scope_levels": [
-          { "name": "기본", "price_multiplier": 1.0, "features": ["발표 PPT", "스크립트", "Q&A 10문"] },
-          { "name": "프리미엄", "price_multiplier": 1.3, "features": ["IR Deck 추가", "디자인 고도화", "리허설 1회 추가"] }
-        ],
-        "addons": [
-          { "name": "긴급 처리", "price": 800000, "description": "1주 단축, 우선 리소스 배정" },
-          { "name": "디자인 확장", "price": 500000, "description": "맞춤 일러스트·목업 추가" }
-        ]
-      },
-      "bundle": {
-        "recommended_with": ["INV-FMODEL-001", "DOC-PLAN-STD-001"],
-        "bundle_discount": 10,
-        "package_name": "투자유치 풀패키지"
-      },
-      "metadata": {
-        "created_date": "2025-09-12",
-        "updated_date": "2025-09-12",
-        "view_count": 0,
-        "purchase_count": 0,
-        "wishlist_count": 0,
-        "completion_rate": 92,
-        "avg_completion_days": 28,
-        "satisfaction_rate": 92,
-        "repeat_rate": 18
-      },
-      "search_keywords": ["정부지원", "발표평가", "IR덱", "엑셀러레이팅", "투자유치"],
-      "is_active": true,
-      "is_featured": true,
-      "priority": 80,
-      "media": {
-        "thumbnail": "",
-        "images": [],
-        "video_url": "",
-        "brochure_url": ""
-      }
-    },
-    {
-      "service_id": "DEV001",
-      "category": "개발",
-      "subcategory": "mvp",
-      "name": "MVP 개발 패키지",
-      "subtitle": "빠른 시장 검증을 위한 MVP 구축",
-      "description": "스타트업의 핵심 가치를 담은 MVP를 빠르게 개발합니다. 노코드/로우코드 솔루션을 활용해 비용과 시간을 절감합니다.",
-      "badge": "HOT",
-      "tags": ["MVP", "노코드", "웹앱", "시장검증", "빠른개발"],
-      "price": {
-        "original": 12000000,
-        "discounted": 9990000,
-        "unit": "프로젝트",
-        "discount_rate": 17
-      },
-      "duration": {
-        "weeks": 8,
-        "display": "8주",
-        "urgent_available": true,
-        "urgent_days": 14
-      },
-      "provider": {
-        "name": "포켓",
-        "type": "포켓",
-        "certification": ["스타트업 개발 전문"],
-        "experience": "56개 프로젝트 완료",
-        "success_rate": 88
-      },
-      "target": {
-        "stage": ["예비", "초기"],
-        "industry": ["IT", "이커머스", "O2O"],
-        "employee_count": "1-10명"
-      },
+
       "benefits": {
-        "target_areas": ["제품 개발", "시장 검증", "기술 구현"],
-        "expected_outcome": "빠른 시장 진입을 위한 효율적인 MVP 개발",
+        "target_areas": ["제품개발", "기술구현", "시장검증"],
+        "expected_outcome": "빠른 시장 진입과 사용자 피드백 확보",
         "kpi_improvement": {
-          "GO": 12,
-          "EC": 5,
-          "PT": 20,
-          "PF": 0,
-          "TO": 3
+          "GO": 5,
+          "EC": 3,
+          "PT": 15,
+          "PF": 2,
+          "TO": 10
         }
       },
+
       "deliverables": {
         "main": [
-          "웹앱 MVP",
-          "관리자 페이지",
-          "기술 문서"
-        ],
-        "additional": [
-          "API 문서",
+          "웹 애플리케이션 MVP",
+          "소스코드 및 문서",
           "배포 가이드",
-          "소스코드"
+          "1개월 유지보수"
         ],
-        "format": ["개발", "문서", "교육"]
+        "additional": [
+          "관리자 대시보드",
+          "API 문서",
+          "테스트 시나리오"
+        ],
+        "format": ["소스코드", "문서", "배포 패키지"]
       },
+
       "process": {
         "steps": [
-          { "order": 1, "name": "요구분석", "duration": "3일", "description": "기능 정의 및 기술스택 결정", "deliverable": "요구사항 명세서" },
-          { "order": 2, "name": "UI/UX 설계", "duration": "1주", "description": "화면 설계 및 프로토타입", "deliverable": "디자인 시안" },
-          { "order": 3, "name": "개발", "duration": "4주", "description": "핵심 기능 구현", "deliverable": "베타 버전" },
-          { "order": 4, "name": "테스트", "duration": "1주", "description": "버그 수정 및 최적화", "deliverable": "테스트 리포트" },
-          { "order": 5, "name": "배포", "duration": "3일", "description": "서버 배포 및 설정", "deliverable": "라이브 서비스" }
+          { "order": 1, "name": "요구사항 정의", "duration": "2일", "description": "기능 명세 및 우선순위 결정", "deliverable": "요구사항 명세서" },
+          { "order": 2, "name": "UI/UX 설계", "duration": "3일", "description": "와이어프레임 및 디자인 시안", "deliverable": "디자인 시안" },
+          { "order": 3, "name": "프론트엔드 개발", "duration": "7일", "description": "React 기반 UI 구현", "deliverable": "프론트엔드 코드" },
+          { "order": 4, "name": "백엔드 개발", "duration": "7일", "description": "API 및 데이터베이스 구축", "deliverable": "백엔드 코드" },
+          { "order": 5, "name": "테스트 및 배포", "duration": "3일", "description": "QA 및 프로덕션 배포", "deliverable": "배포된 MVP" }
         ],
         "total_steps": 5,
         "methodology": "애자일"
       },
+
       "portfolio": {
-        "total_count": 56,
+        "total_count": 38,
         "highlights": [
           {
-            "project_id": "PRJ-DEV-045",
-            "client_type": "초기 스타트업",
-            "industry": "이커머스",
-            "outcome": "3개월 내 1000명 가입",
-            "date": "2025-05",
-            "testimonial": "빠른 개발로 시장 진입에 성공했습니다."
+            "project_id": "PRJ-DEV-031",
+            "client_type": "Seed 스타트업",
+            "industry": "물류/유통",
+            "outcome": "2개월 만에 베타 서비스 런칭",
+            "date": "2024-12",
+            "testimonial": "빠른 개발 속도와 안정적인 품질에 만족합니다."
+          },
+          {
+            "project_id": "PRJ-DEV-032",
+            "client_type": "Pre-Seed 스타트업",
+            "industry": "에듀테크",
+            "outcome": "MAU 5,000명 달성",
+            "date": "2024-10",
+            "testimonial": "확장 가능한 구조 덕분에 빠르게 기능을 추가할 수 있었습니다."
+          },
+          {
+            "project_id": "PRJ-DEV-033",
+            "client_type": "Seed 스타트업",
+            "industry": "푸드테크",
+            "outcome": "첫 달 거래액 1억 달성",
+            "date": "2024-08",
+            "testimonial": "사용자 경험이 뛰어난 MVP를 만들어주셨습니다."
           }
         ],
-        "success_stories": 23
+        "success_stories": 32
       },
+
       "reviews": {
         "avg_rating": 4.7,
-        "total_count": 56,
-        "rating_distribution": { "5": 35, "4": 15, "3": 5, "2": 1, "1": 0 },
+        "total_count": 89,
+        "rating_distribution": {
+          "5": 52,
+          "4": 28,
+          "3": 7,
+          "2": 2,
+          "1": 0
+        },
         "recent_reviews": [
           {
-            "review_id": "RV-DEV-001",
-            "client_name": "박대표",
-            "company": "C테크",
+            "review_id": "RV-2024-089",
+            "client_name": "정CTO",
+            "company": "테크 스타트업",
             "rating": 5,
-            "date": "2025-08-10",
-            "content": "기대 이상의 퀄리티로 빠르게 완성되었습니다.",
+            "date": "2024-12-10",
+            "content": "코드 품질이 매우 높고 문서화가 잘 되어 있어 인수인계가 수월했습니다.",
+            "verified": true,
+            "helpful_count": 20
+          },
+          {
+            "review_id": "RV-2024-088",
+            "client_name": "최대표",
+            "company": "SaaS 기업",
+            "rating": 4.5,
+            "date": "2024-11-15",
+            "content": "일정을 정확히 지켜주시고 커뮤니케이션이 원활했습니다.",
+            "verified": true,
+            "helpful_count": 18
+          },
+          {
+            "review_id": "RV-2024-087",
+            "client_name": "강PM",
+            "company": "플랫폼 기업",
+            "rating": 4.8,
+            "date": "2024-10-25",
+            "content": "기대 이상의 퀄리티로 MVP를 개발해주셨습니다.",
+            "verified": true,
+            "helpful_count": 14
+          }
+        ]
+      },
+
+      "faq": [
+        { "question": "어떤 기술 스택을 사용하나요?", "answer": "프론트엔드는 React/Next.js, 백엔드는 Node.js/Express, DB는 PostgreSQL을 기본으로 사용합니다.", "category": "기술" },
+        { "question": "모바일 앱도 개발 가능한가요?", "answer": "React Native를 활용한 크로스 플랫폼 앱 개발이 가능합니다. 별도 견적이 필요합니다.", "category": "범위" },
+        { "question": "유지보수는 어떻게 진행되나요?", "answer": "첫 달은 무료 유지보수가 제공되며, 이후 월 단위 계약이 가능합니다.", "category": "유지보수" },
+        { "question": "소스코드 소유권은 누구에게 있나요?", "answer": "개발 완료 후 모든 소스코드의 소유권은 클라이언트에게 이전됩니다.", "category": "계약" }
+      ],
+
+      "options": {
+        "scope_levels": [
+          { "name": "기본", "price_multiplier": 1.0, "features": ["MVP 개발", "기본 기능", "1개월 유지보수"] },
+          { "name": "프리미엄", "price_multiplier": 1.4, "features": ["기본 + 관리자 페이지", "분석 대시보드", "3개월 유지보수"] },
+          { "name": "엔터프라이즈", "price_multiplier": 2.0, "features": ["프리미엄 + 모바일 앱", "CI/CD 구축", "6개월 유지보수"] }
+        ],
+        "addons": [
+          { "name": "모바일 앱", "price": 3000000, "description": "React Native 크로스플랫폼 앱" },
+          { "name": "관리자 대시보드", "price": 1500000, "description": "통계 및 관리 기능" },
+          { "name": "CI/CD 구축", "price": 800000, "description": "자동 배포 파이프라인 구축" }
+        ]
+      },
+
+      "bundle": {
+        "recommended_with": ["SVC-DES-001", "SVC-MKT-001"],
+        "bundle_discount": 10,
+        "package_name": "MVP 런칭 패키지"
+      },
+
+      "metadata": {
+        "created_date": "2024-02-01",
+        "updated_date": "2024-12-18",
+        "view_count": 1823,
+        "purchase_count": 89,
+        "wishlist_count": 234,
+        "completion_rate": 95,
+        "avg_completion_days": 28,
+        "satisfaction_rate": 93,
+        "repeat_rate": 31
+      },
+
+      "search_keywords": ["MVP", "개발", "웹개발", "React", "Node.js", "프로토타입"],
+      "is_active": true,
+      "is_featured": false,
+      "priority": 85,
+
+      "media": {
+        "thumbnail": "/images/services/mvp-dev-thumb.jpg",
+        "images": ["/images/services/mvp-dev-1.jpg", "/images/services/mvp-dev-2.jpg"],
+        "video_url": "",
+        "brochure_url": "/downloads/mvp-dev-brochure.pdf"
+      }
+    },
+    {
+      "service_id": "SVC-MKT-001",
+      "category": "마케팅",
+      "subcategory": "digital",
+      "name": "디지털 마케팅 전략",
+      "subtitle": "데이터 기반 그로스 마케팅",
+      "description": "퍼포먼스 마케팅부터 콘텐츠 마케팅까지, 통합 디지털 마케팅 전략을 수립하고 실행합니다.",
+      "badge": "신규",
+      "tags": ["디지털마케팅", "퍼포먼스마케팅", "그로스해킹", "마케팅전략"],
+
+      "price": {
+        "original": 4000000,
+        "discounted": 3600000,
+        "unit": "프로젝트",
+        "discount_rate": 10
+      },
+
+      "duration": {
+        "weeks": 6,
+        "display": "6주",
+        "urgent_available": false
+      },
+
+      "provider": {
+        "name": "포켓",
+        "type": "포켓",
+        "certification": ["구글 애즈 인증", "페이스북 마케팅 파트너"],
+        "experience": "67개 캠페인 운영",
+        "success_rate": 88
+      },
+
+      "target": {
+        "stage": ["Seed", "Series A", "Series B"],
+        "industry": ["이커머스", "SaaS", "O2O", "콘텐츠"],
+        "employee_count": "5-100명"
+      },
+
+      "benefits": {
+        "target_areas": ["고객획득", "매출증대", "브랜드인지도"],
+        "expected_outcome": "CAC 감소 및 ROAS 개선을 통한 마케팅 효율 극대화",
+        "kpi_improvement": {
+          "GO": 12,
+          "EC": 8,
+          "PT": 3,
+          "PF": 0,
+          "TO": 5
+        }
+      },
+
+      "deliverables": {
+        "main": [
+          "마케팅 전략 보고서",
+          "채널별 실행 계획",
+          "광고 크리에이티브 세트",
+          "성과 측정 대시보드"
+        ],
+        "additional": [
+          "경쟁사 분석 리포트",
+          "페르소나 정의서",
+          "콘텐츠 캘린더"
+        ],
+        "format": ["보고서", "대시보드", "크리에이티브"]
+      },
+
+      "process": {
+        "steps": [
+          { "order": 1, "name": "현황 분석", "duration": "3일", "description": "현재 마케팅 성과 및 시장 분석", "deliverable": "현황 분석 보고서" },
+          { "order": 2, "name": "전략 수립", "duration": "5일", "description": "타겟 정의 및 채널 전략", "deliverable": "마케팅 전략서" },
+          { "order": 3, "name": "캠페인 설계", "duration": "7일", "description": "채널별 캠페인 기획", "deliverable": "캠페인 기획서" },
+          { "order": 4, "name": "실행 및 최적화", "duration": "14일", "description": "캠페인 실행 및 A/B 테스트", "deliverable": "운영 리포트" },
+          { "order": 5, "name": "성과 분석", "duration": "3일", "description": "ROI 분석 및 개선안 도출", "deliverable": "성과 분석 보고서" }
+        ],
+        "total_steps": 5,
+        "methodology": "애자일"
+      },
+
+      "portfolio": {
+        "total_count": 67,
+        "highlights": [
+          {
+            "project_id": "PRJ-MKT-054",
+            "client_type": "Series A 스타트업",
+            "industry": "D2C 브랜드",
+            "outcome": "ROAS 350% 달성",
+            "date": "2024-11",
+            "testimonial": "체계적인 퍼널 분석과 최적화로 광고 효율이 크게 개선되었습니다."
+          },
+          {
+            "project_id": "PRJ-MKT-055",
+            "client_type": "Series B 스타트업",
+            "industry": "B2B SaaS",
+            "outcome": "리드 생성 200% 증가",
+            "date": "2024-09",
+            "testimonial": "콘텐츠 마케팅 전략이 특히 효과적이었습니다."
+          },
+          {
+            "project_id": "PRJ-MKT-056",
+            "client_type": "Seed 스타트업",
+            "industry": "모빌리티",
+            "outcome": "CAC 40% 감소",
+            "date": "2024-07",
+            "testimonial": "데이터 기반 의사결정으로 마케팅 효율을 극대화했습니다."
+          }
+        ],
+        "success_stories": 52
+      },
+
+      "reviews": {
+        "avg_rating": 4.6,
+        "total_count": 124,
+        "rating_distribution": {
+          "5": 68,
+          "4": 42,
+          "3": 10,
+          "2": 3,
+          "1": 1
+        },
+        "recent_reviews": [
+          {
+            "review_id": "RV-2024-124",
+            "client_name": "오CMO",
+            "company": "이커머스",
+            "rating": 5,
+            "date": "2024-12-08",
+            "content": "단순 광고 집행이 아닌 전략적 접근이 인상적이었습니다.",
+            "verified": true,
+            "helpful_count": 25
+          },
+          {
+            "review_id": "RV-2024-123",
+            "client_name": "유마케터",
+            "company": "스타트업",
+            "rating": 4.7,
+            "date": "2024-11-12",
+            "content": "실무에 바로 적용 가능한 실용적인 전략을 제시해주셨습니다.",
+            "verified": true,
+            "helpful_count": 19
+          },
+          {
+            "review_id": "RV-2024-122",
+            "client_name": "장대표",
+            "company": "D2C 브랜드",
+            "rating": 4.9,
+            "date": "2024-10-20",
+            "content": "ROI가 확실히 개선되었습니다. 추천합니다!",
+            "verified": true,
+            "helpful_count": 22
+          }
+        ]
+      },
+
+      "faq": [
+        { "question": "광고 예산은 별도인가요?", "answer": "네, 서비스 비용과 별도로 광고 집행 예산이 필요합니다.", "category": "비용" },
+        { "question": "어떤 채널을 주로 다루나요?", "answer": "구글, 페이스북, 인스타그램, 네이버, 카카오 등 주요 디지털 채널을 모두 다룹니다.", "category": "채널" },
+        { "question": "성과 보장이 되나요?", "answer": "성과를 보장하지는 않지만, 데이터 기반 최적화로 개선 가능성을 극대화합니다.", "category": "성과" },
+        { "question": "직접 광고 운영도 해주시나요?", "answer": "첫 달은 직접 운영을 지원하며, 이후 내재화를 위한 교육을 진행합니다.", "category": "운영" }
+      ],
+
+      "options": {
+        "scope_levels": [
+          { "name": "기본", "price_multiplier": 1.0, "features": ["전략 수립", "2개 채널", "월간 리포트"] },
+          { "name": "프리미엄", "price_multiplier": 1.5, "features": ["기본 + 4개 채널", "주간 리포트", "크리에이티브 제작"] },
+          { "name": "엔터프라이즈", "price_multiplier": 2.2, "features": ["프리미엄 + 전채널", "일일 모니터링", "전담 매니저"] }
+        ],
+        "addons": [
+          { "name": "크리에이티브 패키지", "price": 1000000, "description": "월 20개 광고 소재 제작" },
+          { "name": "인플루언서 마케팅", "price": 2000000, "description": "인플루언서 섭외 및 캠페인 운영" },
+          { "name": "이메일 마케팅", "price": 500000, "description": "이메일 자동화 캠페인 구축" }
+        ]
+      },
+
+      "bundle": {
+        "recommended_with": ["SVC-DES-001", "SVC-CON-001"],
+        "bundle_discount": 12,
+        "package_name": "그로스 마케팅 패키지"
+      },
+
+      "metadata": {
+        "created_date": "2024-03-10",
+        "updated_date": "2024-12-15",
+        "view_count": 3214,
+        "purchase_count": 124,
+        "wishlist_count": 567,
+        "completion_rate": 92,
+        "avg_completion_days": 42,
+        "satisfaction_rate": 91,
+        "repeat_rate": 45
+      },
+
+      "search_keywords": ["마케팅", "디지털마케팅", "퍼포먼스마케팅", "그로스", "광고"],
+      "is_active": true,
+      "is_featured": false,
+      "priority": 80,
+
+      "media": {
+        "thumbnail": "/images/services/marketing-thumb.jpg",
+        "images": ["/images/services/marketing-1.jpg", "/images/services/marketing-2.jpg"],
+        "video_url": "",
+        "brochure_url": "/downloads/marketing-brochure.pdf"
+      }
+    },
+    {
+      "service_id": "SVC-DES-001",
+      "category": "디자인",
+      "subcategory": "branding",
+      "name": "브랜드 아이덴티티 디자인",
+      "subtitle": "스타트업을 위한 전문 브랜드 아이덴티티 구축",
+      "description": "로고, 컬러, 타이포그래피를 포함한 완벽한 브랜드 아이덴티티를 구축합니다. 브랜드 가이드라인과 응용 디자인까지 제공합니다.",
+      "badge": "신규",
+      "tags": ["브랜딩", "로고", "디자인", "아이덴티티", "가이드라인"],
+
+      "price": {
+        "original": 3500000,
+        "discounted": 3000000,
+        "unit": "프로젝트",
+        "discount_rate": 14
+      },
+
+      "duration": {
+        "weeks": 4,
+        "display": "4주",
+        "urgent_available": true,
+        "urgent_days": 14
+      },
+
+      "provider": {
+        "name": "디자인팩토리",
+        "type": "파트너사",
+        "certification": ["브랜드 디자이너", "UI/UX 전문가"],
+        "experience": "38개 기업 브랜딩",
+        "success_rate": 94
+      },
+
+      "target": {
+        "stage": ["예비창업", "Seed", "Series A"],
+        "industry": ["전체"],
+        "employee_count": "1-30명",
+        "company_situation": [
+          "브랜드 아이덴티티 부재",
+          "투자자 미팅 준비로 전문성 필요",
+          "경쟁사와 차별화 필요"
+        ],
+        "pain_points": [
+          "일관성 없는 브랜드 이미지",
+          "전문성 부족으로 신뢰도 저하",
+          "디자인 외주 비용 부담"
+        ],
+        "prerequisites": [
+          "회사명 및 기본 사업 방향",
+          "타겟 고객군 정의",
+          "참고 레퍼런스"
+        ],
+        "ideal_customer": "전문적인 브랜드 아이덴티티로 신뢰도를 높이고 싶은 초기 스타트업",
+        "not_suitable_for": [
+          "단순 로고만 필요한 경우",
+          "이미 브랜드가 확립된 기업",
+          "내부 사용만 목적인 경우"
+        ],
+        "success_indicators": [
+          "외부 투자 유치 계획",
+          "B2B 영업 또는 B2C 마케팅 계획",
+          "온/오프라인 활동 계획"
+        ],
+        "urgency_level": "medium",
+        "budget_range": {
+          "min": 2500000,
+          "max": 5000000,
+          "note": "단계별 진행 가능"
+        }
+      },
+
+      "benefits": {
+        "target_areas": ["브랜드 인지도", "고객 신뢰", "마케팅 효과"],
+        "expected_outcome": "일관된 브랜드 아이덴티티로 고객 인지도 및 신뢰도 향상",
+        "kpi_improvement": {
+          "GO": 12,
+          "EC": 3,
+          "PT": 8,
+          "PF": 0,
+          "TO": 2
+        }
+      },
+
+      "deliverables": {
+        "main": [
+          "로고 디자인 (3안)",
+          "브랜드 가이드라인",
+          "명함 디자인",
+          "레터헤드 디자인"
+        ],
+        "additional": [
+          "SNS 템플릿",
+          "프레젠테이션 템플릿",
+          "패키지 디자인"
+        ],
+        "format": ["AI", "PDF", "PNG", "JPG"]
+      },
+
+      "process": {
+        "steps": [
+          { "order": 1, "name": "브랜드 전략", "duration": "3일", "description": "브랜드 분석 및 방향 설정", "deliverable": "브랜드 전략서" },
+          { "order": 2, "name": "컨셉 개발", "duration": "5일", "description": "디자인 컨셉 및 무드보드", "deliverable": "컨셉 보드" },
+          { "order": 3, "name": "디자인 시안", "duration": "7일", "description": "로고 및 주요 디자인", "deliverable": "디자인 시안 3종" },
+          { "order": 4, "name": "수정 및 확장", "duration": "5일", "description": "피드백 반영 및 응용 디자인", "deliverable": "수정 시안" },
+          { "order": 5, "name": "가이드라인", "duration": "3일", "description": "브랜드 가이드라인 제작", "deliverable": "브랜드 가이드북" }
+        ],
+        "total_steps": 5,
+        "methodology": "애자일"
+      },
+
+      "portfolio": {
+        "total_count": 38,
+        "highlights": [
+          {
+            "project_id": "PRJ-DES-015",
+            "client_type": "Seed 스타트업",
+            "industry": "푸드테크",
+            "outcome": "브랜드 인지도 200% 상승",
+            "date": "2024-10",
+            "testimonial": "젊고 트렌디한 브랜드 이미지를 완벽하게 구현했습니다."
+          },
+          {
+            "project_id": "PRJ-DES-016",
+            "client_type": "예비창업",
+            "industry": "교육",
+            "outcome": "투자유치 성공",
+            "date": "2024-08",
+            "testimonial": "전문적인 브랜드 이미지가 투자자들에게 좋은 인상을 남겼습니다."
+          }
+        ]
+      },
+
+      "reviews": {
+        "avg_rating": 4.7,
+        "total_count": 28,
+        "rating_distribution": { "5": 18, "4": 8, "3": 2, "2": 0, "1": 0 },
+        "recent_reviews": [
+          {
+            "review_id": "RV-DES-001",
+            "client_name": "박대표",
+            "company": "푸드테크 스타트업",
+            "rating": 5,
+            "date": "2025-01-10",
+            "content": "기대 이상의 퀄리티와 세심한 디테일에 만족합니다.",
             "verified": true,
             "helpful_count": 12
           }
         ]
       },
+
       "faq": [
-        { "question": "유지보수도 제공하나요?", "answer": "3개월 무상 유지보수가 포함되며, 이후 별도 계약 가능합니다.", "category": "서비스" },
-        { "question": "기술스택을 선택할 수 있나요?", "answer": "프로젝트 특성에 맞는 최적의 기술스택을 추천드립니다.", "category": "기술" }
+        { "question": "수정은 몇 번까지 가능한가요?", "answer": "기본 3회 수정이 포함되며, 추가 수정은 별도 협의합니다.", "category": "수정" },
+        { "question": "소스 파일도 제공되나요?", "answer": "네, AI 원본 파일과 각종 포맷의 파일을 모두 제공합니다.", "category": "납품" }
       ],
+
       "options": {
         "scope_levels": [
-          { "name": "기본", "price_multiplier": 1.0, "features": ["웹앱", "관리자페이지", "기본 기능"] },
-          { "name": "프리미엄", "price_multiplier": 1.5, "features": ["모바일 앱 추가", "고급 기능", "분석 대시보드"] }
-        ],
-        "addons": [
-          { "name": "모바일 앱", "price": 3000000, "description": "iOS/Android 앱 추가 개발" },
-          { "name": "AI 기능", "price": 2000000, "description": "AI 추천/분석 기능 탑재" }
+          { "name": "베이직", "price_multiplier": 1.0, "features": ["로고", "명함", "가이드라인"] },
+          { "name": "프리미엄", "price_multiplier": 1.5, "features": ["전체 패키지", "SNS 템플릿", "패키지 디자인"] }
         ]
       },
+
       "metadata": {
-        "created_date": "2025-09-12",
-        "updated_date": "2025-09-12",
-        "view_count": 0,
-        "purchase_count": 0,
-        "wishlist_count": 0,
-        "completion_rate": 88,
-        "avg_completion_days": 56,
-        "satisfaction_rate": 89,
-        "repeat_rate": 34
+        "created_date": "2025-01-01",
+        "updated_date": "2025-01-14",
+        "view_count": 156,
+        "purchase_count": 28,
+        "wishlist_count": 45,
+        "completion_rate": 94,
+        "avg_completion_days": 28,
+        "satisfaction_rate": 94,
+        "repeat_rate": 35
       },
-      "search_keywords": ["MVP", "웹개발", "앱개발", "노코드", "빠른개발"],
+
+      "search_keywords": ["브랜딩", "로고", "디자인", "아이덴티티", "CI", "BI"],
       "is_active": true,
-      "is_featured": true,
-      "priority": 90,
+      "is_featured": false,
+      "priority": 75,
+
       "media": {
-        "thumbnail": "",
-        "images": [],
+        "thumbnail": "/images/services/design-thumb.jpg",
+        "images": ["/images/services/design-1.jpg"],
         "video_url": "",
         "brochure_url": ""
       }
     },
     {
-      "service_id": "MKT001",
-      "category": "마케팅",
-      "subcategory": "digital",
-      "name": "디지털 마케팅 스타터",
-      "subtitle": "초기 스타트업을 위한 마케팅 전략 수립 및 실행",
-      "description": "데이터 기반의 디지털 마케팅 전략을 수립하고 실행합니다. 타겟 고객을 정확히 찾아 효율적인 성장을 돕습니다.",
-      "tags": ["디지털마케팅", "SNS", "광고", "그로스해킹", "퍼포먼스"],
+      "service_id": "SVC-INV-001",
+      "category": "투자",
+      "subcategory": "funding",
+      "name": "투자유치 전략 컨설팅",
+      "subtitle": "시리즈 투자를 위한 체계적인 투자유치 전략 수립",
+      "description": "투자유치 전략 수립부터 VC 매칭, 실사 대응까지 투자유치 전 과정을 지원합니다. 성공적인 펀딩을 위한 원스톱 솔루션입니다.",
+      "badge": "추천",
+      "tags": ["투자유치", "VC매칭", "실사대응", "밸류에이션", "투자전략"],
+
       "price": {
-        "original": 3000000,
-        "discounted": 2500000,
-        "unit": "월",
-        "discount_rate": 17
+        "original": 8000000,
+        "discounted": 7200000,
+        "unit": "프로젝트",
+        "discount_rate": 10
       },
+
       "duration": {
-        "weeks": 12,
-        "display": "3개월",
+        "weeks": 8,
+        "display": "8주",
         "urgent_available": false
       },
+
       "provider": {
         "name": "포켓",
         "type": "포켓",
-        "certification": ["구글 파트너", "메타 파트너"],
-        "experience": "102개 캠페인 운영",
-        "success_rate": 85
+        "certification": ["투자전문가", "前 VC 심사역"],
+        "experience": "52개 기업 투자유치 성공",
+        "success_rate": 78
       },
+
       "target": {
-        "stage": ["초기", "성장"],
-        "industry": ["이커머스", "SaaS", "컨텐츠"],
-        "employee_count": "5-30명"
-      },
-      "benefits": {
-        "target_areas": ["마케팅 전략", "고객 획득", "브랜드 인지도"],
-        "expected_outcome": "초기 스타트업에 최적화된 디지털 마케팅 전략",
-        "kpi_improvement": {
-          "GO": 18,
-          "EC": 12,
-          "PT": 3,
-          "PF": 5,
-          "TO": 0
+        "stage": ["Seed", "Series A", "Series B"],
+        "industry": ["전체"],
+        "employee_count": "10-100명",
+        "company_situation": [
+          "제품 론칭 후 본격적인 마케팅 필요",
+          "디지털 마케팅 전략 부재",
+          "CAC 최적화와 성장 가속화 필요"
+        ],
+        "pain_points": [
+          "마케팅 비용 대비 효과 미비",
+          "체계적인 디지털 마케팅 전략 부족",
+          "데이터 기반 의사결정 체계 부재"
+        ],
+        "prerequisites": [
+          "기본적인 제품/서비스 완성",
+          "타겟 고객 페르소나 정의",
+          "최소 월 500만원 이상 마케팅 예산"
+        ],
+        "ideal_customer": "Product-Market Fit을 찾은 후 본격적인 성장을 준비하는 스타트업",
+        "not_suitable_for": [
+          "MVP 단계 제품",
+          "타겟 고객이 불명확한 팀",
+          "마케팅 예산이 월 300만원 미만"
+        ],
+        "success_indicators": [
+          "월 매출 3천만원 이상 또는 MAU 1만 이상",
+          "기본적인 유료 고객 확보",
+          "6개월 이상 서비스 운영"
+        ],
+        "urgency_level": "medium",
+        "budget_range": {
+          "min": 3000000,
+          "max": 10000000,
+          "note": "광고비 별도, 성과 기반 계약 가능"
         }
       },
+
+      "benefits": {
+        "target_areas": ["투자유치", "기업가치", "네트워킹"],
+        "expected_outcome": "체계적인 투자유치 프로세스로 성공 확률 극대화",
+        "kpi_improvement": {
+          "GO": 5,
+          "EC": 15,
+          "PT": 0,
+          "PF": 8,
+          "TO": 10
+        }
+      },
+
       "deliverables": {
         "main": [
-          "마케팅 전략서",
-          "3개월 실행 계획",
-          "광고 세팅"
+          "투자유치 전략서",
+          "밸류에이션 리포트",
+          "VC 리스트 (30개)",
+          "실사 체크리스트"
         ],
         "additional": [
-          "월간 리포트",
-          "A/B 테스트 결과",
-          "개선 제안서"
+          "투자계약서 검토",
+          "실사 Q&A 대응",
+          "VC 미팅 동행 (3회)"
         ],
-        "format": ["전략", "실행", "리포트"]
+        "format": ["문서", "컨설팅", "코칭"]
       },
+
       "process": {
         "steps": [
-          { "order": 1, "name": "시장분석", "duration": "1주", "description": "타겟 시장 및 경쟁사 분석", "deliverable": "시장 분석 리포트" },
-          { "order": 2, "name": "전략수립", "duration": "1주", "description": "채널별 마케팅 전략 수립", "deliverable": "마케팅 전략서" },
-          { "order": 3, "name": "캠페인실행", "duration": "8주", "description": "광고 집행 및 최적화", "deliverable": "캠페인 운영" },
-          { "order": 4, "name": "성과분석", "duration": "2주", "description": "성과 분석 및 개선안 도출", "deliverable": "최종 리포트" }
+          { "order": 1, "name": "진단", "duration": "1주", "description": "현황 분석 및 투자 준비도 평가", "deliverable": "진단 리포트" },
+          { "order": 2, "name": "전략 수립", "duration": "2주", "description": "투자유치 전략 및 타임라인", "deliverable": "전략서" },
+          { "order": 3, "name": "VC 매칭", "duration": "2주", "description": "타겟 VC 선정 및 접촉", "deliverable": "VC 리스트" },
+          { "order": 4, "name": "미팅 준비", "duration": "1주", "description": "피칭 준비 및 리허설", "deliverable": "피칭 자료" },
+          { "order": 5, "name": "실사 대응", "duration": "2주", "description": "실사 자료 준비 및 Q&A", "deliverable": "실사 패키지" }
         ],
-        "total_steps": 4,
-        "methodology": "애자일"
+        "total_steps": 5,
+        "methodology": "워터폴"
       },
+
       "portfolio": {
-        "total_count": 102,
+        "total_count": 52,
         "highlights": [
           {
-            "project_id": "PRJ-MKT-089",
-            "client_type": "초기 스타트업",
-            "industry": "이커머스",
-            "outcome": "CAC 50% 감소",
-            "date": "2025-07",
-            "testimonial": "효율적인 광고 운영으로 비용을 크게 절감했습니다."
+            "project_id": "PRJ-INV-032",
+            "client_type": "Series A 스타트업",
+            "industry": "핀테크",
+            "outcome": "시리즈 A 50억 투자유치",
+            "date": "2024-12",
+            "testimonial": "체계적인 프로세스와 네트워크가 큰 도움이 되었습니다."
           }
-        ],
-        "success_stories": 45
+        ]
       },
+
       "reviews": {
-        "avg_rating": 4.6,
-        "total_count": 102,
-        "rating_distribution": { "5": 58, "4": 32, "3": 10, "2": 2, "1": 0 },
+        "avg_rating": 4.5,
+        "total_count": 42,
+        "rating_distribution": { "5": 25, "4": 12, "3": 4, "2": 1, "1": 0 },
         "recent_reviews": [
           {
-            "review_id": "RV-MKT-001",
+            "review_id": "RV-INV-001",
             "client_name": "최대표",
-            "company": "D커머스",
+            "company": "AI 스타트업",
             "rating": 5,
-            "date": "2025-08-25",
-            "content": "구체적인 데이터와 함께 성과를 개선해주셨습니다.",
-            "verified": true,
-            "helpful_count": 8
+            "date": "2025-01-05",
+            "content": "VC 네트워크와 실무 경험이 투자유치에 결정적이었습니다.",
+            "verified": true
           }
         ]
       },
+
       "faq": [
-        { "question": "광고비는 별도인가요?", "answer": "네, 광고비는 별도이며 예산에 맞춰 운영합니다.", "category": "비용" },
-        { "question": "어떤 채널을 운영하나요?", "answer": "구글, 메타, 네이버 등 주요 채널을 운영합니다.", "category": "채널" }
+        { "question": "성공 보수는 별도인가요?", "answer": "기본 컨설팅 비용만 있으며, 성공 보수는 별도 협의입니다.", "category": "비용" },
+        { "question": "VC 미팅은 보장되나요?", "answer": "최소 5개 이상 VC와의 미팅을 주선합니다.", "category": "서비스" }
       ],
-      "options": {
-        "scope_levels": [
-          { "name": "기본", "price_multiplier": 1.0, "features": ["2개 채널", "주간 리포트", "기본 최적화"] },
-          { "name": "프리미엄", "price_multiplier": 1.5, "features": ["4개 채널", "일간 리포트", "고급 최적화"] }
+
+      "metadata": {
+        "created_date": "2024-11-01",
+        "updated_date": "2025-01-14",
+        "view_count": 892,
+        "purchase_count": 42,
+        "wishlist_count": 156,
+        "completion_rate": 78,
+        "avg_completion_days": 56,
+        "satisfaction_rate": 88,
+        "repeat_rate": 15
+      },
+
+      "search_keywords": ["투자유치", "VC", "펀딩", "시리즈", "투자전략"],
+      "is_active": true,
+      "is_featured": true,
+      "priority": 95,
+
+      "media": {}
+    },
+    {
+      "service_id": "SVC-CON-001",
+      "category": "컨설팅",
+      "subcategory": "strategy",
+      "name": "비즈니스 모델 컨설팅",
+      "subtitle": "수익모델 설계와 사업전략 수립",
+      "description": "스타트업의 지속가능한 성장을 위한 비즈니스 모델 설계와 수익화 전략을 수립합니다. 시장 분석부터 실행 계획까지 제공합니다.",
+      "badge": "HOT",
+      "tags": ["비즈니스모델", "수익화", "전략", "BM", "컨설팅"],
+
+      "price": {
+        "original": 6000000,
+        "discounted": 5400000,
+        "unit": "프로젝트",
+        "discount_rate": 10
+      },
+
+      "duration": {
+        "weeks": 6,
+        "display": "6주",
+        "urgent_available": true,
+        "urgent_days": 21
+      },
+
+      "provider": {
+        "name": "전략컨설팅그룹",
+        "type": "파트너사",
+        "certification": ["경영전략 컨설턴트", "MBA"],
+        "experience": "68개 기업 컨설팅",
+        "success_rate": 82
+      },
+
+      "target": {
+        "stage": ["예비창업", "Seed", "Series A"],
+        "industry": ["전체"],
+        "employee_count": "1-50명"
+      },
+
+      "benefits": {
+        "target_areas": ["사업전략", "수익모델", "시장확대"],
+        "expected_outcome": "명확한 비즈니스 모델과 실행 가능한 성장 전략 수립",
+        "kpi_improvement": {
+          "GO": 10,
+          "EC": 12,
+          "PT": 5,
+          "PF": 3,
+          "TO": 8
+        }
+      },
+
+      "deliverables": {
+        "main": [
+          "비즈니스 모델 캔버스",
+          "수익모델 설계서",
+          "시장 분석 리포트",
+          "3개년 사업계획서"
         ],
-        "addons": [
-          { "name": "콘텐츠 제작", "price": 1000000, "description": "월 10개 콘텐츠 제작" },
-          { "name": "인플루언서 마케팅", "price": 2000000, "description": "인플루언서 섭외 및 관리" }
+        "additional": [
+          "경쟁사 분석",
+          "가격 전략",
+          "마케팅 전략"
+        ],
+        "format": ["PPT", "Excel", "PDF"]
+      },
+
+      "process": {
+        "steps": [
+          { "order": 1, "name": "현황 분석", "duration": "1주", "description": "비즈니스 현황 및 시장 분석", "deliverable": "현황 분석서" },
+          { "order": 2, "name": "BM 설계", "duration": "2주", "description": "비즈니스 모델 설계", "deliverable": "BM 캔버스" },
+          { "order": 3, "name": "수익화 전략", "duration": "1주", "description": "수익모델 및 가격 전략", "deliverable": "수익화 전략서" },
+          { "order": 4, "name": "실행 계획", "duration": "1주", "description": "실행 로드맵 수립", "deliverable": "실행 계획서" },
+          { "order": 5, "name": "최종 정리", "duration": "1주", "description": "종합 전략서 작성", "deliverable": "최종 전략서" }
+        ],
+        "total_steps": 5,
+        "methodology": "하이브리드"
+      },
+
+      "portfolio": {
+        "total_count": 68,
+        "highlights": [
+          {
+            "project_id": "PRJ-CON-045",
+            "client_type": "Seed 스타트업",
+            "industry": "커머스",
+            "outcome": "매출 300% 성장",
+            "date": "2024-11",
+            "testimonial": "체계적인 BM 설계로 투자유치와 매출 성장을 동시에 달성했습니다."
+          }
         ]
       },
-      "metadata": {
-        "created_date": "2025-09-12",
-        "updated_date": "2025-09-12",
-        "view_count": 0,
-        "purchase_count": 0,
-        "wishlist_count": 0,
-        "completion_rate": 85,
-        "avg_completion_days": 90,
-        "satisfaction_rate": 86,
-        "repeat_rate": 45
+
+      "reviews": {
+        "avg_rating": 4.6,
+        "total_count": 55,
+        "rating_distribution": { "5": 32, "4": 18, "3": 4, "2": 1, "1": 0 },
+        "recent_reviews": [
+          {
+            "review_id": "RV-CON-001",
+            "client_name": "김대표",
+            "company": "모빌리티 스타트업",
+            "rating": 5,
+            "date": "2024-12-20",
+            "content": "막연했던 사업 방향이 명확해졌습니다.",
+            "verified": true
+          }
+        ]
       },
-      "search_keywords": ["마케팅", "광고", "SNS", "퍼포먼스", "그로스"],
+
+      "faq": [
+        { "question": "실행 지원도 포함되나요?", "answer": "컨설팅 이후 3개월간 월 1회 팔로업 미팅이 포함됩니다.", "category": "서비스" }
+      ],
+
+      "metadata": {
+        "created_date": "2024-10-01",
+        "updated_date": "2025-01-14",
+        "view_count": 723,
+        "purchase_count": 55,
+        "wishlist_count": 98,
+        "completion_rate": 82,
+        "avg_completion_days": 42,
+        "satisfaction_rate": 91,
+        "repeat_rate": 28
+      },
+
+      "search_keywords": ["비즈니스모델", "BM", "전략", "컨설팅", "수익화"],
+      "is_active": true,
+      "is_featured": true,
+      "priority": 90,
+
+      "media": {}
+    },
+    {
+      "service_id": "SVC-DOC-002",
+      "category": "문서작업",
+      "subcategory": "business",
+      "name": "사업계획서 작성",
+      "subtitle": "정부지원사업 및 투자용 사업계획서",
+      "description": "정부지원사업, 대출, 투자유치를 위한 전문 사업계획서를 작성합니다. 시장분석, 재무계획, 실행전략까지 포함된 완벽한 문서입니다.",
+      "badge": "할인",
+      "tags": ["사업계획서", "정부지원", "창업지원", "문서작성"],
+
+      "price": {
+        "original": 3000000,
+        "discounted": 2400000,
+        "unit": "프로젝트",
+        "discount_rate": 20
+      },
+
+      "duration": {
+        "weeks": 2,
+        "display": "2주",
+        "urgent_available": true,
+        "urgent_days": 5
+      },
+
+      "provider": {
+        "name": "포켓",
+        "type": "포켓",
+        "certification": ["사업계획서 전문가"],
+        "experience": "156개 기업 지원",
+        "success_rate": 88
+      },
+
+      "target": {
+        "stage": ["예비창업", "Seed"],
+        "industry": ["전체"],
+        "employee_count": "1-20명",
+        "company_situation": [
+          "정부지원사업 신청 준비",
+          "창업 대출 신청 필요",
+          "초기 투자자 설득 필요"
+        ],
+        "pain_points": [
+          "사업계획서 작성 경험 부족",
+          "심사 기준 파악 어려움",
+          "재무계획 수립 능력 부재"
+        ],
+        "prerequisites": [
+          "기본 사업 아이디어",
+          "창업팀 구성",
+          "기초 시장조사"
+        ],
+        "ideal_customer": "정부지원사업이나 창업대출을 통해 초기 자금을 확보하려는 예비창업자",
+        "not_suitable_for": [
+          "이미 투자 받은 기업",
+          "해외 진출 목적",
+          "대규모 투자 필요 사업"
+        ],
+        "success_indicators": [
+          "명확한 사업 아이템",
+          "기초 시장조사 완료",
+          "창업팀 2명 이상"
+        ],
+        "urgency_level": "high",
+        "budget_range": {
+          "min": 2000000,
+          "max": 5000000,
+          "note": "정부지원금으로 커버 가능"
+        }
+      },
+
+      "benefits": {
+        "target_areas": ["자금조달", "사업전략", "정부지원"],
+        "expected_outcome": "정부지원사업 선정 및 투자유치 가능성 향상",
+        "kpi_improvement": {
+          "GO": 3,
+          "EC": 8,
+          "PT": 2,
+          "PF": 5,
+          "TO": 7
+        }
+      },
+
+      "deliverables": {
+        "main": [
+          "사업계획서 30-40페이지",
+          "재무계획 Excel",
+          "요약본 (Executive Summary)"
+        ],
+        "additional": ["시장조사 자료", "경쟁사 분석"],
+        "format": ["HWP", "Word", "Excel", "PDF"]
+      },
+
+      "process": {
+        "steps": [
+          { "order": 1, "name": "요구사항 분석", "duration": "1일", "description": "목적 및 요구사항 파악", "deliverable": "체크리스트" },
+          { "order": 2, "name": "자료 수집", "duration": "2일", "description": "시장조사 및 자료 수집", "deliverable": "조사 자료" },
+          { "order": 3, "name": "초안 작성", "duration": "5일", "description": "사업계획서 초안 작성", "deliverable": "초안" },
+          { "order": 4, "name": "수정 보완", "duration": "3일", "description": "피드백 반영 및 수정", "deliverable": "수정본" },
+          { "order": 5, "name": "최종 납품", "duration": "1일", "description": "최종본 전달", "deliverable": "최종본" }
+        ],
+        "total_steps": 5,
+        "methodology": "워터폴"
+      },
+
+      "portfolio": {
+        "total_count": 156,
+        "highlights": [
+          {
+            "project_id": "PRJ-DOC-089",
+            "client_type": "예비창업",
+            "industry": "제조",
+            "outcome": "창업지원금 5천만원 수주",
+            "date": "2024-12",
+            "testimonial": "전문적인 사업계획서로 심사위원들에게 좋은 평가를 받았습니다."
+          }
+        ]
+      },
+
+      "reviews": {
+        "avg_rating": 4.7,
+        "total_count": 124,
+        "rating_distribution": { "5": 82, "4": 35, "3": 6, "2": 1, "1": 0 },
+        "recent_reviews": [
+          {
+            "review_id": "RV-DOC-002",
+            "client_name": "이대표",
+            "company": "바이오 스타트업",
+            "rating": 5,
+            "date": "2025-01-08",
+            "content": "정부지원사업 3개 동시 선정되었습니다!",
+            "verified": true,
+            "helpful_count": 23
+          }
+        ]
+      },
+
+      "faq": [
+        { "question": "정부사업별 맞춤 작성이 가능한가요?", "answer": "네, 각 사업별 평가기준에 맞춰 작성합니다.", "category": "서비스" }
+      ],
+
+      "metadata": {
+        "created_date": "2024-08-01",
+        "updated_date": "2025-01-14",
+        "view_count": 1453,
+        "purchase_count": 124,
+        "wishlist_count": 287,
+        "completion_rate": 88,
+        "avg_completion_days": 14,
+        "satisfaction_rate": 93,
+        "repeat_rate": 42
+      },
+
+      "search_keywords": ["사업계획서", "정부지원", "창업지원", "문서작성"],
       "is_active": true,
       "is_featured": false,
-      "priority": 75,
-      "media": {
-        "thumbnail": "",
-        "images": [],
-        "video_url": "",
-        "brochure_url": ""
-      }
+      "priority": 85,
+
+      "media": {}
+    },
+    {
+      "service_id": "SVC-DEV-002",
+      "category": "개발",
+      "subcategory": "web",
+      "name": "반응형 웹사이트 개발",
+      "subtitle": "스타트업을 위한 프로페셔널 웹사이트",
+      "description": "모바일 최적화된 반응형 웹사이트를 개발합니다. SEO 최적화, 관리자 페이지, 분석 도구 연동까지 포함된 풀패키지입니다.",
+      "badge": null,
+      "tags": ["웹개발", "반응형", "홈페이지", "SEO", "웹사이트"],
+
+      "price": {
+        "original": 8000000,
+        "discounted": null,
+        "unit": "프로젝트"
+      },
+
+      "duration": {
+        "weeks": 6,
+        "display": "6주",
+        "urgent_available": true,
+        "urgent_days": 21
+      },
+
+      "provider": {
+        "name": "웹솔루션즈",
+        "type": "파트너사",
+        "certification": ["웹개발 전문가", "AWS 인증"],
+        "experience": "87개 사이트 구축",
+        "success_rate": 96
+      },
+
+      "target": {
+        "stage": ["Seed", "Series A", "Series B"],
+        "industry": ["전체"],
+        "employee_count": "5-100명",
+        "company_situation": [
+          "온라인 프레젠스 강화 필요",
+          "기존 웹사이트 리뉴얼 필요",
+          "투자자/고객 신뢰도 향상 필요"
+        ],
+        "pain_points": [
+          "전문적인 웹사이트 부재",
+          "모바일 사용자 경험 불편",
+          "웹 개발 외주 비용 부담"
+        ],
+        "prerequisites": [
+          "브랜드 아이덴티티",
+          "컨텐츠 및 카피",
+          "기본 디자인 가이드"
+        ],
+        "ideal_customer": "전문적인 웹사이트로 비즈니스 성장을 가속화하려는 스타트업",
+        "not_suitable_for": [
+          "복잡한 커머스 플랫폼",
+          "대규모 커뮤니티 사이트",
+          "실시간 거래 플랫폼"
+        ],
+        "success_indicators": [
+          "월 방문자 1만명 이상",
+          "마케팅 예산 확보",
+          "컨텐츠 운영 계획"
+        ],
+        "urgency_level": "medium",
+        "budget_range": {
+          "min": 7000000,
+          "max": 15000000,
+          "note": "유지보수 계약 별도"
+        }
+      },
+
+      "benefits": {
+        "target_areas": ["온라인 프레즌스", "브랜드 신뢰도", "리드 생성"],
+        "expected_outcome": "전문적인 웹사이트로 고객 신뢰도 및 전환율 향상",
+        "kpi_improvement": {
+          "GO": 15,
+          "EC": 5,
+          "PT": 3,
+          "PF": 0,
+          "TO": 8
+        }
+      },
+
+      "deliverables": {
+        "main": [
+          "반응형 웹사이트",
+          "관리자 페이지",
+          "SEO 최적화",
+          "분석도구 연동"
+        ],
+        "additional": [
+          "호스팅 1년",
+          "유지보수 3개월",
+          "SSL 인증서"
+        ],
+        "format": ["웹사이트", "소스코드", "매뉴얼"]
+      },
+
+      "process": {
+        "steps": [
+          { "order": 1, "name": "기획", "duration": "1주", "description": "요구사항 분석 및 와이어프레임", "deliverable": "기획서" },
+          { "order": 2, "name": "디자인", "duration": "1주", "description": "UI/UX 디자인", "deliverable": "디자인 시안" },
+          { "order": 3, "name": "퍼블리싱", "duration": "2주", "description": "프론트엔드 개발", "deliverable": "HTML/CSS" },
+          { "order": 4, "name": "개발", "duration": "2주", "description": "백엔드 및 기능 구현", "deliverable": "완성 사이트" },
+          { "order": 5, "name": "테스트", "duration": "3일", "description": "QA 및 최적화", "deliverable": "최종 사이트" }
+        ],
+        "total_steps": 5,
+        "methodology": "애자일"
+      },
+
+      "portfolio": {
+        "total_count": 87,
+        "highlights": [
+          {
+            "project_id": "PRJ-WEB-056",
+            "client_type": "Series A 스타트업",
+            "industry": "이커머스",
+            "outcome": "월 방문자 500% 증가",
+            "date": "2024-10",
+            "testimonial": "기대 이상의 퀄리티와 빠른 대응이 인상적이었습니다."
+          }
+        ]
+      },
+
+      "reviews": {
+        "avg_rating": 4.8,
+        "total_count": 73,
+        "rating_distribution": { "5": 52, "4": 18, "3": 3, "2": 0, "1": 0 },
+        "recent_reviews": [
+          {
+            "review_id": "RV-WEB-001",
+            "client_name": "정대표",
+            "company": "IT 스타트업",
+            "rating": 5,
+            "date": "2024-12-15",
+            "content": "반응형 디자인과 속도 최적화가 완벽합니다.",
+            "verified": true
+          }
+        ]
+      },
+
+      "faq": [
+        { "question": "유지보수는 어떻게 되나요?", "answer": "3개월 무료 유지보수 후 월정액 계약 가능합니다.", "category": "유지보수" }
+      ],
+
+      "metadata": {
+        "created_date": "2024-07-01",
+        "updated_date": "2025-01-14",
+        "view_count": 892,
+        "purchase_count": 73,
+        "wishlist_count": 145,
+        "completion_rate": 96,
+        "avg_completion_days": 42,
+        "satisfaction_rate": 95,
+        "repeat_rate": 38
+      },
+
+      "search_keywords": ["웹개발", "홈페이지", "웹사이트", "반응형", "웹제작"],
+      "is_active": true,
+      "is_featured": false,
+      "priority": 80,
+
+      "media": {}
+    },
+    {
+      "service_id": "SVC-MKT-002",
+      "category": "마케팅",
+      "subcategory": "performance",
+      "name": "퍼포먼스 마케팅",
+      "subtitle": "데이터 기반 광고 운영 및 최적화",
+      "description": "구글, 페이스북, 네이버 등 주요 광고 플랫폼의 퍼포먼스 마케팅을 운영합니다. 데이터 분석과 A/B 테스트로 ROI를 극대화합니다.",
+      "badge": "HOT",
+      "tags": ["퍼포먼스마케팅", "광고운영", "구글애즈", "페이스북광고", "ROI"],
+
+      "price": {
+        "original": 2000000,
+        "discounted": null,
+        "unit": "월",
+        "note": "광고비 별도"
+      },
+
+      "duration": {
+        "weeks": 12,
+        "display": "3개월 단위",
+        "urgent_available": false
+      },
+
+      "provider": {
+        "name": "그로스해커스",
+        "type": "파트너사",
+        "certification": ["구글 파트너", "페이스북 마케팅 파트너"],
+        "experience": "월 50억 광고 운영",
+        "success_rate": 92
+      },
+
+      "target": {
+        "stage": ["Seed", "Series A", "Series B"],
+        "industry": ["커머스", "SaaS", "O2O", "플랫폼"],
+        "employee_count": "10-100명",
+        "company_situation": [
+          "PMF 확보 후 성장 가속화 필요",
+          "광고 효율 개선 필요",
+          "CAC 최적화 필요"
+        ],
+        "pain_points": [
+          "광고 운영 노하우 부족",
+          "ROAS 개선 어려움",
+          "데이터 분석 능력 부족"
+        ],
+        "prerequisites": [
+          "월 광고비 500만원 이상",
+          "전환 추적 설정",
+          "기본 랜딩페이지"
+        ],
+        "ideal_customer": "본격적인 성장을 위해 데이터 기반 마케팅이 필요한 스타트업",
+        "not_suitable_for": [
+          "B2B 영업 중심 기업",
+          "브랜드 인지도만 필요한 경우",
+          "월 광고비 300만원 미만"
+        ],
+        "success_indicators": [
+          "월 매출 5천만원 이상",
+          "LTV/CAC 3 이상",
+          "명확한 타겟 고객"
+        ],
+        "urgency_level": "high",
+        "budget_range": {
+          "min": 2000000,
+          "max": 5000000,
+          "note": "광고비 별도, 월 단위 계약"
+        }
+      },
+
+      "benefits": {
+        "target_areas": ["고객획득", "매출증대", "CPA 최적화"],
+        "expected_outcome": "효율적인 광고 운영으로 고객획득비용 감소 및 매출 증대",
+        "kpi_improvement": {
+          "GO": 20,
+          "EC": 18,
+          "PT": 0,
+          "PF": 0,
+          "TO": 5
+        }
+      },
+
+      "deliverables": {
+        "main": [
+          "광고 계정 세팅",
+          "캠페인 운영",
+          "주간 리포트",
+          "월간 성과 분석"
+        ],
+        "additional": [
+          "랜딩페이지 최적화",
+          "크리에이티브 제작",
+          "전환 추적 설정"
+        ],
+        "format": ["리포트", "대시보드", "컨설팅"]
+      },
+
+      "process": {
+        "steps": [
+          { "order": 1, "name": "세팅", "duration": "1주", "description": "계정 설정 및 추적 코드", "deliverable": "세팅 완료" },
+          { "order": 2, "name": "테스트", "duration": "2주", "description": "초기 캠페인 테스트", "deliverable": "테스트 결과" },
+          { "order": 3, "name": "최적화", "duration": "4주", "description": "데이터 기반 최적화", "deliverable": "최적화 리포트" },
+          { "order": 4, "name": "확장", "duration": "4주", "description": "성과 좋은 캠페인 확장", "deliverable": "확장 전략" },
+          { "order": 5, "name": "안정화", "duration": "지속", "description": "지속적 운영 및 개선", "deliverable": "월간 리포트" }
+        ],
+        "total_steps": 5,
+        "methodology": "애자일"
+      },
+
+      "portfolio": {
+        "total_count": 124,
+        "highlights": [
+          {
+            "project_id": "PRJ-MKT-078",
+            "client_type": "Series A 스타트업",
+            "industry": "이커머스",
+            "outcome": "ROAS 450% 달성",
+            "date": "2024-12",
+            "testimonial": "CPA 70% 감소하고 매출은 3배 성장했습니다."
+          }
+        ]
+      },
+
+      "reviews": {
+        "avg_rating": 4.6,
+        "total_count": 98,
+        "rating_distribution": { "5": 58, "4": 32, "3": 7, "2": 1, "1": 0 },
+        "recent_reviews": [
+          {
+            "review_id": "RV-MKT-002",
+            "client_name": "홍대표",
+            "company": "D2C 브랜드",
+            "rating": 5,
+            "date": "2025-01-12",
+            "content": "데이터 중심의 체계적인 운영이 매우 만족스럽습니다.",
+            "verified": true
+          }
+        ]
+      },
+
+      "faq": [
+        { "question": "최소 광고비는 얼마인가요?", "answer": "월 500만원 이상을 권장하며, 업종별로 상이합니다.", "category": "비용" },
+        { "question": "직접 운영과 차이점은?", "answer": "전문가의 경험과 데이터로 평균 2-3배 높은 효율을 보입니다.", "category": "서비스" }
+      ],
+
+      "metadata": {
+        "created_date": "2024-06-01",
+        "updated_date": "2025-01-14",
+        "view_count": 1567,
+        "purchase_count": 98,
+        "wishlist_count": 234,
+        "completion_rate": 92,
+        "avg_completion_days": 90,
+        "satisfaction_rate": 91,
+        "repeat_rate": 67
+      },
+
+      "search_keywords": ["퍼포먼스마케팅", "광고운영", "구글광고", "페이스북광고", "마케팅"],
+      "is_active": true,
+      "is_featured": true,
+      "priority": 92,
+
+      "media": {}
+    },
+    {
+      "service_id": "SVC-CON-002",
+      "category": "컨설팅",
+      "subcategory": "legal",
+      "name": "스타트업 법률 자문",
+      "subtitle": "계약서 검토부터 투자계약까지",
+      "description": "스타트업에 필요한 각종 계약서 검토, 법인 설립, 투자 계약, 지적재산권 등 법률 자문을 제공합니다.",
+      "badge": "신규",
+      "tags": ["법률자문", "계약서", "투자계약", "법인설립", "지적재산권"],
+
+      "price": {
+        "original": 1500000,
+        "discounted": 1200000,
+        "unit": "월",
+        "discount_rate": 20
+      },
+
+      "duration": {
+        "weeks": 52,
+        "display": "연간 계약",
+        "urgent_available": true,
+        "urgent_days": 1
+      },
+
+      "provider": {
+        "name": "스타트업 법무법인",
+        "type": "파트너사",
+        "certification": ["변호사", "스타트업 전문"],
+        "experience": "200개 기업 자문",
+        "success_rate": 98
+      },
+
+      "target": {
+        "stage": ["예비창업", "Seed", "Series A", "Series B"],
+        "industry": ["전체"],
+        "employee_count": "1-100명",
+        "company_situation": [
+          "법률 리스크 관리 필요",
+          "투자 계약 진행 예정",
+          "법인 설립 또는 변경 필요"
+        ],
+        "pain_points": [
+          "법률 지식 부족",
+          "계약서 검토 비용 부담",
+          "컴플라이언스 이슈"
+        ],
+        "prerequisites": [
+          "법인 설립 완료",
+          "기본 사업 운영",
+          "계약 체결 필요"
+        ],
+        "ideal_customer": "체계적인 법률 자문으로 안정적인 사업 운영을 원하는 스타트업",
+        "not_suitable_for": [
+          "단순 법률 서류 작성만 필요",
+          "일회성 법률 자문",
+          "소송 전문 변호사 필요"
+        ],
+        "success_indicators": [
+          "월 10건 이상 계약 체결",
+          "투자 유치 진행중",
+          "해외 비즈니스 계획"
+        ],
+        "urgency_level": "medium",
+        "budget_range": {
+          "min": 1200000,
+          "max": 3000000,
+          "note": "연간 계약, 시간초과 시 추가 비용"
+        }
+      },
+
+      "benefits": {
+        "target_areas": ["법률 리스크", "계약 관리", "컴플라이언스"],
+        "expected_outcome": "법률 리스크 최소화 및 안정적인 사업 운영",
+        "kpi_improvement": {
+          "GO": 0,
+          "EC": 3,
+          "PT": 0,
+          "PF": 5,
+          "TO": 15
+        }
+      },
+
+      "deliverables": {
+        "main": [
+          "월 10시간 법률 자문",
+          "계약서 검토 무제한",
+          "표준 계약서 제공",
+          "분기별 법률 이슈 리포트"
+        ],
+        "additional": [
+          "긴급 자문 대응",
+          "소송 대응 지원"
+        ],
+        "format": ["자문", "문서", "전화상담"]
+      },
+
+      "process": {
+        "steps": [
+          { "order": 1, "name": "초기 진단", "duration": "1주", "description": "법률 리스크 진단", "deliverable": "진단 리포트" },
+          { "order": 2, "name": "계약서 정비", "duration": "2주", "description": "표준 계약서 작성", "deliverable": "계약서 세트" },
+          { "order": 3, "name": "정기 자문", "duration": "지속", "description": "월간 정기 자문", "deliverable": "자문 기록" },
+          { "order": 4, "name": "이슈 대응", "duration": "수시", "description": "법률 이슈 대응", "deliverable": "대응 방안" }
+        ],
+        "total_steps": 4,
+        "methodology": "상시 지원"
+      },
+
+      "portfolio": {
+        "total_count": 200,
+        "highlights": [
+          {
+            "project_id": "PRJ-LEG-132",
+            "client_type": "Series A 스타트업",
+            "industry": "핀테크",
+            "outcome": "규제 이슈 성공적 해결",
+            "date": "2024-11",
+            "testimonial": "복잡한 금융 규제를 잘 해결해주셨습니다."
+          }
+        ]
+      },
+
+      "reviews": {
+        "avg_rating": 4.8,
+        "total_count": 156,
+        "rating_distribution": { "5": 112, "4": 38, "3": 5, "2": 1, "1": 0 },
+        "recent_reviews": [
+          {
+            "review_id": "RV-LEG-001",
+            "client_name": "윤대표",
+            "company": "블록체인 스타트업",
+            "rating": 5,
+            "date": "2025-01-10",
+            "content": "스타트업 특성을 잘 이해하고 실무적인 조언을 해주십니다.",
+            "verified": true
+          }
+        ]
+      },
+
+      "faq": [
+        { "question": "시간 초과시 추가 비용은?", "answer": "시간당 20만원의 추가 비용이 발생합니다.", "category": "비용" }
+      ],
+
+      "metadata": {
+        "created_date": "2024-12-01",
+        "updated_date": "2025-01-14",
+        "view_count": 432,
+        "purchase_count": 156,
+        "wishlist_count": 89,
+        "completion_rate": 98,
+        "avg_completion_days": 365,
+        "satisfaction_rate": 95,
+        "repeat_rate": 85
+      },
+
+      "search_keywords": ["법률자문", "계약서", "변호사", "법무", "법률"],
+      "is_active": true,
+      "is_featured": false,
+      "priority": 70,
+
+      "media": {}
     }
   ]
 }

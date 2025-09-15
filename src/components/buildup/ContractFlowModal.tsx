@@ -116,11 +116,11 @@ export default function ContractFlowModal({ isOpen, onClose, cartItems = sampleC
   });
 
   const steps = [
-    { id: 1, label: '장바구니 확인', icon: ShoppingCart },
-    { id: 2, label: '옵션 조정', icon: SquarePen },
-    { id: 3, label: '견적서 검토', icon: FileText },
-    { id: 4, label: '계약서 서명', icon: Signature },
-    { id: 5, label: '결제', icon: CreditCard }
+    { id: 1, label: '구매자 정보', icon: User },
+    { id: 2, label: '서비스 옵션', icon: SquarePen },
+    { id: 3, label: '견적서 생성', icon: FileText },
+    { id: 4, label: '약관 & 결제', icon: Shield },
+    { id: 5, label: '계약 완료', icon: CheckCircle }
   ];
 
   // Calculate totals
@@ -281,120 +281,164 @@ export default function ContractFlowModal({ isOpen, onClose, cartItems = sampleC
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* Step 1: Cart Review */}
+          {/* Step 1: Buyer Information */}
           {currentStep === 1 && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">장바구니 확인</h3>
-                <span className="text-sm text-gray-500">
-                  총 {contractData.items.length}개 서비스
-                </span>
-              </div>
-              
-              <div className="space-y-4">
-                {contractData.items.map((item, index) => (
-                  <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
-                            {item.category}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {item.provider}
-                          </span>
-                        </div>
-                        <h4 className="font-semibold text-gray-900 text-lg">{item.title}</h4>
-                        <p className="text-sm text-gray-600 mt-1 flex items-center gap-2">
-                          <Clock className="w-3 h-3" />
-                          소요기간: {item.duration}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setContractData(prev => ({
-                            ...prev,
-                            items: prev.items.filter(i => i.id !== item.id)
-                          }));
-                        }}
-                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => updateItemQuantity(item.id, item.quantity - 1)}
-                          className="w-6 h-6 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                        <button
-                          onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
-                          className="w-6 h-6 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-                      <div className="text-right">
-                        {item.price.discounted ? (
-                          <>
-                            <span className="text-sm text-gray-500 line-through mr-2">
-                              {item.price.original.toLocaleString()}만원
-                            </span>
-                            <span className="text-lg font-semibold text-red-600">
-                              {item.price.discounted.toLocaleString()}만원
-                            </span>
-                          </>
-                        ) : (
-                          <span className="text-lg font-semibold text-gray-900">
-                            {item.price.original.toLocaleString()}만원
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {item.options && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <p className="text-xs text-gray-600">
-                          옵션: {item.options.scope}
-                          {item.options.rushDelivery && ' · 긴급배송(+30%)'}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">구매자 정보 입력</h3>
+                <p className="text-sm text-gray-600 mt-1">견적서 생성을 위한 필수 정보를 입력해주세요</p>
               </div>
 
-              {/* Totals */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6">
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">소계</span>
-                    <span className="font-medium">{totals.subtotal.toLocaleString()}만원</span>
+              {/* Company Information */}
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                  <Building className="w-5 h-5 text-gray-600" />
+                  회사 정보
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">회사명 *</label>
+                    <input
+                      type="text"
+                      value={contractData.companyInfo.name}
+                      onChange={(e) => setContractData(prev => ({
+                        ...prev,
+                        companyInfo: { ...prev.companyInfo, name: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="(주)포켓컴퍼니"
+                    />
                   </div>
-                  {totals.bundleDiscount > 0 && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-green-600 flex items-center gap-1">
-                        <Package className="w-4 h-4" />
-                        번들 할인
-                      </span>
-                      <span className="text-green-600 font-medium">-{totals.bundleDiscount.toLocaleString()}만원</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">부가세</span>
-                    <span className="font-medium">{totals.tax.toLocaleString()}만원</span>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">사업자등록번호 *</label>
+                    <input
+                      type="text"
+                      value={contractData.companyInfo.businessNumber}
+                      onChange={(e) => setContractData(prev => ({
+                        ...prev,
+                        companyInfo: { ...prev.companyInfo, businessNumber: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="123-45-67890"
+                    />
                   </div>
-                  <div className="flex justify-between items-center pt-4 border-t-2 border-blue-200">
-                    <span className="text-lg font-bold text-gray-900">총 결제금액</span>
-                    <div className="text-right">
-                      <span className="text-2xl font-bold text-blue-600">{totals.total.toLocaleString()}</span>
-                      <span className="text-lg font-bold text-blue-600">만원</span>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">대표자명 *</label>
+                    <input
+                      type="text"
+                      value={contractData.companyInfo.representative}
+                      onChange={(e) => setContractData(prev => ({
+                        ...prev,
+                        companyInfo: { ...prev.companyInfo, representative: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="홍길동"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">업종/업태</label>
+                    <input
+                      type="text"
+                      value={contractData.companyInfo.businessType}
+                      onChange={(e) => setContractData(prev => ({
+                        ...prev,
+                        companyInfo: { ...prev.companyInfo, businessType: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="IT/소프트웨어 개발"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">사업장 주소 *</label>
+                    <input
+                      type="text"
+                      value={contractData.companyInfo.address}
+                      onChange={(e) => setContractData(prev => ({
+                        ...prev,
+                        companyInfo: { ...prev.companyInfo, address: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="서울시 강남구 테헤란로 123"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                  <User className="w-5 h-5 text-gray-600" />
+                  담당자 정보
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">담당자명 *</label>
+                    <input
+                      type="text"
+                      value={contractData.companyInfo.contactPerson}
+                      onChange={(e) => setContractData(prev => ({
+                        ...prev,
+                        companyInfo: { ...prev.companyInfo, contactPerson: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="김철수"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">직책</label>
+                    <input
+                      type="text"
+                      value={contractData.companyInfo.contactTitle}
+                      onChange={(e) => setContractData(prev => ({
+                        ...prev,
+                        companyInfo: { ...prev.companyInfo, contactTitle: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="팀장"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">연락처 *</label>
+                    <input
+                      type="tel"
+                      value={contractData.companyInfo.contactPhone}
+                      onChange={(e) => setContractData(prev => ({
+                        ...prev,
+                        companyInfo: { ...prev.companyInfo, contactPhone: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="010-1234-5678"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-1 block">이메일 *</label>
+                    <input
+                      type="email"
+                      value={contractData.companyInfo.contactEmail}
+                      onChange={(e) => setContractData(prev => ({
+                        ...prev,
+                        companyInfo: { ...prev.companyInfo, contactEmail: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="contact@company.com"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Cart Summary */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">선택한 서비스</h4>
+                <div className="space-y-2">
+                  {contractData.items.map(item => (
+                    <div key={item.id} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">{item.title}</span>
+                      <span className="font-medium">{(item.price.discounted || item.price.original).toLocaleString()}만원</span>
                     </div>
+                  ))}
+                  <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
+                    <span className="font-medium text-gray-900">합계</span>
+                    <span className="font-bold text-blue-600">{totals.total.toLocaleString()}만원</span>
                   </div>
                 </div>
               </div>
@@ -737,10 +781,10 @@ export default function ContractFlowModal({ isOpen, onClose, cartItems = sampleC
             </div>
           )}
 
-          {/* Step 4: Contract Signing */}
+          {/* Step 4: Terms & Payment */}
           {currentStep === 4 && (
             <div className="space-y-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">계약서 서명</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">약관 동의 및 결제</h3>
 
               {/* Company Information */}
               <div className="bg-gray-50 rounded-lg p-6">
@@ -890,12 +934,12 @@ export default function ContractFlowModal({ isOpen, onClose, cartItems = sampleC
             </div>
           )}
 
-          {/* Step 5: Payment */}
+          {/* Step 5: Contract Complete */}
           {currentStep === 5 && (
             <div className="space-y-6">
               <div className="text-center mb-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">결제 정보 입력</h3>
-                <p className="text-gray-600">안전한 결제를 위해 정확한 정보를 입력해주세요</p>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">계약 완료</h3>
+                <p className="text-gray-600">축하합니다! 프로젝트가 성공적으로 시작되었습니다</p>
               </div>
 
               {/* Payment Summary */}

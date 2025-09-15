@@ -4,7 +4,6 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { ClusterProvider } from './contexts/ClusterContext';
 import { KPIDiagnosisProvider } from './contexts/KPIDiagnosisContext';
 import { BuildupProvider } from './contexts/BuildupContext';
-import { BuildupServiceProvider } from './contexts/BuildupServiceContext';
 import type { UserRole } from './types';
 
 // Layouts
@@ -28,6 +27,8 @@ import BuildupDashboard from './pages/startup/buildup/BuildupDashboard';
 import ServiceCatalog from './pages/startup/buildup/ServiceCatalog';
 import ProjectManagement from './pages/startup/buildup/ProjectManagement';
 import ProjectDetail from './pages/startup/buildup/ProjectDetail';
+import Cart from './pages/startup/Cart';
+import CheckoutEnhanced from './pages/startup/CheckoutEnhanced';
 
 // Admin Pages
 import AdminKPILibrary from './pages/admin/KPILibrary';
@@ -84,8 +85,7 @@ function App() {
       <ClusterProvider>
         <KPIDiagnosisProvider>
           <BuildupProvider>
-            <BuildupServiceProvider>
-              <Router>
+            <Router>
             <Routes>
         {/* Landing page or redirect based on role */}
         <Route path="/" element={
@@ -118,7 +118,9 @@ function App() {
           </Route>
           <Route path="matching" element={<StartupMatches />} />
           <Route path="profile" element={<div className="p-8 text-center">VDR/마이프로필 (개발중)</div>} />
-          
+          <Route path="cart" element={<Cart />} />
+          <Route path="checkout" element={<CheckoutEnhanced />} />
+
           {/* 기타 페이지 */}
           <Route path="history" element={<StartupHistory />} />
           <Route path="settings" element={<StartupSettings />} />
@@ -165,7 +167,6 @@ function App() {
         <Route path="*" element={<div className="p-8 text-center">페이지를 찾을 수 없습니다.</div>} />
         </Routes>
       </Router>
-            </BuildupServiceProvider>
         </BuildupProvider>
       </KPIDiagnosisProvider>
     </ClusterProvider>

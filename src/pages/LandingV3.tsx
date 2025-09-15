@@ -306,7 +306,7 @@ const LandingV3 = () => {
                   {/* Multiple Glow Layers */}
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 rounded-3xl blur-3xl opacity-60 animate-pulse scale-150" />
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-3xl blur-2xl opacity-40 animate-pulse animation-delay-1000 scale-125" />
-                  
+
                   {/* Main Hub */}
                   <div className="relative bg-black backdrop-blur-3xl rounded-3xl p-12 border-2 border-transparent"
                        style={{
@@ -326,45 +326,48 @@ const LandingV3 = () => {
               </div>
 
               {/* Orbiting Elements with Trail Effect */}
-              <div className="absolute inset-0">
+              <div className="absolute inset-0 z-20">
+                {/* Orbital Path - 한번만 그리기 */}
+                <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                  <circle
+                    cx="50%"
+                    cy="50%"
+                    r="250"
+                    fill="none"
+                    stroke="url(#orbital-gradient)"
+                    strokeWidth="1"
+                    strokeDasharray="5,10"
+                    opacity="0.1"
+                  />
+                  <defs>
+                    <linearGradient id="orbital-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#9333ea" stopOpacity="0.5" />
+                      <stop offset="50%" stopColor="#3b82f6" stopOpacity="0.5" />
+                      <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.5" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+
+                {/* Orbiting Elements */}
                 {integrations.map((item, index) => {
                   const Icon = item.icon;
                   const angle = (index * 72) - 90;
                   const radius = 250;
-                  const x = Math.cos(angle * Math.PI / 180) * radius;
-                  const y = Math.sin(angle * Math.PI / 180) * radius;
-                  
+                  const x = Math.round(Math.cos(angle * Math.PI / 180) * radius);
+                  const y = Math.round(Math.sin(angle * Math.PI / 180) * radius);
+
+                  console.log(`Element ${index} (${item.name}): angle=${angle}, x=${x}, y=${y}`);
+
                   return (
-                    <div key={index}>
-                      {/* Orbital Path */}
-                      <svg className="absolute inset-0 w-full h-full">
-                        <circle
-                          cx="50%"
-                          cy="50%"
-                          r={radius}
-                          fill="none"
-                          stroke="url(#orbital-gradient)"
-                          strokeWidth="1"
-                          strokeDasharray="5,10"
-                          opacity="0.1"
-                        />
-                        <defs>
-                          <linearGradient id="orbital-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="#9333ea" stopOpacity="0.5" />
-                            <stop offset="50%" stopColor="#3b82f6" stopOpacity="0.5" />
-                            <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.5" />
-                          </linearGradient>
-                        </defs>
-                      </svg>
-                      
-                      {/* Orbiting Element */}
-                      <div
-                        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
-                        style={{
-                          transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
-                          animation: `fadeInScale 0.8s ease-out ${item.delay}s both, float 6s ease-in-out ${item.delay}s infinite`
-                        }}
-                      >
+                    <div
+                      key={index}
+                      className="absolute"
+                      style={{
+                        top: `calc(50% + ${y}px)`,
+                        left: `calc(50% + ${x}px)`,
+                        transform: 'translate(-50%, -50%)'
+                      }}
+                    >
                         <div className="group cursor-pointer">
                           {/* Element Glow */}
                           <div className={`absolute inset-0 bg-gradient-to-br ${item.color} rounded-2xl blur-xl opacity-50 group-hover:opacity-100 transition-all duration-500 scale-150`} />
@@ -377,34 +380,6 @@ const LandingV3 = () => {
                             </div>
                           </div>
                         </div>
-                        
-                        {/* Connection Beam */}
-                        <svg
-                          className="absolute top-1/2 left-1/2 pointer-events-none"
-                          style={{
-                            width: `${Math.abs(x)}px`,
-                            height: `${Math.abs(y)}px`,
-                            transform: `translate(${x < 0 ? '0' : '-100'}%, ${y < 0 ? '0' : '-100'}%)`
-                          }}
-                        >
-                          <line
-                            x1={x < 0 ? Math.abs(x) : 0}
-                            y1={y < 0 ? Math.abs(y) : 0}
-                            x2={x < 0 ? 0 : Math.abs(x)}
-                            y2={y < 0 ? 0 : Math.abs(y)}
-                            stroke="url(#beam-gradient)"
-                            strokeWidth="2"
-                            className="opacity-30"
-                          />
-                          <defs>
-                            <linearGradient id="beam-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                              <stop offset="0%" stopColor="#9333ea" stopOpacity="0" />
-                              <stop offset="50%" stopColor="#3b82f6" stopOpacity="1" />
-                              <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
-                            </linearGradient>
-                          </defs>
-                        </svg>
-                      </div>
                     </div>
                   );
                 })}

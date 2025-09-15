@@ -1,22 +1,26 @@
-import { Outlet, Link, useLocation, useSearchParams } from 'react-router-dom';
+import { Outlet, Link, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { 
-  LayoutDashboard, 
-  FileText, 
+import {
+  LayoutDashboard,
+  FileText,
   Rocket,
   Target,
   User,
   Settings,
   LogOut,
   Bell,
-  ChevronLeft
+  ChevronLeft,
+  ShoppingCart
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useBuildupContext } from '../contexts/BuildupContext';
 
 const StartupLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { cart } = useBuildupContext();
   
   // KPI 진단 페이지의 평가 탭인지 확인
   const isKPIAssessmentTab = location.pathname === '/startup/kpi' && 
@@ -117,12 +121,25 @@ const StartupLayout = () => {
                 })}
               </span>
               
+              {/* Cart Icon */}
+              <button
+                onClick={() => navigate('/startup/cart')}
+                className="relative p-2 text-neutral-gray hover:text-neutral-dark transition-colors"
+              >
+                <ShoppingCart size={20} />
+                {cart.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-blue-600 text-white rounded-full text-xs flex items-center justify-center">
+                    {cart.length}
+                  </span>
+                )}
+              </button>
+
               {/* Notification Icon */}
               <button className="relative p-2 text-neutral-gray hover:text-neutral-dark transition-colors">
                 <Bell size={20} />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
               </button>
-              
+
               {/* Profile Icon */}
               <button className="p-2 text-neutral-gray hover:text-neutral-dark transition-colors">
                 <User size={20} />

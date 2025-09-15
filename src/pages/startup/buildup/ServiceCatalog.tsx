@@ -29,7 +29,6 @@ import {
 } from 'lucide-react';
 import { useBuildupContext } from '../../../contexts/BuildupContext';
 import { useKPIDiagnosis } from '../../../contexts/KPIDiagnosisContext';
-import { useBuildupServices } from '../../../contexts/BuildupServiceContext';
 import ContractFlowModal from '../../../components/buildup/ContractFlowModal';
 import ServiceDetailModal from '../../../components/buildup/ServiceDetailModal';
 import type { BuildupService } from '../../../types/buildup.types';
@@ -83,9 +82,21 @@ interface FilterState {
 
 export default function ServiceCatalog() {
   const navigate = useNavigate();
-  const { createProject } = useBuildupContext();
+  const {
+    createProject,
+    services: buildupServices,
+    loadingServices: servicesLoading,
+    searchServices,
+    filterByCategory,
+    getFeaturedServices,
+    getRecommendedServices,
+    cart: contextCart,
+    addToCart: contextAddToCart,
+    removeFromCart: contextRemoveFromCart,
+    updateCartItem,
+    clearCart
+  } = useBuildupContext();
   const { currentStage, axisScores } = useKPIDiagnosis();
-  const { services: buildupServices, loading: servicesLoading } = useBuildupServices();
   
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('all');
@@ -98,15 +109,15 @@ export default function ServiceCatalog() {
     searchQuery: ''
   });
   
-  const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
+  const cart = contextCart; // BuildupContext의 cart 사용
+  const [selectedService, setSelectedService] = useState<BuildupService | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
   const [recommendationType, setRecommendationType] = useState<'kpi' | 'similar' | 'trending'>('kpi');
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [favoriteServices, setFavoriteServices] = useState<string[]>([]);
-  const [quickViewService, setQuickViewService] = useState<ServiceItem | null>(null);
+  const [quickViewService, setQuickViewService] = useState<BuildupService | null>(null);
 
   // Service categories
   const categories = [
@@ -147,52 +158,79 @@ export default function ServiceCatalog() {
       '문서작업': 'document',
       '개발': 'development',
       '마케팅': 'marketing',
+      '디자인': 'design',
       '투자': 'investment',
       '컨설팅': 'consulting'
     };
 
+    // Use badge from service or determine based on metadata
+    let badge = service.badge;
+    if (!badge) {
+      if (service.reviews?.avg_rating >= 4.8) badge = 'HOT';
+      else if (service.reviews?.total_count < 20) badge = '신규';
+      else if (service.price?.discounted && service.price.discounted < service.price.original * 0.8) badge = '할인';
+    }
+
+    // Extract target areas from benefits or map from KPI improvements
+    const targetAreas = service.benefits?.target_areas || [];
+    if (targetAreas.length === 0 && service.benefits?.kpi_improvement) {
+      const kpiImprovements = service.benefits.kpi_improvement;
+      const significantAxes = Object.entries(kpiImprovements)
+        .filter(([_, value]) => value > 0)
+        .map(([axis]) => {
+          const axisNames: Record<string, string> = {
+            'GO': '고객',
+            'EC': '경제성',
+            'PT': '제품',
+            'PF': '팀',
+            'TO': '운영'
+          };
+          return axisNames[axis] || axis;
+        });
+      targetAreas.push(...significantAxes);
+    }
+
     return {
       id: service.service_id,
-      badge: service.badge,
+      badge: badge as any,
       title: service.name,
-      provider: service.provider.type === '포켓' ? '포켓' : service.provider.name,
-      category: categoryMap[service.category] || service.category,
+      provider: service.provider?.name || '포켓',
+      category: categoryMap[service.category] || service.category.toLowerCase(),
       subcategory: service.subcategory,
       description: service.subtitle,
-      deliverables: service.deliverables.main,
+      deliverables: service.deliverables?.main || [],
       benefits: {
-        targetAreas: service.benefits.target_areas,
-        description: service.benefits.expected_outcome,
-        experience: service.provider.experience || `${service.portfolio.total_count}개 프로젝트 완료`
+        targetAreas: targetAreas,
+        description: service.description,
+        experience: service.provider?.experience || `${service.portfolio?.total_count || 0}개 프로젝트 완료`
       },
       price: {
-        original: Math.round(service.price.original / 10000), // Convert to 만원
-        discounted: service.price.discounted ? 
-          Math.round(service.price.discounted / 10000) : undefined,
-        unit: service.price.unit
+        original: Math.round((service.price?.original || 0) / 10000), // Convert to 만원
+        discounted: service.price?.discounted ? Math.round(service.price.discounted / 10000) : undefined,
+        unit: (service.price?.unit || '프로젝트') as any
       },
-      duration: service.duration.display,
-      rating: service.reviews.avg_rating,
-      reviews: service.reviews.total_count,
-      recentClient: service.portfolio.highlights[0]?.client_type,
-      tags: service.tags,
-      targetStage: service.target.stage
+      duration: service.duration?.display || `${service.duration?.weeks || 0}주`,
+      rating: service.reviews?.avg_rating || 0,
+      reviews: service.reviews?.total_count || 0,
+      recentClient: service.portfolio?.highlights?.[0]?.client_type,
+      tags: service.tags || [],
+      targetStage: service.target?.stage || []
     };
   };
 
   // Get services from context or use empty array
   const services: ServiceItem[] = buildupServices.map(mapBuildupServiceToServiceItem);
 
-  // Get recommended services based on KPI gaps
-  const getRecommendedServices = () => {
+  // Get recommended services based on KPI gaps (local wrapper)
+  const getLocalRecommendedServices = () => {
     if (!axisScores) return services;
-    
+
     // Find lowest scoring axes
     const weakAxes = Object.entries(axisScores)
       .sort(([, a], [, b]) => a - b)
       .slice(0, 2)
       .map(([axis]) => axis);
-    
+
     // Map axes to relevant service categories
     const axisToCategory: Record<string, string[]> = {
       'GO': ['consulting', 'document'],
@@ -201,10 +239,10 @@ export default function ServiceCatalog() {
       'PF': ['document', 'consulting'],
       'TO': ['consulting', 'document']
     };
-    
+
     // Recommend services that match weak axis categories
     const relevantCategories = weakAxes.flatMap(axis => axisToCategory[axis] || []);
-    return services.filter(service => 
+    return services.filter(service =>
       relevantCategories.includes(service.category)
     ).slice(0, 3);
   };
@@ -212,39 +250,29 @@ export default function ServiceCatalog() {
   // Calculate bundle discount
   const calculateBundleDiscount = (items: CartItem[]) => {
     let discount = 0;
-    const itemIds = items.map(item => item.id);
-    
+    const itemIds = items.map(item => item.service.service_id);
+
     // Check for bundle combinations
     items.forEach(item => {
-      if (item.bundleWith) {
-        const bundleMatch = item.bundleWith.some(bundleId => itemIds.includes(bundleId));
+      if (item.service.bundle?.recommended_with) {
+        const bundleMatch = item.service.bundle.recommended_with.some(bundleId => itemIds.includes(bundleId));
         if (bundleMatch) {
-          discount += item.price.original * 0.2; // 20% bundle discount
+          const price = (item.service.price?.original || 0) / 10000;
+          discount += price * (item.service.bundle.bundle_discount / 100);
         }
       }
     });
-    
+
     return discount;
   };
 
-  // Add to cart
-  const addToCart = (service: ServiceItem, options?: CartItem['options']) => {
-    const existingItem = cart.find(item => item.id === service.id);
-    
-    if (existingItem) {
-      setCart(cart.map(item => 
-        item.id === service.id 
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      setCart([...cart, { ...service, quantity: 1, options }]);
-    }
-    
+  // Add to cart - BuildupService를 직접 사용
+  const addToCart = (service: BuildupService, options?: CartItem['options']) => {
+    contextAddToCart(service, options);
     setIsCartOpen(true);
-    
+
     // 장바구니 추가 피드백 애니메이션
-    const button = document.getElementById(`cart-btn-${service.id}`);
+    const button = document.getElementById(`cart-btn-${service.service_id}`);
     if (button) {
       button.classList.add('animate-bounce');
       setTimeout(() => button.classList.remove('animate-bounce'), 500);
@@ -267,7 +295,7 @@ export default function ServiceCatalog() {
 
   // Remove from cart
   const removeFromCart = (serviceId: string) => {
-    setCart(cart.filter(item => item.id !== serviceId));
+    contextRemoveFromCart(serviceId);
   };
 
   // Update quantity
@@ -275,18 +303,15 @@ export default function ServiceCatalog() {
     if (quantity <= 0) {
       removeFromCart(serviceId);
     } else {
-      setCart(cart.map(item => 
-        item.id === serviceId 
-          ? { ...item, quantity }
-          : item
-      ));
+      // BuildupContext에는 quantity 개념이 없으므로 현재는 동작하지 않음
+      // 추후 필요시 updateCartItem으로 구현 가능
     }
   };
 
   // Calculate cart total
   const getCartTotal = () => {
     const subtotal = cart.reduce((sum, item) => {
-      const price = item.price.discounted || item.price.original;
+      const price = (item.service.price?.original || 0) / 10000; // 만원 단위
       return sum + (price * item.quantity);
     }, 0);
     
@@ -333,7 +358,7 @@ export default function ServiceCatalog() {
   };
 
   const filteredServices = getFilteredServices();
-  const recommendedServices = getRecommendedServices();
+  const recommendedServices = getLocalRecommendedServices();
   const cartTotal = getCartTotal();
 
   const getBadgeColor = (badge?: string) => {
@@ -667,8 +692,12 @@ export default function ServiceCatalog() {
                       key={service.id} 
                       className="bg-white rounded-xl shadow-sm border border-blue-200 overflow-hidden hover:shadow-lg transition-all cursor-pointer group"
                       onClick={() => {
-                        setSelectedService(service);
-                        setShowDetailModal(true);
+                        // 실제 BuildupService 데이터 찾기
+                        const buildupService = buildupServices.find(s => s.service_id === service.id);
+                        if (buildupService) {
+                          setSelectedService(buildupService);
+                          setShowDetailModal(true);
+                        }
                       }}
                     >
                       {/* Compact Header */}
@@ -725,8 +754,12 @@ export default function ServiceCatalog() {
                   onMouseEnter={() => setHoveredCard(service.id)}
                   onMouseLeave={() => setHoveredCard(null)}
                   onClick={() => {
-                    setSelectedService(service);
-                    setShowDetailModal(true);
+                    // 실제 BuildupService 데이터 찾기
+                    const buildupService = buildupServices.find(s => s.service_id === service.id);
+                    if (buildupService) {
+                      setSelectedService(buildupService);
+                      setShowDetailModal(true);
+                    }
                   }}
                 >
                   {/* 프리미엄 효과 오버레이 */}
@@ -756,7 +789,11 @@ export default function ServiceCatalog() {
                       id={`cart-btn-${service.id}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        addToCart(service);
+                        // ServiceItem이 아닌 실제 BuildupService를 찾아서 전달
+                        const buildupService = buildupServices.find(s => s.service_id === service.id);
+                        if (buildupService) {
+                          addToCart(buildupService);
+                        }
                       }}
                       className="w-8 h-8 bg-blue-600 rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
                     >
@@ -928,14 +965,16 @@ export default function ServiceCatalog() {
             ) : (
               <div className="space-y-4">
                 {cart.map(item => (
-                  <div key={item.id} className="bg-gray-50 rounded-lg p-4">
+                  <div key={item.service.service_id} className="bg-gray-50 rounded-lg p-4">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 text-sm">{item.title}</h4>
-                        <p className="text-xs text-gray-600 mt-1">{item.provider} · {item.duration}</p>
+                        <h4 className="font-medium text-gray-900 text-sm">{item.service.name}</h4>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {item.service.provider?.name || '포켓'} · {item.service.duration?.display || `${item.service.duration?.weeks}주`}
+                        </p>
                       </div>
                       <button
-                        onClick={() => removeFromCart(item.id)}
+                        onClick={() => removeFromCart(item.service.service_id)}
                         className="text-gray-400 hover:text-red-600"
                       >
                         <X className="w-4 h-4" />
@@ -960,7 +999,7 @@ export default function ServiceCatalog() {
                         </button>
                       </div>
                       <span className="text-sm font-semibold text-gray-900">
-                        {((item.price.discounted || item.price.original) * item.quantity).toLocaleString()}만원
+                        {Math.round((item.service.price?.original || 0) / 10000).toLocaleString()}만원
                       </span>
                     </div>
                     
@@ -1016,11 +1055,18 @@ export default function ServiceCatalog() {
               {/* Actions */}
               <div className="space-y-2">
                 <button
-                  onClick={() => setShowContractModal(true)}
+                  onClick={() => navigate('/startup/cart')}
                   className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
                 >
+                  <ShoppingCart className="w-4 h-4" />
+                  장바구니 페이지로 이동
+                </button>
+                <button
+                  onClick={() => setShowContractModal(true)}
+                  className="w-full px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
+                >
                   <FileText className="w-4 h-4" />
-                  계약 진행
+                  빠른 계약 진행
                 </button>
                 <button
                   onClick={() => setIsCartOpen(false)}
@@ -1124,9 +1170,11 @@ export default function ServiceCatalog() {
                   <div className="space-y-2">
                     <button
                       onClick={() => {
-                        setSelectedService(quickViewService);
-                        setShowDetailModal(true);
-                        setQuickViewService(null);
+                        if (quickViewService) {
+                          setSelectedService(quickViewService);
+                          setShowDetailModal(true);
+                          setQuickViewService(null);
+                        }
                       }}
                       className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm"
                     >
@@ -1166,37 +1214,10 @@ export default function ServiceCatalog() {
       {/* Service Detail Modal */}
       {showDetailModal && selectedService && (
         <ServiceDetailModal
-          service={{
-            service_id: selectedService.id,
-            category: selectedService.category as any,
-            name: selectedService.title,
-            subtitle: selectedService.description,
-            description: selectedService.description,
-            target_axis: ['product', 'sales'] as any[],
-            expected_improvement: 0, // 정성적 개선만 제공
-            target_stage: ['A1', 'A2', 'A3'] as any[],
-            duration_weeks: parseInt(selectedService.duration.replace(/[^0-9]/g, '')) || 4,
-            price_base: (selectedService.price.discounted || selectedService.price.original) * 10000,
-            price_urgent: (selectedService.price.discounted || selectedService.price.original) * 13000,
-            price_package: (selectedService.price.discounted || selectedService.price.original) * 8000,
-            provider: selectedService.provider as any,
-            format: 'online' as any,
-            deliverables: selectedService.deliverables,
-            process_steps: [
-              { name: '킥오프 미팅', duration: '1일', description: '요구사항 분석 및 목표 설정' },
-              { name: '기획 및 설계', duration: '3일', description: '서비스 구조 설계 및 와이어프레임 작성' },
-              { name: '개발/제작', duration: '10일', description: '실제 서비스 구현 및 개발' },
-              { name: '테스트 및 수정', duration: '3일', description: '품질 검증 및 피드백 반영' },
-              { name: '최종 납품', duration: '1일', description: '완성된 산출물 전달 및 문서화' }
-            ],
-            portfolio_count: 42,
-            avg_rating: selectedService.rating,
-            review_count: selectedService.reviews,
-            completion_rate: 95,
-            status: 'active' as any
-          }}
+          service={selectedService}
           onClose={() => setShowDetailModal(false)}
           onAddToCart={() => {
+            // BuildupService를 직접 장바구니에 추가
             addToCart(selectedService);
             setShowDetailModal(false);
           }}

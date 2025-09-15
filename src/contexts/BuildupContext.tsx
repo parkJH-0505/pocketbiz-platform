@@ -1,13 +1,29 @@
+/**
+ * BuildupContext.tsx
+ *
+ * 포켓빌드업 서비스의 전체 상태 관리를 담당하는 Context
+ *
+ * 주요 기능:
+ * 1. 서비스 데이터 관리 - 포켓빌드업 서비스 목록 로드 및 필터링
+ * 2. 장바구니 기능 - 서비스 장바구니 추가/제거/업데이트
+ * 3. 프로젝트 관리 - 진행중/완료된 프로젝트 관리
+ * 4. 서비스 추천 - KPI 점수 기반 맞춤형 서비스 추천
+ * 5. 검색 및 필터링 - 카테고리별, 가격별, 검색어별 필터링
+ *
+ * @author PocketCompany
+ * @since 2024
+ */
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import type { 
-  BuildupService, 
-  CartItem, 
+import type {
+  BuildupService,
+  CartItem,
   Project,
-  AxisKey 
+  AxisKey
 } from '../types/buildup.types';
-import { 
-  loadBuildupServices, 
-  calculateBundleDiscount 
+import {
+  loadBuildupServices,
+  calculateBundleDiscount
 } from '../utils/buildupServiceLoader';
 
 interface BuildupContextType {
@@ -33,12 +49,27 @@ interface BuildupContextType {
   
   // Recommendations
   getRecommendedServices: (userAxis?: Record<AxisKey, number>) => BuildupService[];
-  
+  getFeaturedServices: () => BuildupService[];
+
   // Filters
   selectedCategory: string;
   setSelectedCategory: (category: string) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+
+  // Service operations (통합된 기능)
+  getService: (id: string) => BuildupService | undefined;
+  searchServices: (query: string) => BuildupService[];
+  filterByCategory: (category: string) => BuildupService[];
+  filterByPriceRange: (min: number, max: number) => BuildupService[];
+
+  // Admin functions (나중에 관리자 기능용)
+  addService: (service: BuildupService) => Promise<void>;
+  updateService: (id: string, updates: Partial<BuildupService>) => Promise<void>;
+  deleteService: (id: string) => Promise<void>;
+
+  // Status
+  error: string | null;
 }
 
 const BuildupContext = createContext<BuildupContextType | undefined>(undefined);
@@ -50,6 +81,7 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
   const [selectedCategory, setSelectedCategory] = useState<string>('전체');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isProjectsInitialized, setIsProjectsInitialized] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Initialize with default sample projects
   const getInitialProjects = (): Project[] => {
@@ -394,8 +426,10 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     try {
       const loadedServices = await loadBuildupServices();
       setServices(loadedServices);
-    } catch (error) {
-      console.error('Failed to load services:', error);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to load services:', err);
+      setError('서비스를 불러오는데 실패했습니다');
     } finally {
       setLoadingServices(false);
     }
@@ -763,7 +797,7 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
   const addToCart = (service: BuildupService, options?: CartItem['options']) => {
     const existingItem = cart.find(item => item.service.service_id === service.service_id);
-    
+
     if (existingItem) {
       // Update quantity or options if item already in cart
       updateCartItem(service.service_id, options || {});
@@ -776,7 +810,7 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
           rush_delivery: false,
           add_ons: []
         },
-        subtotal: service.price_base
+        subtotal: service.price?.original || 0  // 새 데이터 구조 사용
       };
       setCart([...cart, newItem]);
     }
@@ -790,18 +824,18 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     setCart(cart.map(item => {
       if (item.service.service_id === serviceId) {
         const updatedOptions = { ...item.options, ...options };
-        let subtotal = item.service.price_base;
-        
+        let subtotal = item.service.price?.original || 0;  // 새 데이터 구조 사용
+
         if (updatedOptions.scope === 'premium') {
-          subtotal = item.service.price_base * 1.5;
+          subtotal = (item.service.price?.original || 0) * 1.5;
         } else if (updatedOptions.scope === 'custom') {
-          subtotal = item.service.price_base * 2;
+          subtotal = (item.service.price?.original || 0) * 2;
         }
-        
-        if (updatedOptions.rush_delivery) {
-          subtotal = item.service.price_urgent;
+
+        if (updatedOptions.rush_delivery && item.service.price?.discounted) {
+          subtotal = item.service.price.discounted;  // 긴급 할증 대신 할인가 사용
         }
-        
+
         return {
           ...item,
           options: updatedOptions,
@@ -885,18 +919,102 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
   const getRecommendedServices = (userAxis?: Record<AxisKey, number>) => {
     if (!userAxis) return services.slice(0, 5);
-    
+
     // Find services that target user's weak axes
     const weakAxes = (Object.entries(userAxis) as [AxisKey, number][])
       .filter(([_, score]) => score < 70)
       .map(([axis, _]) => axis);
-    
+
     return services
-      .filter(service => 
+      .filter(service =>
         service.target_axis.some(axis => weakAxes.includes(axis))
       )
       .sort((a, b) => b.expected_improvement - a.expected_improvement)
       .slice(0, 5);
+  };
+
+  // 추천 서비스 가져오기 (높은 평점과 리뷰 수 기준)
+  const getFeaturedServices = () => {
+    return services
+      .filter(s => s.avg_rating >= 4.5 && s.review_count >= 50)
+      .sort((a, b) => b.avg_rating - a.avg_rating)
+      .slice(0, 6);
+  };
+
+  // 서비스 ID로 단일 서비스 가져오기
+  const getService = (id: string) => {
+    return services.find(s => s.service_id === id);
+  };
+
+  // 서비스 검색 (제목, 설명, 부제목, 산출물에서 검색)
+  const searchServices = (query: string) => {
+    const lowercaseQuery = query.toLowerCase();
+    return services.filter(service =>
+      service.name.toLowerCase().includes(lowercaseQuery) ||
+      service.description.toLowerCase().includes(lowercaseQuery) ||
+      service.subtitle.toLowerCase().includes(lowercaseQuery) ||
+      service.deliverables.some(d => d.toLowerCase().includes(lowercaseQuery))
+    );
+  };
+
+  // 카테고리별 필터링
+  const filterByCategory = (category: string) => {
+    if (category === 'all' || category === '전체') return services;
+    return services.filter(s => s.category === category);
+  };
+
+  // 가격 범위별 필터링
+  const filterByPriceRange = (min: number, max: number) => {
+    return services.filter(s => {
+      const price = s.price_base / 10000; // 만원 단위로 변환
+      return price >= min && price <= max;
+    });
+  };
+
+  // 관리자용: 새 서비스 추가
+  const addService = async (service: BuildupService) => {
+    try {
+      // 실제 환경에서는 API 호출
+      // await fetch('/api/buildup-services', { method: 'POST', body: JSON.stringify(service) });
+
+      setServices([...services, service]);
+      localStorage.setItem('buildup_services', JSON.stringify([...services, service]));
+    } catch (err) {
+      console.error('Error adding service:', err);
+      throw err;
+    }
+  };
+
+  // 관리자용: 서비스 업데이트
+  const updateService = async (id: string, updates: Partial<BuildupService>) => {
+    try {
+      // 실제 환경에서는 API 호출
+      // await fetch(`/api/buildup-services/${id}`, { method: 'PUT', body: JSON.stringify(updates) });
+
+      const updatedServices = services.map(s =>
+        s.service_id === id ? { ...s, ...updates } : s
+      );
+      setServices(updatedServices);
+      localStorage.setItem('buildup_services', JSON.stringify(updatedServices));
+    } catch (err) {
+      console.error('Error updating service:', err);
+      throw err;
+    }
+  };
+
+  // 관리자용: 서비스 삭제
+  const deleteService = async (id: string) => {
+    try {
+      // 실제 환경에서는 API 호출
+      // await fetch(`/api/buildup-services/${id}`, { method: 'DELETE' });
+
+      const filteredServices = services.filter(s => s.service_id !== id);
+      setServices(filteredServices);
+      localStorage.setItem('buildup_services', JSON.stringify(filteredServices));
+    } catch (err) {
+      console.error('Error deleting service:', err);
+      throw err;
+    }
   };
 
   const activeProjects = projects.filter(p => 
@@ -909,8 +1027,12 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
   const bundleDiscount = calculateBundleDiscount(cart.map(item => item.service));
 
   const value: BuildupContextType = {
+    // 서비스 데이터
     services,
     loadingServices,
+    error,
+
+    // 장바구니 기능
     cart,
     addToCart,
     removeFromCart,
@@ -918,12 +1040,28 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     clearCart,
     cartTotal,
     bundleDiscount,
+
+    // 프로젝트 관리
     projects,
     activeProjects,
     completedProjects,
     createProject,
     updateProject,
+
+    // 서비스 조회 및 필터링
+    getService,
+    searchServices,
+    filterByCategory,
+    filterByPriceRange,
     getRecommendedServices,
+    getFeaturedServices,
+
+    // 관리자 기능
+    addService,
+    updateService,
+    deleteService,
+
+    // UI 상태
     selectedCategory,
     setSelectedCategory,
     searchQuery,

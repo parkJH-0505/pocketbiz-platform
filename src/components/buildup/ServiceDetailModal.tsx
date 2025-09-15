@@ -47,7 +47,7 @@ export default function ServiceDetailModal({ service, onClose, onAddToCart }: Se
                 <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
                   {service.category}
                 </span>
-                {service.avg_rating >= 4.7 && (
+                {service.reviews?.avg_rating >= 4.7 && (
                   <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
                     HOT
                   </span>
@@ -98,25 +98,57 @@ export default function ServiceDetailModal({ service, onClose, onAddToCart }: Se
                 <p className="text-gray-600 leading-relaxed">{service.description}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                    <Target className="w-4 h-4 text-blue-600" />
-                    대상 고객
-                  </h4>
-                  <ul className="space-y-1">
-                    {service.target_stage.map(stage => (
-                      <li key={stage} className="text-sm text-gray-600 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
-                        {stage === 'A1' ? '예비창업' : 
-                         stage === 'A2' ? 'Seed' :
-                         stage === 'A3' ? 'Series A' :
-                         stage === 'A4' ? 'Series B+' : 'Pre-IPO'}
-                      </li>
-                    ))}
-                  </ul>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                      <Target className="w-4 h-4 text-blue-600" />
+                      대상 단계
+                    </h4>
+                    <ul className="space-y-1">
+                      {service.target?.stage?.map(stage => (
+                        <li key={stage} className="text-sm text-gray-600 flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
+                          {stage}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">직원 규모</h4>
+                    <p className="text-sm text-gray-600">{service.target?.employee_count}</p>
+                  </div>
                 </div>
 
+                {/* 이런 상황에 필요해요 */}
+                {service.target?.company_situation && (
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">💡 이런 상황에 필요해요</h4>
+                    <ul className="space-y-1">
+                      {service.target.company_situation.map((situation, idx) => (
+                        <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                          <span className="text-blue-600 mt-0.5">✓</span>
+                          {situation}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* 이런 고민이 있으신가요? */}
+                {service.target?.pain_points && (
+                  <div className="p-4 bg-orange-50 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">🤔 이런 고민이 있으신가요?</h4>
+                    <ul className="space-y-1">
+                      {service.target.pain_points.map((pain, idx) => (
+                        <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                          <span className="text-orange-500 mt-0.5">•</span>
+                          {pain}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -125,7 +157,7 @@ export default function ServiceDetailModal({ service, onClose, onAddToCart }: Se
                   주요 산출물
                 </h4>
                 <div className="flex flex-wrap gap-2">
-                  {service.deliverables.map((deliverable, idx) => (
+                  {service.deliverables?.main?.map((deliverable, idx) => (
                     <span key={idx} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm">
                       {deliverable}
                     </span>
@@ -135,15 +167,15 @@ export default function ServiceDetailModal({ service, onClose, onAddToCart }: Se
 
               <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900">{service.portfolio_count}</p>
+                  <p className="text-2xl font-bold text-gray-900">{service.portfolio?.total_count || 0}</p>
                   <p className="text-sm text-gray-600">완료 프로젝트</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900">{service.avg_rating}</p>
+                  <p className="text-2xl font-bold text-gray-900">{service.reviews?.avg_rating || 0}</p>
                   <p className="text-sm text-gray-600">평균 평점</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900">{service.review_count}</p>
+                  <p className="text-2xl font-bold text-gray-900">{service.reviews?.total_count || 0}</p>
                   <p className="text-sm text-gray-600">리뷰 수</p>
                 </div>
               </div>
@@ -155,11 +187,11 @@ export default function ServiceDetailModal({ service, onClose, onAddToCart }: Se
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">진행 프로세스</h3>
-                <p className="text-gray-600 mb-4">총 소요기간: {service.duration_weeks}주</p>
+                <p className="text-gray-600 mb-4">총 소요기간: {service.duration?.display || `${service.duration?.weeks || 0}주`}</p>
               </div>
 
               <div className="space-y-4">
-                {service.process_steps.map((step, idx) => (
+                {service.process?.steps?.map((step, idx) => (
                   <div key={idx} className="flex gap-4">
                     <div className="flex-shrink-0">
                       <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-semibold">
@@ -169,7 +201,7 @@ export default function ServiceDetailModal({ service, onClose, onAddToCart }: Se
                     <div className="flex-1">
                       <h4 className="font-medium text-gray-900 mb-1">{step.name}</h4>
                       <p className="text-sm text-gray-600">소요기간: {step.duration}</p>
-                      {idx < service.process_steps.length - 1 && (
+                      {idx < (service.process?.steps?.length || 0) - 1 && (
                         <div className="mt-4 border-l-2 border-gray-200 ml-5 h-4"></div>
                       )}
                     </div>
@@ -183,18 +215,30 @@ export default function ServiceDetailModal({ service, onClose, onAddToCart }: Se
           {activeTab === 'portfolio' && (
             <div className="space-y-6">
               <h3 className="text-lg font-semibold text-gray-900">포트폴리오</h3>
-              <div className="grid grid-cols-2 gap-4">
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="p-4 border border-gray-200 rounded-lg">
-                    <div className="flex items-start justify-between mb-2">
-                      <h4 className="font-medium text-gray-900">프로젝트 #{i}</h4>
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">완료</span>
+              {service.portfolio?.highlights && service.portfolio.highlights.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {service.portfolio.highlights.map((item, idx) => (
+                    <div key={idx} className="p-4 border border-gray-200 rounded-lg">
+                      <div className="flex items-start justify-between mb-2">
+                        <h4 className="font-medium text-gray-900">{item.client_type}</h4>
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">완료</span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-1">{item.industry}</p>
+                      <p className="text-sm font-medium text-blue-600 mb-2">{item.outcome}</p>
+                      <p className="text-sm text-gray-500 mb-3">{item.date}</p>
+                      {item.testimonial && (
+                        <p className="text-sm text-gray-600 italic border-l-2 border-blue-200 pl-3">
+                          "{item.testimonial}"
+                        </p>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">스타트업 A사</p>
-                    <p className="text-sm text-gray-500">2024년 {i}월 완료</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  포트폴리오 정보가 없습니다.
+                </div>
+              )}
             </div>
           )}
 
@@ -209,38 +253,54 @@ export default function ServiceDetailModal({ service, onClose, onAddToCart }: Se
                       <Star
                         key={i}
                         className={`w-5 h-5 ${
-                          i <= Math.floor(service.avg_rating)
+                          i <= Math.floor(service.reviews?.avg_rating || 0)
                             ? 'text-yellow-400 fill-current'
                             : 'text-gray-300'
                         }`}
                       />
                     ))}
                   </div>
-                  <span className="font-semibold">{service.avg_rating}</span>
-                  <span className="text-gray-500">({service.review_count}개)</span>
+                  <span className="font-semibold">{service.reviews?.avg_rating || 0}</span>
+                  <span className="text-gray-500">({service.reviews?.total_count || 0}개)</span>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="p-4 border border-gray-200 rounded-lg">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <p className="font-medium text-gray-900">김대표</p>
-                        <p className="text-sm text-gray-500">스타트업 {i} · 2024.0{i}.15</p>
+              {service.reviews?.recent_reviews && service.reviews.recent_reviews.length > 0 ? (
+                <div className="space-y-4">
+                  {service.reviews.recent_reviews.map((review, idx) => (
+                    <div key={idx} className="p-4 border border-gray-200 rounded-lg">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <p className="font-medium text-gray-900">{review.client_name}</p>
+                          <p className="text-sm text-gray-500">{review.company} · {review.date}</p>
+                        </div>
+                        <div className="flex">
+                          {[1, 2, 3, 4, 5].map(j => (
+                            <Star
+                              key={j}
+                              className={`w-4 h-4 ${
+                                j <= Math.floor(review.rating)
+                                  ? 'text-yellow-400 fill-current'
+                                  : 'text-gray-300'
+                              }`}
+                            />
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex">
-                        {[1, 2, 3, 4, 5].map(j => (
-                          <Star key={j} className="w-4 h-4 text-yellow-400 fill-current" />
-                        ))}
-                      </div>
+                      <p className="text-gray-600">{review.content}</p>
+                      {review.helpful_count && (
+                        <div className="mt-2 flex items-center gap-2 text-sm text-gray-500">
+                          <span>도움이 됨 ({review.helpful_count})</span>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-gray-600">
-                      정말 만족스러운 서비스였습니다. 전문적이고 체계적인 진행에 감사드립니다.
-                    </p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  리뷰가 없습니다.
+                </div>
+              )}
             </div>
           )}
 
@@ -248,18 +308,20 @@ export default function ServiceDetailModal({ service, onClose, onAddToCart }: Se
           {activeTab === 'faq' && (
             <div className="space-y-6">
               <h3 className="text-lg font-semibold text-gray-900">자주 묻는 질문</h3>
-              <div className="space-y-4">
-                {[
-                  { q: '서비스 기간은 연장 가능한가요?', a: '네, 프로젝트 진행 중 협의를 통해 연장 가능합니다.' },
-                  { q: '중간에 취소할 수 있나요?', a: '계약 조건에 따라 부분 환불이 가능합니다.' },
-                  { q: '추가 수정은 몇 번까지 가능한가요?', a: '기본 3회 수정이 포함되어 있으며, 추가 수정은 별도 협의가 필요합니다.' }
-                ].map((faq, idx) => (
-                  <div key={idx} className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-2">Q. {faq.q}</h4>
-                    <p className="text-gray-600">A. {faq.a}</p>
-                  </div>
-                ))}
-              </div>
+              {service.faq && service.faq.length > 0 ? (
+                <div className="space-y-4">
+                  {service.faq.map((item, idx) => (
+                    <div key={idx} className="border border-gray-200 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-900 mb-2">Q. {item.question}</h4>
+                      <p className="text-gray-600">A. {item.answer}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  FAQ가 없습니다.
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -269,7 +331,7 @@ export default function ServiceDetailModal({ service, onClose, onAddToCart }: Se
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 mb-1">서비스 가격</p>
-              <p className="text-2xl font-bold text-gray-900">{formatPrice(service.price_base)}</p>
+              <p className="text-2xl font-bold text-gray-900">{formatPrice(service.price?.original || 0)}</p>
             </div>
             <div className="flex gap-3">
               <button className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">
