@@ -297,33 +297,54 @@ export default function CheckoutEnhanced() {
 
   // 완료 처리
   const handleComplete = async () => {
-    // 프로젝트 생성
-    for (const item of cart) {
-      const option = checkoutData.serviceOptions[item.service.service_id];
+    setIsGenerating(true);
 
-      await createProject({
-        title: item.service.name,
-        service_id: item.service.service_id,
-        category: item.service.category as any,
-        status: 'preparing',
-        created_from: 'catalog',
-        contract: {
-          id: checkoutData.contractData.contractNumber,
-          value: calculateServicePrice(item.service.service_id),
-          signed_date: checkoutData.contractData.signedDate,
-          start_date: new Date(option.startDate),
-          end_date: checkoutData.contractData.projectEndDate
-        }
-      });
+    try {
+      // 프로젝트 생성
+      for (const item of cart) {
+        const option = checkoutData.serviceOptions[item.service.service_id];
+
+        await createProject({
+          title: item.service.name,
+          service_id: item.service.service_id,
+          category: item.service.category as any,
+          status: 'active', // preparing → active로 변경 (바로 활성화)
+          created_from: 'checkout',
+          contract: {
+            id: checkoutData.contractData.contractNumber,
+            value: calculateServicePrice(item.service.service_id),
+            signed_date: checkoutData.contractData.signedDate,
+            start_date: new Date(option.startDate),
+            end_date: checkoutData.contractData.projectEndDate
+          },
+          team: {
+            client_contact: {
+              id: `client-${Date.now()}`,
+              name: checkoutData.buyerInfo.contactPerson,
+              role: checkoutData.buyerInfo.contactRole,
+              email: checkoutData.buyerInfo.email,
+              company: checkoutData.buyerInfo.companyName
+            }
+          } as any
+        });
+      }
+
+      // 장바구니 비우기
+      clearCart();
+
+      // 성공 메시지와 함께 프로젝트 관리 페이지로 이동
+      setTimeout(() => {
+        navigate('/startup/buildup/projects', {
+          state: {
+            orderComplete: true,
+            message: `${cart.length}개의 프로젝트가 생성되었습니다.`
+          }
+        });
+      }, 1000);
+    } catch (error) {
+      console.error('프로젝트 생성 실패:', error);
+      setIsGenerating(false);
     }
-
-    // 장바구니 비우기
-    clearCart();
-
-    // 프로젝트 관리 페이지로 이동
-    navigate('/startup/buildup/projects', {
-      state: { orderComplete: true }
-    });
   };
 
   // 견적서 다운로드

@@ -25,6 +25,7 @@ import {
   loadBuildupServices,
   calculateBundleDiscount
 } from '../utils/buildupServiceLoader';
+import { mockProjects } from '../data/mockProjects';
 
 interface BuildupContextType {
   // Services
@@ -83,328 +84,11 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
   const [isProjectsInitialized, setIsProjectsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Initialize with default sample projects
+  // Initialize with mock projects
   const getInitialProjects = (): Project[] => {
-    return [
-      {
-        id: 'PRJ-001',
-        title: 'MVP 개발 프로젝트',
-        service_id: 'SVC-DEV-001',
-        category: '개발',
-        status: 'active',
-        created_from: 'catalog',
-        contract: {
-          id: 'CNT-001',
-          value: 30000000,
-          signed_date: new Date('2024-01-15'),
-          start_date: new Date('2024-01-20'),
-          end_date: new Date('2024-04-20')
-        },
-        progress: {
-          overall: 65,
-          milestones_completed: 3,
-          milestones_total: 5,
-          deliverables_submitted: 8,
-          deliverables_total: 12
-        },
-        timeline: {
-          kickoff_date: new Date('2024-01-20'),
-          current_phase: '개발 단계',
-          next_milestone: {
-            name: '1차 QA 테스트',
-            due_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
-          }
-        },
-        workstreams: [
-          {
-            id: 'WS-001',
-            name: '백엔드 개발',
-            status: 'in_progress',
-            owner: {
-              id: 'dev-1',
-              name: '김개발',
-              role: 'Backend Developer',
-              email: 'kim@pocket.com'
-            },
-            tasks: [],
-            progress: 70
-          },
-          {
-            id: 'WS-002',
-            name: '프론트엔드 개발',
-            status: 'in_progress',
-            owner: {
-              id: 'dev-2',
-              name: '이프론트',
-              role: 'Frontend Developer',
-              email: 'lee@pocket.com'
-            },
-            tasks: [],
-            progress: 60
-          }
-        ],
-        deliverables: [
-          {
-            id: 'DLV-001',
-            name: 'API 설계서',
-            description: 'RESTful API 상세 설계 문서',
-            status: 'approved',
-            due_date: new Date('2024-02-01'),
-            submitted_date: new Date('2024-01-30'),
-            approved_date: new Date('2024-02-01'),
-            version: 2,
-            files: []
-          },
-          {
-            id: 'DLV-002',
-            name: '데이터베이스 스키마',
-            description: 'PostgreSQL 데이터베이스 설계',
-            status: 'approved',
-            due_date: new Date('2024-02-05'),
-            submitted_date: new Date('2024-02-04'),
-            approved_date: new Date('2024-02-05'),
-            version: 1,
-            files: []
-          },
-          {
-            id: 'DLV-003',
-            name: '프로토타입',
-            description: '핵심 기능 프로토타입',
-            status: 'in_review',
-            due_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-            submitted_date: new Date(),
-            version: 1,
-            files: []
-          }
-        ],
-        team: {
-          pm: {
-            id: 'pm-001',
-            name: '박매니저',
-            role: 'Project Manager',
-            email: 'park@pocket.com',
-            company: '포켓컴퍼니'
-          },
-          members: [
-            {
-              id: 'dev-1',
-              name: '김개발',
-              role: 'Backend Developer',
-              email: 'kim@pocket.com',
-              company: '포켓컴퍼니'
-            },
-            {
-              id: 'dev-2',
-              name: '이프론트',
-              role: 'Frontend Developer',
-              email: 'lee@pocket.com',
-              company: '포켓컴퍼니'
-            },
-            {
-              id: 'des-1',
-              name: '최디자인',
-              role: 'UI/UX Designer',
-              email: 'choi@pocket.com',
-              company: '포켓컴퍼니'
-            }
-          ],
-          client_contact: {
-            id: 'client-001',
-            name: '정대표',
-            role: 'CEO',
-            email: 'ceo@startup.com',
-            company: '스타트업A'
-          }
-        },
-        risks: [
-          {
-            id: 'RSK-001',
-            title: 'API 성능 이슈',
-            description: '대용량 데이터 처리 시 응답 속도 저하 우려',
-            level: 'medium',
-            status: 'mitigating',
-            mitigation_plan: '캐싱 전략 수립 및 쿼리 최적화 진행중',
-            owner: {
-              id: 'dev-1',
-              name: '김개발',
-              role: 'Backend Developer',
-              email: 'kim@pocket.com'
-            },
-            identified_date: new Date('2024-02-10')
-          }
-        ],
-        meetings: [
-          {
-            id: 'MTG-001',
-            title: '주간 진행상황 점검',
-            type: 'progress',
-            date: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
-            duration: 60,
-            attendees: [],
-            agenda: '1. 개발 진행 현황\n2. 이슈 사항 논의\n3. 다음 주 계획'
-          }
-        ],
-        files: [],
-        communication: {
-          unread_messages: 3,
-          last_activity: new Date()
-        },
-        kpi_impact: {
-          baseline: { GO: 45, EC: 50, PT: 40, PF: 35, TO: 55 },
-          current: { GO: 55, EC: 60, PT: 50, PF: 45, TO: 60 },
-          target: { GO: 70, EC: 75, PT: 65, PF: 60, TO: 70 }
-        }
-      },
-      {
-        id: 'PRJ-002',
-        title: 'IR 덱 컨설팅',
-        service_id: 'SVC-DOC-002',
-        category: '문서작업',
-        status: 'active',
-        created_from: 'nba',
-        contract: {
-          id: 'CNT-002',
-          value: 8000000,
-          signed_date: new Date('2024-02-01'),
-          start_date: new Date('2024-02-05'),
-          end_date: new Date('2024-03-05')
-        },
-        progress: {
-          overall: 35,
-          milestones_completed: 1,
-          milestones_total: 4,
-          deliverables_submitted: 2,
-          deliverables_total: 6
-        },
-        timeline: {
-          kickoff_date: new Date('2024-02-05'),
-          current_phase: '시장 분석',
-          next_milestone: {
-            name: '시장 분석 보고서 제출',
-            due_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)
-          }
-        },
-        workstreams: [
-          {
-            id: 'WS-003',
-            name: '시장조사',
-            status: 'in_progress',
-            owner: {
-              id: 'con-1',
-              name: '김컨설턴트',
-              role: 'Strategy Consultant',
-              email: 'kim.consultant@pocket.com'
-            },
-            tasks: [],
-            progress: 40
-          },
-          {
-            id: 'WS-004',
-            name: '재무모델링',
-            status: 'backlog',
-            owner: {
-              id: 'con-2',
-              name: '이애널리스트',
-              role: 'Financial Analyst',
-              email: 'lee.analyst@pocket.com'
-            },
-            tasks: [],
-            progress: 10
-          }
-        ],
-        deliverables: [
-          {
-            id: 'DLV-004',
-            name: '사업계획서 초안',
-            description: '투자유치용 사업계획서 v1.0',
-            status: 'in_progress',
-            due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-            version: 1,
-            files: []
-          },
-          {
-            id: 'DLV-005',
-            name: '시장분석 리포트',
-            description: 'TAM/SAM/SOM 분석 및 경쟁사 분석',
-            status: 'in_progress',
-            due_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-            version: 1,
-            files: []
-          }
-        ],
-        team: {
-          pm: {
-            id: 'pm-002',
-            name: '이컨설턴트',
-            role: 'Senior Consultant',
-            email: 'lee.senior@pocket.com',
-            company: '포켓컴퍼니'
-          },
-          members: [
-            {
-              id: 'con-1',
-              name: '김컨설턴트',
-              role: 'Strategy Consultant',
-              email: 'kim.consultant@pocket.com',
-              company: '포켓컴퍼니'
-            },
-            {
-              id: 'con-2',
-              name: '이애널리스트',
-              role: 'Financial Analyst',
-              email: 'lee.analyst@pocket.com',
-              company: '포켓컴퍼니'
-            }
-          ],
-          client_contact: {
-            id: 'client-002',
-            name: '김대표',
-            role: 'CEO',
-            email: 'kim@startup-b.com',
-            company: '스타트업B'
-          }
-        },
-        risks: [
-          {
-            id: 'RSK-002',
-            title: '재무 데이터 부족',
-            description: '과거 재무 실적 데이터가 충분하지 않아 예측 정확도 우려',
-            level: 'low',
-            status: 'identified',
-            owner: {
-              id: 'con-2',
-              name: '이애널리스트',
-              role: 'Financial Analyst',
-              email: 'lee.analyst@pocket.com'
-            },
-            identified_date: new Date('2024-02-08')
-          }
-        ],
-        meetings: [
-          {
-            id: 'MTG-002',
-            title: '중간 리뷰 미팅',
-            type: 'review',
-            date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-            duration: 90,
-            attendees: [],
-            agenda: '1. 시장분석 결과 공유\n2. IR 덱 초안 검토\n3. 피드백 수렴'
-          }
-        ],
-        files: [],
-        communication: {
-          unread_messages: 1,
-          last_activity: new Date(Date.now() - 2 * 60 * 60 * 1000)
-        },
-        kpi_impact: {
-          baseline: { GO: 50, EC: 45, PT: 55, PF: 40, TO: 50 },
-          current: { GO: 55, EC: 50, PT: 60, PF: 42, TO: 52 },
-          target: { GO: 65, EC: 60, PT: 70, PF: 55, TO: 60 }
-        }
-      }
-    ];
+    return mockProjects.slice(0, 2); // 처음 2개 프로젝트만 활성화
   };
-  
+
   const [projects, setProjects] = useState<Project[]>(getInitialProjects());
 
   // Load services on mount
@@ -850,64 +534,158 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     setCart([]);
   };
 
+  const createProjectFromService = (service: BuildupService, checkoutData?: any): Project => {
+    const today = new Date();
+    const kickoffDate = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const startDate = kickoffDate;
+    const endDate = new Date(kickoffDate.getTime() + service.duration.weeks * 7 * 24 * 60 * 60 * 1000);
+
+    return {
+      id: `PRJ-${Date.now()}`,
+      title: `${service.name} 프로젝트`,
+      service_id: service.service_id,
+      category: service.category,
+      status: 'active',
+      phase: 'contract_pending',  // 초기 상태: 계약중
+      created_from: 'catalog',
+      contract: {
+        id: `CNT-${Date.now()}`,
+        value: service.price.original,
+        signed_date: today,
+        start_date: startDate,
+        end_date: endDate
+      },
+      // progress 필드는 레거시용으로만 유지
+      timeline: {
+        kickoff_date: kickoffDate,
+        phase_updated_at: today,
+        phase_updated_by: 'system',
+        start_date: startDate,
+        end_date: endDate
+      },
+      workstreams: [],
+      deliverables: service.deliverables.main.map((d, idx) => ({
+        id: `DLV-${Date.now()}-${idx}`,
+        name: d,
+        description: '',
+        status: 'pending' as const,
+        due_date: new Date(today.getTime() + ((idx + 1) * 7) * 24 * 60 * 60 * 1000),
+        version: 1,
+        files: []
+      })),
+      team: {
+        pm: {
+          id: 'pm-auto',
+          name: '담당 PM 배정 중',
+          role: 'Project Manager',
+          email: 'pm@pocket.com',
+          company: '포켓컴퍼니'
+        },
+        members: [],
+        client_contact: checkoutData?.contactInfo || {
+          id: 'client-auto',
+          name: checkoutData?.name || '고객사 담당자',
+          role: 'CEO',
+          email: checkoutData?.email || 'client@company.com',
+          company: checkoutData?.company || '고객사'
+        }
+      },
+      risks: [],
+      meetings: [
+        {
+          id: `MTG-${Date.now()}`,
+          title: '킥오프 미팅',
+          type: 'kickoff',
+          date: kickoffDate,
+          duration: 60,
+          attendees: [],
+          agenda: '1. 프로젝트 목표 확인\n2. 일정 및 마일스톤 협의\n3. 커뮤니케이션 채널 확정',
+          location: '줄',
+          meeting_link: 'https://zoom.us/j/123456789'
+        }
+      ],
+      files: [],
+      communication: {
+        unread_messages: 1,
+        last_activity: today
+      }
+    };
+  };
+
   const createProject = (data: Partial<Project>) => {
+    // 비서비스를 통한 프로젝트 생성인 경우
+    if (data.service_id) {
+      const service = services.find(s => s.service_id === data.service_id);
+      if (service) {
+        const newProject = createProjectFromService(service, data);
+        setProjects([...projects, newProject]);
+        console.log(`✅ 프로젝트 "${newProject.title}"이(가) 생성되었습니다.`);
+        return newProject;
+      }
+    }
+
+    // 수동 프로젝트 생성 (기존 코드와 호환)
+    const today = new Date();
+    const kickoffDate = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const endDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+
     const newProject: Project = {
       id: `PRJ-${Date.now()}`,
       title: data.title || 'New Project',
       service_id: data.service_id || '',
       category: data.category || '컨설팅',
-      status: 'preparing',
+      status: data.status || 'active',
+      phase: data.phase || 'contract_pending',  // 기본 상태: 계약중
       created_from: data.created_from || 'manual',
       contract: data.contract || {
         id: `CNT-${Date.now()}`,
         value: 0,
-        signed_date: new Date(),
-        start_date: new Date(),
-        end_date: new Date()
+        signed_date: today,
+        start_date: kickoffDate,
+        end_date: endDate
       },
-      progress: {
-        overall: 0,
-        milestones_completed: 0,
-        milestones_total: 0,
-        deliverables_submitted: 0,
-        deliverables_total: 0
+      // progress 필드는 레거시용
+      timeline: data.timeline || {
+        kickoff_date: kickoffDate,
+        phase_updated_at: today,
+        phase_updated_by: 'system',
+        start_date: kickoffDate,
+        end_date: endDate
       },
-      timeline: {
-        kickoff_date: new Date(),
-        current_phase: 'Initiation',
-        next_milestone: {
-          name: 'Kickoff Meeting',
-          due_date: new Date()
-        }
-      },
-      workstreams: [],
-      deliverables: [],
-      team: {
+      workstreams: data.workstreams || [],
+      deliverables: data.deliverables || [],
+      team: data.team || {
         pm: {
-          id: 'pm-1',
-          name: 'PM',
+          id: 'pm-auto',
+          name: '담당 PM 배정 중',
           role: 'Project Manager',
-          email: 'pm@pocket.com'
+          email: 'pm@pocket.com',
+          company: '포켓컴퍼니'
         },
         members: [],
         client_contact: {
           id: 'client-1',
-          name: 'Client',
+          name: '고객사 담당자',
           role: 'Stakeholder',
-          email: 'client@company.com'
+          email: 'client@company.com',
+          company: '고객사'
         }
       },
-      risks: [],
-      meetings: [],
-      files: [],
-      communication: {
+      risks: data.risks || [],
+      meetings: data.meetings || [],
+      files: data.files || [],
+      communication: data.communication || {
         unread_messages: 0,
-        last_activity: new Date()
+        last_activity: today
       },
       ...data
     };
-    
+
     setProjects([...projects, newProject]);
+
+    // 프로젝트 생성 성공 알림 (나중에 토스트로 변경 가능)
+    console.log(`✅ 프로젝트 "${newProject.title}"이(가) 생성되었습니다.`);
+
     return newProject;
   };
 

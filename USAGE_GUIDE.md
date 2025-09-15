@@ -11,7 +11,7 @@
 - **kpi_id**: KPI 고유 식별자
 - **sector**: 섹터 (예: S-1)
 - **axis**: 축 (GO, EC, PT, PF, TO)
-- **name**: KPI 이름
+- **name**: KPI 이름docs
 - **question**: 평가 질문
 - **input_type**: 입력 타입 (Numeric, Rubric, Stage, Calculation, MultiSelect, Checklist)
 - **formula**: 계산식 (Calculation 타입용)

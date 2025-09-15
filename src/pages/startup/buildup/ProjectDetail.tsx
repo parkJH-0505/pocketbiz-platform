@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
+  ArrowRight,
   MoreVertical,
   Clock,
   Users,
@@ -30,6 +31,12 @@ import {
 } from 'lucide-react';
 import { useBuildupContext } from '../../../contexts/BuildupContext';
 import type { Project } from '../../../types/buildup.types';
+import {
+  PHASE_INFO,
+  ALL_PHASES,
+  calculatePhaseProgress,
+  getPhaseIndex
+} from '../../../utils/projectPhaseUtils';
 
 interface Task {
   id: string;
@@ -72,10 +79,116 @@ export default function ProjectDetail() {
   const { projects, updateProject } = useBuildupContext();
   
   const project = projects.find(p => p.id === projectId);
-  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'files' | 'team' | 'activity'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'meetings'>('overview');
+
+  // 7단계 기반 진행률 계산
+  const calculateProgress = () => {
+    if (!project) return null;
+
+    const phase = project.phase || 'contract_pending';
+    const progress = calculatePhaseProgress(phase);
+
+    return {
+      phase,
+      progress,
+      phaseIndex: getPhaseIndex(phase),
+      phaseInfo: PHASE_INFO[phase]
+    };
+  };
+
+  const progressData = calculateProgress();
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [comment, setComment] = useState('');
+
+  // 통합 활동 피드 데이터
+  const projectActivities = [
+    {
+      id: 'act-001',
+      type: 'file_upload',
+      category: '파일 활동',
+      title: 'IR 덱 초안 v2.0 업로드',
+      description: '김수민 PM이 업로드했습니다',
+      user: project?.team?.pm?.name || '김수민',
+      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2시간 전
+      icon: 'upload'
+    },
+    {
+      id: 'act-002',
+      type: 'message',
+      category: '커뮤니케이션',
+      title: '클라이언트 피드백 수신',
+      description: '"디자인 방향성 조정이 필요합니다"',
+      user: project?.team?.client_contact?.name || '정대표',
+      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4시간 전
+      icon: 'message'
+    },
+    {
+      id: 'act-003',
+      type: 'file_review',
+      category: '파일 활동',
+      title: '시장 조사 보고서 검토 완료',
+      description: '승인 처리되었습니다',
+      user: project?.team?.client_contact?.name || '정대표',
+      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6시간 전
+      icon: 'check'
+    },
+    {
+      id: 'act-004',
+      type: 'phase_update',
+      category: '프로젝트 진행',
+      title: '프로젝트 단계 업데이트',
+      description: '기획 → 설계 단계로 진행',
+      user: project?.team?.pm?.name || '김수민',
+      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1일 전
+      icon: 'arrow-right'
+    },
+    {
+      id: 'act-005',
+      type: 'meeting',
+      category: '커뮤니케이션',
+      title: '가이드 미팅 1차 완료',
+      description: '프로젝트 킥오프 및 요구사항 정리',
+      user: project?.team?.pm?.name || '김수민',
+      timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000), // 2일 전
+      icon: 'calendar'
+    }
+  ];
+
+  // 활동 아이콘 매핑
+  const getActivityIcon = (iconType: string) => {
+    switch (iconType) {
+      case 'upload': return Upload;
+      case 'message': return MessageSquare;
+      case 'check': return CheckCircle;
+      case 'arrow-right': return ArrowRight;
+      case 'calendar': return Calendar;
+      default: return Activity;
+    }
+  };
+
+  // 활동 카테고리별 색상
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case '파일 활동': return 'text-green-600 bg-green-50';
+      case '커뮤니케이션': return 'text-blue-600 bg-blue-50';
+      case '프로젝트 진행': return 'text-purple-600 bg-purple-50';
+      default: return 'text-gray-600 bg-gray-50';
+    }
+  };
+
+  // 상대적 시간 표시
+  const getRelativeTime = (timestamp: Date) => {
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - timestamp.getTime()) / (1000 * 60 * 60));
+
+    if (diffInHours < 1) return '방금 전';
+    if (diffInHours < 24) return `${diffInHours}시간 전`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays === 1) return '1일 전';
+    if (diffInDays < 7) return `${diffInDays}일 전`;
+    return timestamp.toLocaleDateString('ko-KR');
+  };
 
   if (!project) {
     return (
@@ -85,7 +198,7 @@ export default function ProjectDetail() {
           <p className="text-gray-500">프로젝트를 찾을 수 없습니다</p>
           <button
             onClick={() => navigate('/startup/buildup/projects')}
-            className="mt-4 text-blue-600 hover:text-blue-700 text-sm"
+            className="mt-4 text-blue-600 hover:text-blue-700 text-sm font-medium"
           >
             프로젝트 목록으로 돌아가기
           </button>
@@ -233,10 +346,8 @@ export default function ProjectDetail() {
 
   const tabs = [
     { id: 'overview', label: '개요', icon: Briefcase },
-    { id: 'tasks', label: '작업', icon: CheckCircle },
     { id: 'files', label: '파일', icon: FileText },
-    { id: 'team', label: '팀', icon: Users },
-    { id: 'activity', label: '활동', icon: Activity }
+    { id: 'meetings', label: '미팅 기록', icon: Calendar }
   ];
 
   return (
@@ -280,35 +391,96 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        {/* Progress Bar */}
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <div className="flex items-center justify-between text-sm mb-1">
-              <span className="text-gray-600">전체 진행률</span>
-              <span className="font-medium">{project.progress.overall}%</span>
+        {/* 7단계 진행률 시스템 */}
+        {progressData && (
+          <div className="space-y-4">
+            {/* 상단 정보 */}
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-600">프로젝트 단계</span>
+              <div className="flex items-center gap-6">
+                <div>
+                  <span className="text-gray-600">현재 단계</span>
+                  <span className="ml-2 font-medium">{progressData.phaseInfo.label}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">진행률</span>
+                  <span className="ml-2 font-medium">{progressData.phaseIndex + 1}/7 단계</span>
+                </div>
+              </div>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+
+            {/* 7단계 진행바 */}
+            <div className="relative">
+              {/* 배경 바 */}
+              <div className="w-full bg-gray-200 rounded-full h-3"></div>
+
+              {/* 진행 바 */}
               <div
-                className="bg-blue-600 h-2 rounded-full transition-all"
-                style={{ width: `${project.progress.overall}%` }}
+                className="absolute top-0 left-0 bg-blue-600 h-3 rounded-full transition-all duration-1000"
+                style={{ width: `${progressData.progress}%` }}
               />
+
+              {/* 7단계 점들 */}
+              {ALL_PHASES.map((phase, idx) => {
+                const phaseProgress = calculatePhaseProgress(phase);
+                const isCurrent = phase === progressData.phase;
+                const isPassed = phaseProgress <= progressData.progress;
+                const phaseData = PHASE_INFO[phase];
+
+                return (
+                  <div
+                    key={phase}
+                    className="absolute group"
+                    style={{
+                      left: `${(idx / (ALL_PHASES.length - 1)) * 100}%`,
+                      top: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      zIndex: 10
+                    }}
+                  >
+                    {/* 점 마커 */}
+                    <div className={`w-4 h-4 rounded-full border-2 border-white shadow-sm transition-all cursor-pointer ${
+                      isPassed
+                        ? 'bg-blue-600'
+                        : isCurrent
+                        ? 'bg-blue-400'
+                        : 'bg-gray-300'
+                    } ${isCurrent ? 'ring-2 ring-blue-400 ring-offset-1 scale-110' : 'hover:scale-110'}`} />
+
+                    {/* 호버시 단계 정보 표시 */}
+                    <div className="hidden group-hover:block absolute bottom-8 left-1/2 transform -translate-x-1/2 z-30">
+                      <div className="bg-gray-900 text-white px-3 py-2 rounded-lg shadow-lg whitespace-nowrap">
+                        <div className="text-xs font-semibold">{phaseData.label}</div>
+                        <div className="text-[10px] opacity-80">{phaseData.description}</div>
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 -translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 단계 라벨 */}
+            <div className="flex justify-between text-xs text-gray-500 px-1">
+              {ALL_PHASES.map((phase, idx) => {
+                const phaseData = PHASE_INFO[phase];
+                return (
+                  <span
+                    key={phase}
+                    className={`text-center ${phase === progressData.phase ? 'text-blue-600 font-medium' : ''}`}
+                    style={{
+                      transform: idx === 0 ? 'translateX(0)' :
+                                idx === ALL_PHASES.length - 1 ? 'translateX(-100%)' :
+                                'translateX(-50%)'
+                    }}
+                  >
+                    {phaseData.shortLabel}
+                  </span>
+                );
+              })}
             </div>
           </div>
-          <div className="flex gap-6 text-sm">
-            <div>
-              <span className="text-gray-600">마일스톤</span>
-              <span className="ml-2 font-medium">
-                {project.progress.milestones_completed}/{project.progress.milestones_total}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-600">산출물</span>
-              <span className="ml-2 font-medium">
-                {project.progress.deliverables_submitted}/{project.progress.deliverables_total}
-              </span>
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* Tab Navigation */}
         <nav className="flex gap-1 mt-4">
@@ -320,8 +492,8 @@ export default function ProjectDetail() {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
                   activeTab === tab.id
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -376,55 +548,63 @@ export default function ProjectDetail() {
                   </div>
                 </div>
 
-                {/* Recent Tasks */}
-                <div className="bg-white rounded-lg border border-gray-200">
+                {/* 프로젝트 활동 */}
+                <div className="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all">
                   <div className="p-4 border-b border-gray-200">
-                    <h3 className="font-semibold text-gray-900">최근 작업</h3>
+                    <h3 className="font-semibold text-gray-900">프로젝트 활동</h3>
+                    <p className="text-xs text-gray-500 mt-1">서버 로그 기반 자동 수집</p>
                   </div>
                   <div className="divide-y divide-gray-200">
-                    {tasks.slice(0, 3).map(task => (
-                      <div key={task.id} className="p-4 hover:bg-gray-50 cursor-pointer">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-900">{task.title}</h4>
-                            <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                    {projectActivities.slice(0, 5).map(activity => {
+                      const IconComponent = getActivityIcon(activity.icon);
+                      return (
+                        <div key={activity.id} className="p-4 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-start gap-3">
+                            {/* 아이콘 */}
+                            <div className={`p-2 rounded-lg ${getCategoryColor(activity.category)}`}>
+                              <IconComponent className="w-4 h-4" />
+                            </div>
+
+                            {/* 내용 */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between mb-1">
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-gray-900 text-sm">{activity.title}</h4>
+                                  <p className="text-xs text-gray-600 mt-0.5">{activity.description}</p>
+                                </div>
+                                <span className={`px-2 py-1 text-xs rounded-full ${getCategoryColor(activity.category)} font-medium`}>
+                                  {activity.category}
+                                </span>
+                              </div>
+
+                              {/* 메타 정보 */}
+                              <div className="flex items-center gap-3 text-xs text-gray-500 mt-2">
+                                <span className="flex items-center gap-1">
+                                  <Users className="w-3 h-3" />
+                                  {activity.user}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {getRelativeTime(activity.timestamp)}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                          <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(task.status)}`}>
-                            {task.status === 'done' ? '완료' :
-                             task.status === 'in_progress' ? '진행중' :
-                             task.status === 'review' ? '검토중' : '대기'}
-                          </span>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 text-xs text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <Users className="w-3 h-3" />
-                              {task.assignee.name}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {task.due_date}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <MessageSquare className="w-3 h-3" />
-                              {task.comments}
-                            </span>
-                          </div>
-                          <div className="flex gap-1">
-                            {task.tags.map(tag => (
-                              <span key={tag} className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
+                  </div>
+
+                  {/* 전체 활동 보기 */}
+                  <div className="p-4 border-t border-gray-200">
+                    <button className="w-full text-sm text-blue-600 hover:text-blue-700 font-medium">
+                      전체 활동 보기
+                    </button>
                   </div>
                 </div>
 
                 {/* Recent Files */}
-                <div className="bg-white rounded-lg border border-gray-200">
+                <div className="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all">
                   <div className="p-4 border-b border-gray-200">
                     <h3 className="font-semibold text-gray-900">최근 파일</h3>
                   </div>
@@ -450,8 +630,47 @@ export default function ProjectDetail() {
 
               {/* Sidebar */}
               <div className="col-span-4 space-y-6">
+                {/* Next Meeting */}
+                {project.meetings && project.meetings.length > 0 && (
+                  <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Calendar className="w-5 h-5 text-blue-600" />
+                      <h3 className="font-semibold text-blue-900">다음 미팅</h3>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="font-semibold text-gray-900">
+                        {project.meetings[0].title}
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        {new Date(project.meetings[0].date).toLocaleDateString('ko-KR', {
+                          month: 'long',
+                          day: 'numeric',
+                          weekday: 'short'
+                        })} {new Date(project.meetings[0].date).toLocaleTimeString('ko-KR', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        장소: {project.meetings[0].location}
+                      </p>
+                      {project.meetings[0].meeting_link && (
+                        <a
+                          href={project.meetings[0].meeting_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          미팅 참여하기
+                          <ArrowLeft className="w-3 h-3 transform rotate-180" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Team Members */}
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <div className="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all p-4">
                   <h3 className="font-semibold text-gray-900 mb-3">팀 멤버</h3>
                   <div className="space-y-3">
                     {project.team?.pm && (
@@ -498,7 +717,9 @@ export default function ProjectDetail() {
                       <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5"></div>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900">현재 단계</p>
-                        <p className="text-xs text-gray-600">{project.timeline.current_phase}</p>
+                        <p className="text-xs text-gray-600">
+                          {progressData ? `${progressData.phaseInfo.label} (${progressData.phaseIndex + 1}/7)` : '정보 없음'}
+                        </p>
                       </div>
                     </div>
                     {project.timeline.next_milestone && (
@@ -526,22 +747,22 @@ export default function ProjectDetail() {
                 </div>
 
                 {/* Quick Actions */}
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <div className="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all p-4">
                   <h3 className="font-semibold text-gray-900 mb-3">빠른 작업</h3>
                   <div className="space-y-2">
-                    <button className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center gap-2">
+                    <button className="w-full py-2 px-3 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-blue-600">
                       <PlusCircle className="w-4 h-4" />
                       새 작업 추가
                     </button>
-                    <button className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center gap-2">
+                    <button className="w-full py-2 px-3 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-blue-600">
                       <Upload className="w-4 h-4" />
                       파일 업로드
                     </button>
-                    <button className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center gap-2">
+                    <button className="w-full py-2 px-3 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-blue-600">
                       <Calendar className="w-4 h-4" />
-                      미팅 예약
+                      가이드 미팅 요청
                     </button>
-                    <button className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-lg flex items-center gap-2">
+                    <button className="w-full py-2 px-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm font-medium">
                       <MessageSquare className="w-4 h-4" />
                       팀 메시지
                     </button>
@@ -552,207 +773,23 @@ export default function ProjectDetail() {
           </div>
         )}
 
-        {/* Tasks Tab */}
-        {activeTab === 'tasks' && (
+        {/* 미팅 기록 Tab */}
+        {activeTab === 'meetings' && (
           <div className="p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                  <option>모든 상태</option>
-                  <option>대기</option>
-                  <option>진행중</option>
-                  <option>검토중</option>
-                  <option>완료</option>
-                </select>
-                <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                  <option>모든 우선순위</option>
-                  <option>긴급</option>
-                  <option>높음</option>
-                  <option>보통</option>
-                  <option>낮음</option>
-                </select>
-                <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                  <option>모든 담당자</option>
-                  <option>김혁신</option>
-                  <option>이기획</option>
-                  <option>박개발</option>
-                </select>
-              </div>
-              <button
-                onClick={() => setShowNewTaskModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-              >
-                <PlusCircle className="w-4 h-4" />
-                새 작업
-              </button>
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-2">가이드 미팅 기록</h2>
+              <p className="text-sm text-gray-600">프로젝트 진행 중 실시된 모든 가이드 미팅 내역</p>
             </div>
 
-            <div className="grid grid-cols-4 gap-4">
-              {/* Todo Column */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-700">대기</h3>
-                  <span className="text-sm text-gray-500">
-                    {tasks.filter(t => t.status === 'todo').length}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {tasks.filter(t => t.status === 'todo').map(task => (
-                    <div
-                      key={task.id}
-                      className="bg-white p-3 rounded-lg border border-gray-200 cursor-pointer hover:shadow-sm"
-                      onClick={() => setSelectedTask(task)}
-                    >
-                      <div className={`px-2 py-1 text-xs rounded border ${getPriorityColor(task.priority)} inline-block mb-2`}>
-                        {task.priority === 'urgent' ? '긴급' :
-                         task.priority === 'high' ? '높음' :
-                         task.priority === 'medium' ? '보통' : '낮음'}
-                      </div>
-                      <h4 className="font-medium text-gray-900 text-sm mb-2">{task.title}</h4>
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <div className="w-5 h-5 bg-gray-300 rounded-full flex items-center justify-center text-white text-xs">
-                            {task.assignee.name[0]}
-                          </div>
-                          <span>{task.assignee.name}</span>
-                        </div>
-                        <span>{task.due_date}</span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3" />
-                          {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MessageSquare className="w-3 h-3" />
-                          {task.comments}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Paperclip className="w-3 h-3" />
-                          {task.attachments}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* In Progress Column */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-700">진행중</h3>
-                  <span className="text-sm text-gray-500">
-                    {tasks.filter(t => t.status === 'in_progress').length}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {tasks.filter(t => t.status === 'in_progress').map(task => (
-                    <div
-                      key={task.id}
-                      className="bg-white p-3 rounded-lg border border-gray-200 cursor-pointer hover:shadow-sm"
-                      onClick={() => setSelectedTask(task)}
-                    >
-                      <div className={`px-2 py-1 text-xs rounded border ${getPriorityColor(task.priority)} inline-block mb-2`}>
-                        {task.priority === 'urgent' ? '긴급' :
-                         task.priority === 'high' ? '높음' :
-                         task.priority === 'medium' ? '보통' : '낮음'}
-                      </div>
-                      <h4 className="font-medium text-gray-900 text-sm mb-2">{task.title}</h4>
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <div className="w-5 h-5 bg-gray-300 rounded-full flex items-center justify-center text-white text-xs">
-                            {task.assignee.name[0]}
-                          </div>
-                          <span>{task.assignee.name}</span>
-                        </div>
-                        <span>{task.due_date}</span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3" />
-                          {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MessageSquare className="w-3 h-3" />
-                          {task.comments}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Paperclip className="w-3 h-3" />
-                          {task.attachments}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Review Column */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-700">검토중</h3>
-                  <span className="text-sm text-gray-500">
-                    {tasks.filter(t => t.status === 'review').length}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {tasks.filter(t => t.status === 'review').map(task => (
-                    <div
-                      key={task.id}
-                      className="bg-white p-3 rounded-lg border border-gray-200 cursor-pointer hover:shadow-sm"
-                      onClick={() => setSelectedTask(task)}
-                    >
-                      <div className={`px-2 py-1 text-xs rounded border ${getPriorityColor(task.priority)} inline-block mb-2`}>
-                        {task.priority === 'urgent' ? '긴급' :
-                         task.priority === 'high' ? '높음' :
-                         task.priority === 'medium' ? '보통' : '낮음'}
-                      </div>
-                      <h4 className="font-medium text-gray-900 text-sm mb-2">{task.title}</h4>
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <div className="w-5 h-5 bg-gray-300 rounded-full flex items-center justify-center text-white text-xs">
-                            {task.assignee.name[0]}
-                          </div>
-                          <span>{task.assignee.name}</span>
-                        </div>
-                        <span>{task.due_date}</span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3" />
-                          {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MessageSquare className="w-3 h-3" />
-                          {task.comments}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Paperclip className="w-3 h-3" />
-                          {task.attachments}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Done Column */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-700">완료</h3>
-                  <span className="text-sm text-gray-500">
-                    {tasks.filter(t => t.status === 'done').length}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {/* Empty state for now */}
-                  <div className="text-center py-8 text-gray-400 text-sm">
-                    완료된 작업이 없습니다
-                  </div>
-                </div>
-              </div>
+            {/* 미팅 기록 내용 */}
+            <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+              <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">미팅 기록 기능 준비 중</h3>
+              <p className="text-gray-500">가이드 미팅 기록 시스템을 준비하고 있습니다.</p>
             </div>
           </div>
         )}
+
 
         {/* Files Tab */}
         {activeTab === 'files' && (
@@ -1019,8 +1056,8 @@ export default function ProjectDetail() {
                       <span className="font-medium">8</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">미팅</span>
-                      <span className="font-medium">3</span>
+                      <span className="text-sm text-gray-600">가이드 미팅</span>
+                      <span className="font-medium">3회</span>
                     </div>
                   </div>
                 </div>

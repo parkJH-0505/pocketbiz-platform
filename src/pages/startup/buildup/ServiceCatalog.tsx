@@ -25,13 +25,15 @@ import {
   Eye,
   Heart,
   Zap,
-  Clock
+  Clock,
+  Percent
 } from 'lucide-react';
 import { useBuildupContext } from '../../../contexts/BuildupContext';
 import { useKPIDiagnosis } from '../../../contexts/KPIDiagnosisContext';
 import ContractFlowModal from '../../../components/buildup/ContractFlowModal';
 import ServiceDetailModal from '../../../components/buildup/ServiceDetailModal';
 import type { BuildupService } from '../../../types/buildup.types';
+import { PHASE_INFO, ALL_PHASES } from '../../../utils/projectPhaseUtils';
 
 interface ServiceItem {
   id: string;
@@ -750,7 +752,7 @@ export default function ServiceCatalog() {
               {filteredServices.map(service => (
                 <div
                   key={service.id}
-                  className={`relative bg-white rounded-xl shadow-md ${getCategoryTheme(service.category).border} border overflow-hidden hover:shadow-2xl transition-all duration-300 cursor-pointer group h-80 hover:-translate-y-1`}
+                  className={`relative bg-white rounded-xl shadow-md ${getCategoryTheme(service.category).border} border hover:shadow-2xl transition-all duration-300 cursor-pointer group flex flex-col h-[380px] hover:-translate-y-1`}
                   onMouseEnter={() => setHoveredCard(service.id)}
                   onMouseLeave={() => setHoveredCard(null)}
                   onClick={() => {
@@ -800,19 +802,9 @@ export default function ServiceCatalog() {
                       <Plus className="w-4 h-4 text-white" />
                     </button>
                   </div>
-                  
-                  {/* HOT 상품 반짝임 효과 */}
-                  {service.badge === 'HOT' && (
-                    <div className="absolute -top-1 -right-1">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-20"></div>
-                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                      </div>
-                    </div>
-                  )}
-                  
+
                   {/* TIER 1: Header - Category & Trust Signals */}
-                  <div className={`relative h-20 bg-gradient-to-br ${getCategoryTheme(service.category).gradient} px-4 py-3`}>
+                  <div className={`relative h-24 bg-gradient-to-br ${getCategoryTheme(service.category).gradient} px-4 py-3`}>
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2">
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-sm ${getCategoryTheme(service.category).icon}`}>
@@ -826,6 +818,22 @@ export default function ServiceCatalog() {
                             {service.provider} · {service.benefits.experience || '전문 파트너'}
                           </p>
                         </div>
+                      </div>
+                    </div>
+
+                    {/* 7단계 진행 예시 - 미니 프로그레스 바 */}
+                    <div className="absolute bottom-2 left-4 right-4">
+                      <div className="flex items-center gap-1">
+                        {ALL_PHASES.map((phase, idx) => (
+                          <div
+                            key={phase}
+                            className={`flex-1 h-1 rounded-full transition-all ${
+                              idx <= 3 // 보통 서비스는 설계-실행 단계까지
+                                ? getCategoryTheme(service.category).icon.split(' ')[1]
+                                : 'bg-gray-200'
+                            }`}
+                          />
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -858,9 +866,9 @@ export default function ServiceCatalog() {
                       </div>
                     )}
                     
-                    {/* Key Deliverables - 주요 산출물 3개 */}
-                    <div className="space-y-1.5 mb-4 flex-grow">
-                      {service.deliverables.slice(0, 3).map((item, idx) => (
+                    {/* Key Deliverables - 주요 산출물 2개만 */}
+                    <div className="space-y-1.5 mb-3 flex-grow">
+                      {service.deliverables.slice(0, 2).map((item, idx) => (
                         <div key={idx} className="flex items-start gap-2 group/item">
                           <div className={`w-1.5 h-1.5 ${getCategoryTheme(service.category).icon.split(' ')[1]} rounded-full mt-1.5 flex-shrink-0`}></div>
                           <span className="text-xs text-gray-700 line-clamp-1 group-hover/item:text-gray-900 transition-colors">{item}</span>
@@ -869,33 +877,19 @@ export default function ServiceCatalog() {
                     </div>
                   </div>
                   
-                  {/* TIER 3: Footer - Action & Trust */}
+                  {/* TIER 3: Footer - Price, Duration & Trust */}
                   <div className="px-5 pb-4 pt-3 border-t border-gray-100 bg-gradient-to-b from-gray-50 to-white">
                     <div className="flex items-center justify-between">
                       {/* Price & Duration */}
                       <div>
                         <div className="flex items-baseline gap-2">
-                          {service.price.discounted ? (
-                            <>
-                              <span className="text-xs text-gray-500 line-through">
-                                {service.price.original}만원
-                              </span>
-                              <span className="text-xl font-bold text-red-600">
-                                {service.price.discounted}만원
-                              </span>
-                              <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded">
-                                -{Math.round((1 - service.price.discounted / service.price.original) * 100)}%
-                              </span>
-                            </>
-                          ) : (
-                            <span className="text-xl font-bold text-gray-900">
-                              {service.price.original}만원
-                            </span>
-                          )}
+                          <span className="text-base font-semibold text-gray-900">
+                            {service.price.discounted || service.price.original}만원
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            · {service.duration}
+                          </span>
                         </div>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {service.duration} 소요 · {service.price.unit}
-                        </p>
                       </div>
                       
                       {/* Trust Indicators */}
@@ -941,7 +935,7 @@ export default function ServiceCatalog() {
         <div className="flex flex-col h-full">
           {/* Cart Header */}
           <div className="p-4 border-b border-gray-200">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5" />
                 장바구니
@@ -953,6 +947,27 @@ export default function ServiceCatalog() {
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
+
+            {/* 구매 프로세스 7단계 표시 */}
+            {cart.length > 0 && (
+              <div className="mt-2">
+                <p className="text-xs text-gray-500 mb-2">구매 프로세스</p>
+                <div className="flex items-center gap-1">
+                  {ALL_PHASES.map((phase, idx) => (
+                    <div key={phase} className="flex-1 relative">
+                      <div className={`h-1 rounded-full ${
+                        idx === 0 ? 'bg-blue-500' : 'bg-gray-200'
+                      }`} />
+                      {idx === 0 && (
+                        <div className="absolute -bottom-4 left-0 right-0">
+                          <p className="text-xs text-blue-600 text-center">장바구니</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Cart Items */}

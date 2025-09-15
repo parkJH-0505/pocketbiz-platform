@@ -1,24 +1,27 @@
 import { RadarChart } from '../../components/charts/RadarChart';
-import { ArrowRight, AlertCircle, Activity, Target, Award, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowRight, AlertCircle, Activity, Target, Award, TrendingUp, TrendingDown, Package, Calendar, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardBody } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { getAxisColor } from '../../utils/axisColors';
 import { useCluster, getSectorName, getStageName } from '../../contexts/ClusterContext';
 import { useKPIDiagnosis } from '../../contexts/KPIDiagnosisContext';
+import { useBuildupContext } from '../../contexts/BuildupContext';
 import { useMemo } from 'react';
 import type { AxisKey } from '../../types';
+import { PHASE_INFO, ALL_PHASES, calculatePhaseProgress } from '../../utils/projectPhaseUtils';
 
 const Dashboard = () => {
   const { cluster } = useCluster();
-  const { 
-    axisScores, 
-    overallScore, 
+  const {
+    axisScores,
+    overallScore,
     previousScores,
     progress,
     responses,
     totalKPIs
   } = useKPIDiagnosis();
+  const { activeProjects, completedProjects } = useBuildupContext();
   
   // 축 정의
   const axes = [
@@ -190,6 +193,82 @@ const Dashboard = () => {
           </CardBody>
         </Card>
       </div>
+
+      {/* 포켓빌드업 프로젝트 현황 */}
+      {activeProjects.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-neutral-dark">진행중인 프로젝트</h2>
+            <Link to="/startup/buildup/projects" className="text-sm text-primary-main hover:text-primary-dark">
+              전체보기 <ArrowRight className="inline w-4 h-4" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            {activeProjects.slice(0, 3).map(project => {
+              const phase = project.phase || 'contract_pending';
+              const phaseInfo = PHASE_INFO[phase];
+              const progress = calculatePhaseProgress(phase);
+
+              return (
+                <Card key={project.id}>
+                  <CardBody className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Package className="w-5 h-5 text-primary-main" />
+                        <h3 className="font-semibold text-neutral-dark text-sm">{project.title}</h3>
+                      </div>
+                    </div>
+
+                    {/* 7단계 미니 프로그레스 */}
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-neutral-gray">{phaseInfo.label}</span>
+                        <span className="text-xs font-bold text-primary-main">{Math.round(progress)}%</span>
+                      </div>
+                      <div className="h-2 bg-neutral-border rounded-full overflow-hidden">
+                        <div
+                          className="h-2 bg-primary-main rounded-full transition-all duration-500"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        {ALL_PHASES.map((p, idx) => (
+                          <div
+                            key={p}
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              calculatePhaseProgress(p) <= progress ? 'bg-primary-main' : 'bg-neutral-border'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 다음 미팅 정보 */}
+                    {project.meetings && project.meetings.length > 0 && (
+                      <div className="flex items-center gap-2 text-xs text-neutral-gray">
+                        <Calendar className="w-3 h-3" />
+                        <span>
+                          다음 미팅: {new Date(project.meetings[0].date).toLocaleDateString('ko-KR', {
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                    )}
+
+                    <Link
+                      to={`/startup/buildup/projects/${project.id}`}
+                      className="mt-3 block text-center py-2 px-3 bg-primary-light text-primary-main rounded-lg hover:bg-primary-main hover:text-white transition-colors text-sm font-medium"
+                    >
+                      상세보기
+                    </Link>
+                  </CardBody>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-6">
         {/* Radar Chart */}

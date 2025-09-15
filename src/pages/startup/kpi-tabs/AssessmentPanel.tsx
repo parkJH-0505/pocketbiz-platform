@@ -8,6 +8,7 @@ import { CSVKPICard } from '../../../components/common/CSVKPICard';
 import { ProgressBar } from '../../../components/common/Progress';
 import { useCluster } from '../../../contexts/ClusterContext';
 import { useKPIDiagnosis } from '../../../contexts/KPIDiagnosisContext';
+import { useUserProfile } from '../../../contexts/UserProfileContext';
 import { clearKPICache } from '../../../data/kpiLoader';
 import { 
   CheckCircle2, 
@@ -30,6 +31,7 @@ import { FloatingProgressButton } from '../../../components/assessment/FloatingP
 
 export const AssessmentPanel = () => {
   const { cluster, updateStage, getStageInfo } = useCluster();
+  const { updateCluster } = useUserProfile();
   const { 
     responses, 
     updateResponse,
@@ -348,6 +350,7 @@ export const AssessmentPanel = () => {
                           onClick={() => {
                             if (!isCurrentStage) {
                               updateStage(stage);
+                              updateCluster(stage, cluster.sector); // UserProfile에도 반영
                               setShowStageDropdown(false);
                               refreshData();
                             }

@@ -328,12 +328,23 @@ export interface CartItem {
   subtotal: number;
 }
 
+// 프로젝트 상태 - 7단계 체계
+export type ProjectPhase =
+  | 'contract_pending'  // 계약중 (견적서 전달)
+  | 'contract_signed'   // 계약완료 (입금완료)
+  | 'planning'          // 진행중-기획
+  | 'design'            // 진행중-설계
+  | 'execution'         // 진행중-실행
+  | 'review'            // 진행중-검토
+  | 'completed';        // 종료(완료)
+
 export interface Project {
   id: string;
   title: string;
   service_id: string;
   category: ServiceCategory;
   status: 'preparing' | 'active' | 'review' | 'completed' | 'hold';
+  phase?: ProjectPhase;  // 7단계 진행 상태
   created_from: 'nba' | 'catalog' | 'manual' | 'drag_drop';
   contract: {
     id: string;
@@ -342,20 +353,21 @@ export interface Project {
     start_date: Date;
     end_date: Date;
   };
-  progress: {
-    overall: number;
-    milestones_completed: number;
-    milestones_total: number;
-    deliverables_submitted: number;
-    deliverables_total: number;
+  // 진행 상태는 phase 필드로 관리
+  // progress 필드는 레거시 호환용으로만 유지
+  progress?: {
+    overall?: number;
+    milestones_completed?: number;
+    milestones_total?: number;
+    deliverables_submitted?: number;
+    deliverables_total?: number;
   };
   timeline: {
     kickoff_date: Date;
-    current_phase: string;
-    next_milestone: {
-      name: string;
-      due_date: Date;
-    };
+    phase_updated_at?: Date;  // 단계 업데이트 시간
+    phase_updated_by?: string; // 단계 업데이트한 PM
+    start_date: Date;
+    end_date: Date;
     completion_date?: Date;
   };
   workstreams: Workstream[];
@@ -442,14 +454,17 @@ export interface Risk {
 export interface Meeting {
   id: string;
   title: string;
-  type: 'kickoff' | 'progress' | 'review' | 'closing';
+  type: 'kickoff' | 'progress' | 'review' | 'closing' | 'demo';
   date: Date;
   duration: number;
-  attendees: TeamMember[];
+  attendees: TeamMember[] | string[]; // CRM 연동 시 string 배열도 허용
   agenda?: string;
   minutes?: string;
   recording_url?: string;
   action_items?: ActionItem[];
+  location?: string; // 회의 장소 (Zoom, Google Meet, 오프라인 등)
+  meeting_link?: string; // 온라인 미팅 링크
+  crm_id?: string; // CRM 시스템 연동용 ID
 }
 
 export interface ActionItem {

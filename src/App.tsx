@@ -4,6 +4,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { ClusterProvider } from './contexts/ClusterContext';
 import { KPIDiagnosisProvider } from './contexts/KPIDiagnosisContext';
 import { BuildupProvider } from './contexts/BuildupContext';
+import { UserProfileProvider } from './contexts/UserProfileContext';
 import type { UserRole } from './types';
 
 // Layouts
@@ -15,7 +16,7 @@ import InternalBuilderLayout from './layouts/InternalBuilderLayout';
 // Startup Pages
 import StartupDashboard from './pages/startup/Dashboard';
 import StartupOnboarding from './pages/startup/Onboarding';
-import StartupMatches from './pages/startup/Matches';
+import SmartMatchingV3 from './pages/startup/smartMatching/SmartMatchingV3';
 import StartupHistory from './pages/startup/History';
 import StartupSettings from './pages/startup/Settings';
 import TestPage from './pages/startup/TestPage';
@@ -82,10 +83,11 @@ function App() {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <ClusterProvider>
-        <KPIDiagnosisProvider>
-          <BuildupProvider>
-            <Router>
+      <UserProfileProvider>
+        <ClusterProvider>
+          <KPIDiagnosisProvider>
+            <BuildupProvider>
+              <Router>
             <Routes>
         {/* Landing page or redirect based on role */}
         <Route path="/" element={
@@ -116,7 +118,7 @@ function App() {
             <Route path="projects" element={<ProjectManagement />} />
             <Route path="projects/:projectId" element={<ProjectDetail />} />
           </Route>
-          <Route path="matching" element={<StartupMatches />} />
+          <Route path="matching" element={<SmartMatchingV3 />} />
           <Route path="profile" element={<div className="p-8 text-center">VDR/마이프로필 (개발중)</div>} />
           <Route path="cart" element={<Cart />} />
           <Route path="checkout" element={<CheckoutEnhanced />} />
@@ -165,11 +167,12 @@ function App() {
 
         {/* 404 */}
         <Route path="*" element={<div className="p-8 text-center">페이지를 찾을 수 없습니다.</div>} />
-        </Routes>
-      </Router>
-        </BuildupProvider>
-      </KPIDiagnosisProvider>
-    </ClusterProvider>
+            </Routes>
+            </Router>
+            </BuildupProvider>
+          </KPIDiagnosisProvider>
+        </ClusterProvider>
+      </UserProfileProvider>
     </DndProvider>
   );
 }

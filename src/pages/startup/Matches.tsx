@@ -1,11 +1,8 @@
+import React from 'react';
+import SmartMatchingV2 from './smartMatching/SmartMatchingV2';
 
-
-const Matches = () => {
-  return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold">추천 & 매칭</h1>
-    </div>
-  );
+const Matches: React.FC = () => {
+  return <SmartMatchingV2 />;
 };
 
 export default Matches;
