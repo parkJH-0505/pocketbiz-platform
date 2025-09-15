@@ -9,7 +9,8 @@ import {
   MessageSquare,
   ShoppingCart,
   Star,
-  Building
+  Building,
+  Sparkles
 } from 'lucide-react';
 import {
   Radar,
@@ -25,6 +26,16 @@ import { categoryRequirements, calculateCompatibility } from '../../../data/even
 import type { Core5Requirements } from '../../../data/eventRequirements';
 import { useUserProfile } from '../../../contexts/UserProfileContext';
 import { getCategoryIcon } from '../../../data/overlayConfigs';
+import {
+  getRecommendedProjects,
+  getRecommendedBundles,
+  getUrgentProjects
+} from '../../../data/axisProjectMapping';
+import {
+  ProjectRecommendationCard,
+  BundleRecommendationCard,
+  UrgentProjectCard
+} from '../../../components/ProjectRecommendationCard';
 
 // 축 라벨 매핑
 const axisLabels = {
@@ -40,7 +51,7 @@ type EventStatus = 'recommended' | 'preparing' | 'insufficient';
 
 const SmartMatchingV3: React.FC = () => {
   const { profile, isLoading } = useUserProfile();
-  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
+  const [selectedEvent, setSelectedEvent] = useState<string | null>(null); // 단일 선택으로 변경
   const [recommendations, setRecommendations] = useState<MatchingResult[]>([]);
 
   // 사용자 Core5 점수
@@ -52,23 +63,26 @@ const SmartMatchingV3: React.FC = () => {
     TO: 68
   };
 
-  // 레이더 차트 데이터 계산 (state가 아닌 computed value로 변경)
+  // 레이더 차트 데이터 계산 (단일 이벤트만)
   const radarData = React.useMemo(() => {
-    return Object.keys(axisLabels).map(axis => ({
-      axis: axisLabels[axis as keyof typeof axisLabels],
-      user: userScores[axis as keyof Core5Requirements],
-      ...Object.fromEntries(
-        Array.from(selectedEvents).map(eventId => {
-          const event = recommendations.find(r => r.event.id === eventId);
-          if (event) {
-            const requirements = categoryRequirements[event.event.category].requirements;
-            return [eventId, requirements[axis as keyof Core5Requirements]];
-          }
-          return [eventId, 0];
-        })
-      )
-    }));
-  }, [selectedEvents, recommendations]);
+    const data = Object.keys(axisLabels).map(axis => {
+      const baseData: any = {
+        axis: axisLabels[axis as keyof typeof axisLabels],
+        user: userScores[axis as keyof Core5Requirements]
+      };
+
+      if (selectedEvent) {
+        const event = recommendations.find(r => r.event.id === selectedEvent);
+        if (event) {
+          const requirements = categoryRequirements[event.event.category].requirements;
+          baseData.requirement = requirements[axis as keyof Core5Requirements];
+        }
+      }
+
+      return baseData;
+    });
+    return data;
+  }, [selectedEvent, recommendations, userScores]);
 
   // Mock 데이터 로드
   useEffect(() => {
@@ -192,17 +206,10 @@ const SmartMatchingV3: React.FC = () => {
     }
   };
 
-  // 이벤트 카드 클릭 핸들러
+  // 이벤트 카드 클릭 핸들러 (단일 선택)
   const handleEventClick = (eventId: string) => {
-    setSelectedEvents(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(eventId)) {
-        newSet.delete(eventId);
-      } else {
-        newSet.add(eventId);
-      }
-      return newSet;
-    });
+    // 같은 이벤트 클릭 시 선택 해제, 다른 이벤트는 새로 선택
+    setSelectedEvent(prev => prev === eventId ? null : eventId);
   };
 
   // 빌더 상담 신청 핸들러
@@ -237,7 +244,7 @@ const SmartMatchingV3: React.FC = () => {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm text-neutral-gray">
-                선택된 이벤트: {selectedEvents.size}개
+                {selectedEvent ? '1개 이벤트 분석 중' : '이벤트를 선택하세요'}
               </span>
             </div>
           </div>
@@ -283,23 +290,18 @@ const SmartMatchingV3: React.FC = () => {
                       strokeWidth={2}
                     />
 
-                    {/* 선택된 이벤트들 */}
-                    {Array.from(selectedEvents).map((eventId, index) => {
-                      const event = recommendations.find(r => r.event.id === eventId);
-                      const colors = ['#ef4444', '#f59e0b', '#10b981'];
-                      return (
-                        <Radar
-                          key={eventId}
-                          name={event?.event.title || eventId}
-                          dataKey={eventId}
-                          stroke={colors[index % colors.length]}
-                          fill={colors[index % colors.length]}
-                          fillOpacity={0.1}
-                          strokeWidth={1.5}
-                          strokeDasharray="5 5"
-                        />
-                      );
-                    })}
+                    {/* 선택된 이벤트 요구사항 */}
+                    {selectedEvent && (
+                      <Radar
+                        name="요구 점수"
+                        dataKey="requirement"
+                        stroke="#ef4444"
+                        fill="#ef4444"
+                        fillOpacity={0.1}
+                        strokeWidth={1.5}
+                        strokeDasharray="5 5"
+                      />
+                    )}
                   </RadarChart>
                 </ResponsiveContainer>
               </div>
@@ -310,21 +312,14 @@ const SmartMatchingV3: React.FC = () => {
                   <div className="w-3 h-3 bg-primary-main rounded-full" />
                   <span className="text-sm text-neutral-gray">내 점수</span>
                 </div>
-                {Array.from(selectedEvents).map((eventId, index) => {
-                  const event = recommendations.find(r => r.event.id === eventId);
-                  const colors = ['#ef4444', '#f59e0b', '#10b981'];
-                  return (
-                    <div key={eventId} className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: colors[index % colors.length] }}
-                      />
-                      <span className="text-sm text-neutral-gray truncate">
-                        {event?.event.title || eventId}
-                      </span>
-                    </div>
-                  );
-                })}
+                {selectedEvent && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-error-main rounded-full" />
+                    <span className="text-sm text-neutral-gray truncate">
+                      {recommendations.find(r => r.event.id === selectedEvent)?.event.title || '요구 점수'}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* 점수 상세 */}
@@ -338,6 +333,94 @@ const SmartMatchingV3: React.FC = () => {
                   </div>
                 ))}
               </div>
+
+              {/* 프로젝트 추천 섹션 - 레이더 차트 바로 아래 */}
+              {selectedEvent && (() => {
+                const selectedRecommendation = recommendations.find(r => r.event.id === selectedEvent);
+              if (!selectedRecommendation) return null;
+
+              const requirements = categoryRequirements[selectedRecommendation.event.category].requirements;
+              const projectRecommendations = getRecommendedProjects(
+                userScores,
+                requirements,
+                selectedRecommendation.event.category,
+                3
+              );
+              const bundles = getRecommendedBundles(userScores, selectedRecommendation.event.category);
+              const urgentProjects = selectedRecommendation.daysUntilDeadline < 30
+                ? getUrgentProjects(userScores, requirements, selectedRecommendation.daysUntilDeadline)
+                : [];
+
+              return (
+                <div className="mt-6 pt-6 border-t border-neutral-border">
+                  <div className="mb-4">
+                    <h4 className="text-sm font-semibold text-neutral-dark flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-primary-main" />
+                      추천 빌드업
+                    </h4>
+                    <p className="text-xs text-neutral-gray mt-1">
+                      부족한 축을 보완하세요
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* 컴팩트한 프로젝트 추천 */}
+                    {projectRecommendations.slice(0, 2).map((rec, index) => (
+                      <div key={index} className="bg-neutral-light rounded-lg p-3 flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs px-2 py-0.5 bg-warning-light text-warning-main rounded">
+                              {axisLabels[rec.axis]} +{rec.expectedImprovement}점
+                            </span>
+                            <span className="text-xs text-neutral-gray">
+                              {rec.services.length}개 서비스
+                            </span>
+                          </div>
+                          <p className="text-xs text-neutral-dark">
+                            {rec.services[0].name}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            rec.services.forEach(service => {
+                              const buildupService = {
+                                service_id: service.service_id,
+                                name: service.name,
+                                category: service.category,
+                                description: service.description,
+                                price: {
+                                  original: service.price,
+                                  discounted: service.price * 0.9,
+                                  unit: '프로젝트' as const
+                                },
+                                duration: {
+                                  weeks: service.duration_weeks,
+                                  display: `${service.duration_weeks}주`
+                                },
+                                provider: {
+                                  name: '포켓',
+                                  type: '포켓' as const
+                                }
+                              };
+                              // addToCart 호출
+                            });
+                          }}
+                          className="p-1.5 bg-primary-main text-white rounded hover:bg-primary-dark transition-colors"
+                        >
+                          <ShoppingCart className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {projectRecommendations.length === 0 && (
+                    <div className="text-center py-4 text-neutral-gray text-xs">
+                      충분한 준비가 되어 있습니다!
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             </div>
           </div>
 
@@ -349,7 +432,7 @@ const SmartMatchingV3: React.FC = () => {
               const status = getEventStatus(compatibility);
               const statusStyle = getStatusStyle(status);
               const StatusIcon = statusStyle.icon;
-              const isSelected = selectedEvents.has(recommendation.event.id);
+              const isSelected = selectedEvent === recommendation.event.id;
               const categoryIcon = getCategoryIcon(recommendation.event.category);
 
               return (
@@ -483,21 +566,11 @@ const SmartMatchingV3: React.FC = () => {
                       </button>
                     </div>
 
-                    {/* 부족한 축에 대한 프로젝트 추천 */}
-                    {status !== 'recommended' && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          console.log('프로젝트 추천:', recommendation.event.id);
-                        }}
-                        className="px-3 py-1.5 text-sm text-neutral-dark border border-neutral-border rounded-lg hover:bg-neutral-light transition-colors flex items-center"
-                      >
-                        <ShoppingCart className="w-3 h-3 mr-1" />
-                        맞춤 프로젝트
-                        <span className="ml-1 text-xs text-primary-main">
-                          {5 - compatibility.meetCount}개 축 보완
-                        </span>
-                      </button>
+                    {/* 선택 표시 */}
+                    {isSelected && (
+                      <span className="text-xs text-primary-main font-medium">
+                        선택됨
+                      </span>
                     )}
                   </div>
                 </div>
