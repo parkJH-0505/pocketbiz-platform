@@ -4,6 +4,9 @@ import { useChatContext } from '../../../contexts/ChatContext';
 import ChatSideModal from '../../../components/chat/ChatSideModal';
 import { mockMeetingRecords } from '../../../data/mockMeetingData';
 import type { GuideMeetingRecord, GuideMeetingComment } from '../../../types/meeting.types';
+import ProjectPhaseIndicator from '../../../components/project/ProjectPhaseIndicator';
+import PhaseHistoryDisplay from '../../../components/project/PhaseHistoryDisplay';
+import ProjectPhaseTransition from '../../../components/phaseTransition/ProjectPhaseTransition';
 import {
   ArrowLeft,
   ArrowRight,
@@ -89,7 +92,7 @@ export default function ProjectDetail() {
   } = useChatContext();
   
   const project = projects.find(p => p.id === projectId);
-  const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'meetings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'meetings' | 'phase-history'>('overview');
   const [unreadCount, setUnreadCount] = useState(0);
   const [showChatModal, setShowChatModal] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<GuideMeetingRecord | null>(null);
@@ -430,7 +433,8 @@ export default function ProjectDetail() {
   const tabs = [
     { id: 'overview', label: '개요', icon: Briefcase },
     { id: 'files', label: '파일', icon: FileText },
-    { id: 'meetings', label: '미팅 기록', icon: Calendar }
+    { id: 'meetings', label: '미팅 기록', icon: Calendar },
+    { id: 'phase-history', label: '단계 이력', icon: Activity }
   ];
 
   return (
@@ -608,6 +612,19 @@ export default function ProjectDetail() {
             <div className="grid grid-cols-12 gap-6">
               {/* Main Content */}
               <div className="col-span-8 space-y-6">
+                {/* Phase Transition Controls */}
+                {project && (
+                  <div className="bg-white rounded-xl border border-gray-200">
+                    <div className="p-4 border-b border-gray-200">
+                      <h3 className="font-semibold text-gray-900">프로젝트 단계 관리</h3>
+                      <p className="text-xs text-gray-500 mt-1">현재 단계 및 단계 전환 관리</p>
+                    </div>
+                    <div className="p-4">
+                      <ProjectPhaseTransition project={project} />
+                    </div>
+                  </div>
+                )}
+
                 {/* Quick Stats */}
                 <div className="grid grid-cols-4 gap-4">
                   <div className="bg-white p-4 rounded-lg border border-gray-200">
@@ -726,6 +743,23 @@ export default function ProjectDetail() {
 
               {/* Sidebar */}
               <div className="col-span-4 space-y-6">
+                {/* Project Phase Indicator */}
+                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                  <ProjectPhaseIndicator
+                    currentPhase={project.phase}
+                    progress={calculatePhaseProgress(project)}
+                  />
+                </div>
+
+                {/* Phase History */}
+                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                  <PhaseHistoryDisplay
+                    history={project.phaseHistory}
+                    currentPhase={project.phase}
+                    compact={true}
+                  />
+                </div>
+
                 {/* Next Meeting */}
                 {project.meetings && project.meetings.length > 0 && (
                   <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
@@ -798,49 +832,6 @@ export default function ProjectDetail() {
                   </div>
                 </div>
 
-                {/* Timeline */}
-                <div className="bg-white rounded-lg border border-gray-200 p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">타임라인</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-green-500 rounded-full mt-1.5"></div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">프로젝트 시작</p>
-                        <p className="text-xs text-gray-600">{new Date(project.contract.start_date).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5"></div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">현재 단계</p>
-                        <p className="text-xs text-gray-600">
-                          {progressData ? `${progressData.phaseInfo.label} (${progressData.phaseIndex + 1}/7)` : '정보 없음'}
-                        </p>
-                      </div>
-                    </div>
-                    {project.timeline.next_milestone && (
-                      <div className="flex items-start gap-3">
-                        <div className="w-2 h-2 bg-yellow-500 rounded-full mt-1.5"></div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">다음 마일스톤</p>
-                          <p className="text-xs text-gray-600">
-                            {project.timeline.next_milestone.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(project.timeline.next_milestone.due_date).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-gray-300 rounded-full mt-1.5"></div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">프로젝트 종료</p>
-                        <p className="text-xs text-gray-600">{new Date(project.contract.end_date).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
                 {/* Quick Actions */}
                 <div className="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all p-4">
@@ -1230,6 +1221,18 @@ export default function ProjectDetail() {
           </div>
         )}
 
+        {/* Phase History Tab */}
+        {activeTab === 'phase-history' && (
+          <div className="p-6 max-w-4xl mx-auto">
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <PhaseHistoryDisplay
+                history={project.phaseHistory}
+                currentPhase={project.phase}
+                compact={false}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Files Tab */}
         {activeTab === 'files' && (

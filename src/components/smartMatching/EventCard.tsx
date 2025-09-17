@@ -65,6 +65,7 @@ interface EventCardProps {
     meetCount: number;
     status: 'recommended' | 'preparing' | 'insufficient';
   };
+  onBuilderConsult?: () => void;
 }
 
 const EventCard: React.FC<EventCardProps> = ({
@@ -73,7 +74,8 @@ const EventCard: React.FC<EventCardProps> = ({
   isSelected = false,
   showStatus = false,
   isTheOne = false,
-  compatibility
+  compatibility,
+  onBuilderConsult
 }) => {
   const { event } = result;
   const dday = calculateDday(event.applicationEndDate);
@@ -238,7 +240,7 @@ const EventCard: React.FC<EventCardProps> = ({
               className="px-3 py-1.5 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1.5"
               onClick={(e) => {
                 e.stopPropagation();
-                // 빌더 상담 로직
+                onBuilderConsult?.();
               }}
             >
               <MessageSquare className="w-3.5 h-3.5" />

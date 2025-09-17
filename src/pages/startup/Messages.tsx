@@ -22,6 +22,7 @@ import { useProjectChatIntegration } from '../../hooks/useProjectChatIntegration
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { PHASE_INFO } from '../../utils/projectPhaseUtils';
+import MeetingBookingForm, { type MeetingBookingData } from '../../components/chat/MeetingBookingForm';
 
 export default function Messages() {
   const {
@@ -278,6 +279,47 @@ export default function Messages() {
                   <div key={message.id} className="flex justify-center">
                     <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded-full text-sm">
                       {message.content}
+                    </div>
+                  </div>
+                );
+              }
+
+              // 미팅 예약 폼 메시지 처리
+              if (message.type === 'meeting_form') {
+                return (
+                  <div key={message.id} className="flex justify-start">
+                    <div className="flex items-start space-x-2 max-w-lg">
+                      {/* PM 아바타 */}
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                          {activeChatRoom.participants.pm.name[0]}
+                        </div>
+                      </div>
+
+                      {/* 미팅 예약 폼 */}
+                      <div className="flex flex-col">
+                        <MeetingBookingForm
+                          onSubmit={(formData: MeetingBookingData) => {
+                            // 미팅 예약 요청 메시지 전송
+                            const meetingRequest = `📅 미팅 예약 요청
+
+날짜: ${formData.date}
+시간: ${formData.time}
+소요시간: ${formData.duration}분
+방식: ${formData.type === 'online' ? '온라인 (Zoom)' : '오프라인 (강남 사무실)'}
+${formData.notes ? `\n추가 요청사항: ${formData.notes}` : ''}
+
+검토 후 확정된 일정을 안내드리겠습니다.`;
+
+                            sendMessage(meetingRequest);
+                          }}
+                        />
+                        <div className="flex items-center space-x-2 mt-2">
+                          <span className="text-xs text-gray-400">
+                            {formatMessageTime(message.timestamp)}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );

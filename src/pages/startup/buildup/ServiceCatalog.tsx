@@ -51,6 +51,7 @@ interface ServiceItem {
     experience?: string;    // 지원 경험 (예: "50개 기업 지원")
   };
   price: {
+    type?: 'consultation' | 'fixed';
     original: number;
     discounted?: number;
     unit: '프로젝트' | '월' | '회';
@@ -207,6 +208,7 @@ export default function ServiceCatalog() {
         experience: service.provider?.experience || `${service.portfolio?.total_count || 0}개 프로젝트 완료`
       },
       price: {
+        type: service.price?.type,
         original: Math.round((service.price?.original || 0) / 10000), // Convert to 만원
         discounted: service.price?.discounted ? Math.round(service.price.discounted / 10000) : undefined,
         unit: (service.price?.unit || '프로젝트') as any
@@ -728,9 +730,15 @@ export default function ServiceCatalog() {
                         {/* Footer */}
                         <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                           <div>
-                            <span className="text-base font-bold text-gray-900">
-                              {service.price.discounted || service.price.original}만원
-                            </span>
+                            {service.price?.type === 'consultation' ? (
+                              <span className="text-base font-bold text-blue-600">
+                                상담 문의
+                              </span>
+                            ) : (
+                              <span className="text-base font-bold text-gray-900">
+                                {service.price.discounted || service.price.original}만원
+                              </span>
+                            )}
                             <span className="text-xs text-gray-500 ml-1">
                               {service.duration}
                             </span>
@@ -882,9 +890,15 @@ export default function ServiceCatalog() {
                       {/* Price & Duration */}
                       <div>
                         <div className="flex items-baseline gap-2">
-                          <span className="text-base font-semibold text-gray-900">
-                            {service.price.discounted || service.price.original}만원
-                          </span>
+                          {service.price?.type === 'consultation' ? (
+                            <span className="text-base font-semibold text-blue-600">
+                              상담 문의
+                            </span>
+                          ) : (
+                            <span className="text-base font-semibold text-gray-900">
+                              {service.price.discounted || service.price.original}만원
+                            </span>
+                          )}
                           <span className="text-xs text-gray-500">
                             · {service.duration}
                           </span>
@@ -1147,7 +1161,11 @@ export default function ServiceCatalog() {
               <div className="w-48 border-l pl-6">
                 <div className="sticky top-0">
                   <div className="mb-4">
-                    {quickViewService.price.discounted ? (
+                    {quickViewService.price?.type === 'consultation' ? (
+                      <p className="text-2xl font-bold text-blue-600">
+                        상담 문의
+                      </p>
+                    ) : quickViewService.price.discounted ? (
                       <>
                         <p className="text-sm text-gray-500 line-through">
                           {quickViewService.price.original}만원

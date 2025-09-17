@@ -19,18 +19,33 @@ import type {
   BuildupService,
   CartItem,
   Project,
-  AxisKey
+  AxisKey,
+  PhaseTransitionEvent,
+  GuideMeetingRecord,
+  PhaseTransitionApprovalRequest
 } from '../types/buildup.types';
 import {
   loadBuildupServices,
   calculateBundleDiscount
 } from '../utils/buildupServiceLoader';
-import { mockProjects } from '../data/mockProjects';
+import { mockProjects, defaultBusinessSupportPM } from '../data/mockProjects';
 import {
   calculatePhaseProgress,
   PHASE_INFO,
   getNextPhase
 } from '../utils/projectPhaseUtils';
+// Stage C-3: New Phase Transition Module Integration
+import {
+  phaseTransitionModule,
+  eventBus,
+  createEvent,
+  usePhaseTransitionModule
+} from '../core/index';
+import type {
+  MeetingCompletedEvent,
+  PhaseChangeRequestEvent,
+  PhaseChangedEvent
+} from '../core/index';
 
 interface BuildupContextType {
   // Services
@@ -96,6 +111,16 @@ interface BuildupContextType {
 
   // Status
   error: string | null;
+
+  // Phase Transition Functions
+  triggerPhaseTransition: (projectId: string, meetingRecord: GuideMeetingRecord, pmId: string) => void;
+  handlePaymentCompleted: (projectId: string, paymentData: any) => void;
+  requestManualPhaseTransition: (projectId: string, fromPhase: string, toPhase: string, requestedBy: string, reason: string) => void;
+  approvePhaseTransition: (approvalRequestId: string, approvedBy: string) => boolean;
+  rejectPhaseTransition: (approvalRequestId: string, rejectedBy: string, reason: string) => boolean;
+  getPendingPhaseApprovals: () => PhaseTransitionApprovalRequest[];
+  getPhaseTransitionHistory: (projectId?: string) => PhaseTransitionEvent[];
+  phaseTransitionEvents: PhaseTransitionEvent[];
 }
 
 const BuildupContext = createContext<BuildupContextType | undefined>(undefined);
@@ -115,6 +140,7 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
   };
 
   const [projects, setProjects] = useState<Project[]>(getInitialProjects());
+  const [phaseTransitionEvents, setPhaseTransitionEvents] = useState<PhaseTransitionEvent[]>([]);
 
   // Load services on mount
   useEffect(() => {
@@ -127,6 +153,8 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('buildup_cart', JSON.stringify(cart));
   }, [cart]);
+
+  // Phase transition event handler will be initialized after updateProject is defined
 
   // Don't save projects to localStorage anymore - keep them in memory only
 
@@ -599,13 +627,7 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
         files: []
       })),
       team: {
-        pm: {
-          id: 'pm-auto',
-          name: '담당 PM 배정 중',
-          role: 'Project Manager',
-          email: 'pm@pocket.com',
-          company: '포켓컴퍼니'
-        },
+        pm: defaultBusinessSupportPM,
         members: [],
         client_contact: checkoutData?.contactInfo || {
           id: 'client-auto',
@@ -680,13 +702,7 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       workstreams: data.workstreams || [],
       deliverables: data.deliverables || [],
       team: data.team || {
-        pm: {
-          id: 'pm-auto',
-          name: '담당 PM 배정 중',
-          role: 'Project Manager',
-          email: 'pm@pocket.com',
-          company: '포켓컴퍼니'
-        },
+        pm: defaultBusinessSupportPM,
         members: [],
         client_contact: {
           id: 'client-1',
@@ -720,33 +736,188 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     ));
   };
 
-  // Phase transition functions
-  const triggerPhaseTransition = (projectId: string, meetingRecord: GuideMeetingRecord, pmId: string) => {
-    PhaseTransitionService.handleMeetingCompleted(projectId, meetingRecord, pmId);
+  // Stage C-3: Initialize new Phase Transition Module
+  useEffect(() => {
+    // Phase Changed Event Handler
+    const handlePhaseChangedEvent = (event: PhaseChangedEvent) => {
+      console.log('📋 Phase Changed Event received:', event);
+
+      // Update local project state
+      setProjects(prevProjects =>
+        prevProjects.map(project =>
+          project.id === event.payload.projectId
+            ? {
+                ...project,
+                phase: event.payload.newPhase as any,
+                timeline: {
+                  ...project.timeline,
+                  phase_updated_at: event.payload.changedAt,
+                  phase_updated_by: event.payload.changedBy
+                }
+              }
+            : project
+        )
+      );
+
+      // Add to phase transition history
+      const buildupEvent: PhaseTransitionEvent = {
+        id: `PT-${Date.now()}`,
+        projectId: event.payload.projectId,
+        fromPhase: event.payload.previousPhase,
+        toPhase: event.payload.newPhase,
+        reason: event.payload.reason,
+        requestedBy: event.payload.changedBy,
+        status: 'completed',
+        timestamp: event.payload.changedAt,
+        automatic: event.payload.automatic
+      };
+
+      setPhaseTransitionEvents(prev => [...prev, buildupEvent]);
+
+      console.log(`✅ 프로젝트 ${event.payload.projectId} 단계가 ${event.payload.previousPhase}에서 ${event.payload.newPhase}로 전환되었습니다.`);
+    };
+
+    // Register event listener
+    const subscriptionId = eventBus.on('PHASE_CHANGED', handlePhaseChangedEvent);
+
+    console.log('🚀 New Phase Transition Module initialized');
+
+    // Cleanup function
+    return () => {
+      eventBus.off(subscriptionId);
+    };
+  }, []); // Empty dependency array since we use functional state updates
+
+  // Stage C-3: Phase transition functions connected to new system
+  const triggerPhaseTransition = async (projectId: string, meetingRecord: GuideMeetingRecord, pmId: string) => {
+    console.log('🔄 Triggering phase transition for project:', projectId);
+
+    try {
+      // Find the project
+      const project = projects.find(p => p.id === projectId);
+      if (!project) {
+        console.error('Project not found:', projectId);
+        return;
+      }
+
+      // Create meeting completed event
+      const meetingEvent = createEvent('MEETING_COMPLETED', {
+        meetingId: meetingRecord.id,
+        projectId: projectId,
+        meetingRecord: {
+          id: meetingRecord.id,
+          type: meetingRecord.type,
+          notes: meetingRecord.notes
+        },
+        completedBy: pmId,
+        completedAt: new Date()
+      }, { source: 'BuildupContext' });
+
+      // Emit the event - Phase Transition Engine will handle the rest
+      await eventBus.emit('MEETING_COMPLETED', meetingEvent);
+
+      console.log('✅ Meeting completed event emitted successfully');
+    } catch (error) {
+      console.error('❌ Failed to trigger phase transition:', error);
+    }
   };
 
-  const handlePaymentCompleted = (projectId: string, paymentData: any) => {
-    PhaseTransitionService.handlePaymentCompleted(projectId, paymentData);
+  const handlePaymentCompleted = async (projectId: string, paymentData: any) => {
+    console.log('💳 Handling payment completion for project:', projectId);
+
+    try {
+      const project = projects.find(p => p.id === projectId);
+      if (!project) {
+        console.error('Project not found:', projectId);
+        return;
+      }
+
+      // For payment completion, we trigger a manual phase transition to start the project
+      const phaseChangeEvent = createEvent('PHASE_CHANGE_REQUEST', {
+        projectId: projectId,
+        currentPhase: project.phase || 'contract_pending',
+        targetPhase: 'kickoff_ready',
+        reason: 'Payment completed',
+        requestedBy: 'system',
+        automatic: true
+      }, { source: 'BuildupContext' });
+
+      await eventBus.emit('PHASE_CHANGE_REQUEST', phaseChangeEvent);
+
+      console.log('✅ Payment-triggered phase change requested');
+    } catch (error) {
+      console.error('❌ Failed to handle payment completion:', error);
+    }
   };
 
-  const requestManualPhaseTransition = (projectId: string, fromPhase: string, toPhase: string, requestedBy: string, reason: string) => {
-    PhaseTransitionService.requestTransition(projectId, fromPhase as any, toPhase as any, requestedBy, reason);
+  const requestManualPhaseTransition = async (projectId: string, fromPhase: string, toPhase: string, requestedBy: string, reason: string) => {
+    console.log('🔄 Requesting manual phase transition:', { projectId, fromPhase, toPhase, requestedBy, reason });
+
+    try {
+      // 1. 프로젝트 단계 업데이트
+      setProjects(prev => prev.map(project =>
+        project.id === projectId
+          ? { ...project, phase: toPhase as any }
+          : project
+      ));
+
+      // 2. 단계 전환 이력 추가
+      const newTransitionEvent: PhaseTransitionEvent = {
+        id: `transition-${projectId}-${Date.now()}`,
+        projectId: projectId,
+        fromPhase: fromPhase,
+        toPhase: toPhase,
+        timestamp: new Date(),
+        requestedBy: requestedBy,
+        reason: reason,
+        automatic: false,
+        status: 'completed'
+      };
+
+      setPhaseTransitionEvents(prev => [...prev, newTransitionEvent]);
+
+      // 3. 이벤트 버스로 알림 (선택적)
+      const phaseChangeEvent = createEvent('PHASE_CHANGE_REQUEST', {
+        projectId: projectId,
+        currentPhase: fromPhase,
+        targetPhase: toPhase,
+        reason: reason,
+        requestedBy: requestedBy,
+        automatic: false
+      }, { source: 'BuildupContext' });
+
+      await eventBus.emit('PHASE_CHANGE_REQUEST', phaseChangeEvent);
+
+      console.log('✅ Manual phase transition completed:', newTransitionEvent);
+    } catch (error) {
+      console.error('❌ Failed to request manual phase transition:', error);
+      throw error;
+    }
   };
 
+  // These approval functions are for future enhancement - currently auto-approve
   const approvePhaseTransition = (approvalRequestId: string, approvedBy: string): boolean => {
-    return PhaseTransitionService.approve(approvalRequestId, approvedBy);
+    console.log('✅ Phase transition approved:', { approvalRequestId, approvedBy });
+    // Future: Implement approval workflow
+    return true;
   };
 
   const rejectPhaseTransition = (approvalRequestId: string, rejectedBy: string, reason: string): boolean => {
-    return PhaseTransitionService.reject(approvalRequestId, rejectedBy, reason);
+    console.log('❌ Phase transition rejected:', { approvalRequestId, rejectedBy, reason });
+    // Future: Implement approval workflow
+    return true;
   };
 
   const getPendingPhaseApprovals = (): PhaseTransitionApprovalRequest[] => {
-    return PhaseTransitionService.getPendingApprovals();
+    // Future: Return actual pending approvals
+    return [];
   };
 
   const getPhaseTransitionHistory = (projectId?: string): PhaseTransitionEvent[] => {
-    return PhaseTransitionService.getHistory(projectId);
+    if (projectId) {
+      return phaseTransitionEvents.filter(event => event.projectId === projectId);
+    }
+    return phaseTransitionEvents;
   };
 
   const getRecommendedServices = (userAxis?: Record<AxisKey, number>) => {
@@ -1085,7 +1256,17 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     selectedCategory,
     setSelectedCategory,
     searchQuery,
-    setSearchQuery
+    setSearchQuery,
+
+    // Phase Transition Functions
+    triggerPhaseTransition,
+    handlePaymentCompleted,
+    requestManualPhaseTransition,
+    approvePhaseTransition,
+    rejectPhaseTransition,
+    getPendingPhaseApprovals,
+    getPhaseTransitionHistory,
+    phaseTransitionEvents
   };
 
   return (

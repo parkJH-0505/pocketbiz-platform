@@ -7,6 +7,8 @@ import type {
 } from '../types/chat.types';
 import type { Project } from '../types/buildup.types';
 import { useBuildupContext } from './BuildupContext';
+import { defaultBusinessSupportPM } from '../data/mockProjects';
+import { useUserProfile } from './UserProfileContext';
 
 interface ChatContextType {
   // 채팅방 관리
@@ -16,6 +18,9 @@ interface ChatContextType {
   // 프로젝트 기반 채팅방 생성/열기
   createChatRoomForProject: (project: Project) => ChatRoom;
   openChatForProject: (projectId: string) => void;
+
+  // 이벤트 상담 채팅방 생성/열기
+  openEventConsultation: (eventData: any) => void;
 
   // 채팅방 액션
   closeChat: () => void;
@@ -150,18 +155,27 @@ const initialMockData: Record<string, ChatRoom> = {
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [chatRooms, setChatRooms] = useState<Record<string, ChatRoom>>(initialMockData);
   const [activeChatRoomId, setActiveChatRoomId] = useState<string | null>(null);
+  const { profile } = useUserProfile();
 
   const activeChatRoom = activeChatRoomId ? chatRooms[activeChatRoomId] : null;
 
   // 프로젝트를 위한 채팅방 생성
   const createChatRoomForProject = useCallback((project: Project): ChatRoom => {
     // 이미 채팅방이 있으면 반환
-    if (chatRooms[project.id]) {
-      return chatRooms[project.id];
+    const existingRoom = chatRooms[project.id];
+    if (existingRoom) {
+      return existingRoom;
     }
 
-    // PM 정보 추출
-    const pmInfo = project.team?.pm || {
+    // 사용자의 전담 빌더 정보 사용, 없으면 기본 경영지원팀
+    const assignedBuilder = profile?.basicInfo.assignedBuilder;
+    const pmInfo = assignedBuilder ? {
+      id: assignedBuilder.id,
+      name: assignedBuilder.name,
+      email: assignedBuilder.email,
+      company: assignedBuilder.company,
+      role: assignedBuilder.role
+    } : {
       id: 'pm-auto',
       name: '담당 PM 배정 중',
       email: 'support@pocket.com',
@@ -203,9 +217,53 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             systemEventType: 'phase_change',
             newPhase: project.phase
           }
-        }
+        },
+        // 경영지원팀인 경우 특별한 안내 메시지 추가
+        ...(pmInfo.id === defaultBusinessSupportPM.id ? [
+          {
+            id: `msg-business-support-${Date.now()}`,
+            roomId: `room-${project.id}`,
+            senderId: pmInfo.id,
+            senderType: 'pm' as const,
+            content: `안녕하세요! 포켓빌드업 경영지원팀입니다 🙋‍♀️
+
+담당 PM 배정 전까지 프로젝트 시작을 도와드리겠습니다.
+
+🗓️ **가이드 미팅 예약**
+아래 예약 폼을 통해 편하신 시간을 선택해주세요!
+
+📍 **미팅 옵션**
+• 🎥 온라인 미팅 (Zoom 링크 제공)
+• 🏢 오프라인 미팅 (강남역 포켓컴퍼니 사무실)
+
+⏰ **이용 가능 시간**
+• 평일 10:00 - 18:00
+• 소요시간: 30-60분 (추천: 45분)
+
+💡 **미팅 내용**
+✓ 프로젝트 목표 및 범위 확정
+✓ 일정 및 마일스톤 계획
+✓ 요구사항 상세 논의
+✓ 최적 담당 PM 배정
+
+준비가 되시면 아래 폼으로 예약해주세요! 📅`,
+            timestamp: new Date(Date.now() + 1000),
+            isRead: false,
+            type: 'text' as const
+          },
+          {
+            id: `msg-meeting-form-${Date.now()}`,
+            roomId: `room-${project.id}`,
+            senderId: pmInfo.id,
+            senderType: 'pm' as const,
+            content: 'meeting_booking_form',
+            timestamp: new Date(Date.now() + 2000),
+            isRead: false,
+            type: 'meeting_form' as const
+          }
+        ] : [])
       ],
-      unreadCount: 1,
+      unreadCount: pmInfo.id === defaultBusinessSupportPM.id ? 3 : 1,
       lastActivity: new Date(),
       status: 'active',
       createdAt: new Date(),
@@ -218,13 +276,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }));
 
     return newRoom;
-  }, [chatRooms]);
+  }, [profile]);
 
   // 프로젝트 채팅방 열기
   const openChatForProject = useCallback((projectId: string) => {
     if (chatRooms[projectId]) {
       setActiveChatRoomId(projectId);
-      markMessagesAsRead(projectId);
+      // markMessagesAsRead를 별도로 처리
+      setTimeout(() => {
+        markMessagesAsRead(projectId);
+      }, 100);
     }
   }, [chatRooms]);
 
@@ -352,6 +413,139 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       .sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime());
   }, [chatRooms]);
 
+  // 이벤트 상담 채팅방 열기
+  const openEventConsultation = useCallback((eventData: any) => {
+    console.log('Opening event consultation for:', eventData.title);
+    const consultationRoomId = 'consultation';
+
+    // 사용자의 전담 빌더 정보
+    const assignedBuilder = profile?.basicInfo.assignedBuilder;
+    const builderInfo = assignedBuilder || {
+      id: 'builder-001',
+      name: '김수민',
+      email: 'kim@pocket.com',
+      company: '포켓컴퍼니',
+      role: 'Senior PM'
+    };
+
+    // 이벤트 요약 템플릿 생성
+    const eventSummary = `📋 **이벤트 상담 요청**
+
+**🏢 이벤트명:** ${eventData.title}
+
+**📅 신청 마감:** ${eventData.applicationEndDate ? new Date(eventData.applicationEndDate).toLocaleDateString('ko-KR') : '미정'}
+
+**🏛 주관기관:** ${eventData.hostOrganization || eventData.vcName || eventData.acceleratorName || '미정'}
+
+**💰 지원 규모:** ${eventData.fundingAmount || eventData.investmentAmount || eventData.supportAmount || '미정'}
+
+**⏰ 수행 기간:** ${eventData.programDuration || eventData.executionPeriod || '미정'}
+
+**📝 설명:** ${eventData.description}
+
+---
+위 이벤트에 대해 상담을 요청드립니다. 지원 가능성과 준비 방향에 대해 조언 부탁드려요!`;
+
+    // 상담 채팅방이 없으면 생성
+    if (!chatRooms[consultationRoomId]) {
+      const consultationRoom: ChatRoom = {
+        id: consultationRoomId,
+        projectId: consultationRoomId,
+        projectTitle: '스마트매칭 상담',
+        projectPhase: 'consultation',
+        participants: {
+          customer: {
+            id: 'user-001',
+            name: profile?.basicInfo.name || '고객님',
+          },
+          pm: {
+            id: builderInfo.id,
+            name: builderInfo.name,
+            email: builderInfo.email,
+            company: builderInfo.company,
+            role: builderInfo.role
+          }
+        },
+        isOnline: true,
+        messages: [],
+        unreadCount: 0,
+        lastActivity: new Date(),
+        status: 'active',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      setChatRooms(prev => ({
+        ...prev,
+        [consultationRoomId]: consultationRoom
+      }));
+    }
+
+    // 이벤트 요약 메시지 자동 전송
+    const eventMessage: ChatMessage = {
+      id: `msg-event-${Date.now()}`,
+      roomId: consultationRoomId,
+      senderId: 'user-001',
+      senderType: 'customer',
+      content: eventSummary,
+      timestamp: new Date(),
+      isRead: true,
+      type: 'text'
+    };
+
+    setChatRooms(prev => ({
+      ...prev,
+      [consultationRoomId]: {
+        ...prev[consultationRoomId],
+        messages: [...prev[consultationRoomId].messages, eventMessage],
+        lastActivity: new Date(),
+        updatedAt: new Date()
+      }
+    }));
+
+    // 채팅방 열기
+    setActiveChatRoomId(consultationRoomId);
+
+    // PM 자동 응답 (2초 후)
+    setTimeout(() => {
+      const autoResponse: ChatMessage = {
+        id: `msg-auto-${Date.now()}`,
+        roomId: consultationRoomId,
+        senderId: builderInfo.id,
+        senderType: 'pm',
+        content: `안녕하세요! ${eventData.title} 이벤트 상담 요청 확인했습니다. 📋
+
+먼저 이벤트 내용을 검토해보니, 다음 사항들을 점검해보면 좋을 것 같습니다:
+
+🔍 **현재 준비 상황 체크**
+• 신청 자격 요건 충족 여부
+• 필요 서류 보유 현황
+• 팀 구성 및 역량
+• 사업계획서 준비 정도
+
+💡 **추천 준비 방향**
+현재 KPI 점수를 기반으로 맞춤형 준비 전략을 제안드릴 수 있습니다.
+
+궁금한 점이나 구체적으로 상담받고 싶은 부분이 있으시면 언제든 말씀해주세요! 🙋‍♀️`,
+        timestamp: new Date(),
+        isRead: false,
+        type: 'text'
+      };
+
+      setChatRooms(prev => ({
+        ...prev,
+        [consultationRoomId]: {
+          ...prev[consultationRoomId],
+          messages: [...prev[consultationRoomId].messages, autoResponse],
+          unreadCount: prev[consultationRoomId].unreadCount + 1,
+          lastActivity: new Date(),
+          updatedAt: new Date()
+        }
+      }));
+    }, 2000);
+
+  }, [profile]);
+
   // 채팅방 아카이브
   const archiveChatRoom = useCallback((roomId: string) => {
     setChatRooms(prev => ({
@@ -369,6 +563,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     activeChatRoom,
     createChatRoomForProject,
     openChatForProject,
+    openEventConsultation,
     closeChat,
     sendMessage,
     sendSystemMessage,

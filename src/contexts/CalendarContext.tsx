@@ -42,6 +42,7 @@ import {
   type IntegrationEvent
 } from '../utils/calendarMeetingIntegration';
 import type { GuideMeetingRecord } from '../types/meeting.types';
+// import { PhaseTransitionService } from '../services/phaseTransitionService';
 
 interface CalendarContextType {
   // Events
@@ -58,6 +59,9 @@ interface CalendarContextType {
   rescheduleEvent: (eventId: string, newDate: Date, reason: string) => Promise<void>;
   cancelEvent: (eventId: string, reason: string) => Promise<void>;
   submitDeliverable: (eventId: string, fileUrl: string, comment?: string) => Promise<void>;
+
+  // Phase Transition Integration
+  handleMeetingCompleted: (eventId: string, notes?: string) => Promise<void>;
 
   // Filtering & Search
   filter: CalendarFilter;
@@ -559,6 +563,59 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   }, [updateEvent]);
 
   /**
+   * 미팅 완료 처리 및 단계 전환 트리거
+   */
+  const handleMeetingCompleted = useCallback(async (eventId: string, notes?: string) => {
+    const event = events.find(e => e.id === eventId);
+    if (!event) {
+      console.warn(`Event not found: ${eventId}`);
+      return;
+    }
+
+    try {
+      // 1. 이벤트를 완료 상태로 업데이트
+      await completeEvent(eventId, notes);
+
+      // 2. 프로젝트와 연결된 미팅인지 확인
+      if (!event.projectId) {
+        console.log(`Event ${eventId} is not linked to a project`);
+        return;
+      }
+
+      // 3. 미팅 기록 생성
+      const meetingRecord: GuideMeetingRecord = {
+        id: `meeting-${Date.now()}`,
+        calendarEventId: eventId,
+        projectId: event.projectId,
+        type: 'guide_meeting', // 가이드 미팅으로 설정
+        completedAt: new Date(),
+        attendees: event.attendees || [],
+        notes: notes || '',
+        status: 'completed',
+        outcome: 'successful'
+      };
+
+      // 4. Phase Transition Service 호출
+      const pmId = event.pmId || 'pm-business-support';
+      const transitionEvent = PhaseTransitionService.handleMeetingCompleted(
+        event.projectId,
+        meetingRecord,
+        pmId
+      );
+
+      if (transitionEvent) {
+        console.log(`✅ 미팅 완료 처리: ${event.title}`);
+        console.log(`🔄 단계 전환 이벤트 생성: ${transitionEvent.fromPhase} → ${transitionEvent.toPhase}`);
+      } else {
+        console.log(`📝 미팅 완료 기록됨 (단계 전환 없음): ${event.title}`);
+      }
+
+    } catch (error) {
+      console.error('Error handling meeting completion:', error);
+    }
+  }, [events, completeEvent]);
+
+  /**
    * PM에게 문의
    */
   const contactPMAboutEvent = useCallback((eventId: string, message?: string) => {
@@ -634,6 +691,7 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     rescheduleEvent: async () => {}, // TODO: Implement
     cancelEvent: async () => {}, // TODO: Implement
     submitDeliverable: async () => {}, // TODO: Implement
+    handleMeetingCompleted,
     filter,
     setFilter: (newFilter) => setFilterState(prev => ({ ...prev, ...newFilter })),
     filteredEvents,

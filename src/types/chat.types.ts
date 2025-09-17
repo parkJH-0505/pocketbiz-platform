@@ -11,7 +11,7 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   isRead: boolean;
-  type: 'text' | 'file' | 'system';
+  type: 'text' | 'file' | 'system' | 'meeting_form';
   attachments?: {
     name: string;
     url: string;

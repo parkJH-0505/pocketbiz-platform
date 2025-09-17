@@ -10,7 +10,6 @@ interface ChatPanelProps {
 export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
   const { activeChatRoom, sendMessage } = useChatContext();
   const [inputMessage, setInputMessage] = useState('');
-  const [selectedProject, setSelectedProject] = useState<string | undefined>(undefined);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -23,7 +22,7 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
 
   const handleSend = () => {
     if (inputMessage.trim() && activeChatRoom) {
-      sendMessage(inputMessage, selectedProject);
+      sendMessage(inputMessage);
       setInputMessage('');
     }
   };
@@ -76,12 +75,12 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary-light rounded-full flex items-center justify-center">
-                  <User className="w-5 h-5 text-primary-main" />
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <User className="w-5 h-5 text-blue-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-900">{activeChatRoom.pmName}</p>
-                  <p className="text-xs text-gray-500">{activeChatRoom.pmCompany} PM</p>
+                  <p className="text-sm font-semibold text-gray-900">{activeChatRoom.participants.pm.name}</p>
+                  <p className="text-xs text-gray-500">{activeChatRoom.participants.pm.company} • {activeChatRoom.participants.pm.role}</p>
                   <p className="text-xs flex items-center gap-1 mt-0.5">
                     {activeChatRoom.isOnline ? (
                       <>
@@ -98,27 +97,13 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                 </div>
               </div>
 
-              {/* 관련 프로젝트 표시 */}
-              {activeChatRoom.relatedProjects.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {activeChatRoom.relatedProjects.map(project => (
-                    <button
-                      key={project.id}
-                      onClick={() => setSelectedProject(
-                        selectedProject === project.id ? undefined : project.id
-                      )}
-                      className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                        selectedProject === project.id
-                          ? 'bg-primary-main text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      <Briefcase className="w-3 h-3 inline mr-1" />
-                      {project.title}
-                    </button>
-                  ))}
+              {/* 프로젝트 표시 */}
+              <div className="mt-3">
+                <div className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700 inline-flex items-center">
+                  <Briefcase className="w-3 h-3 mr-1" />
+                  {activeChatRoom.projectTitle}
                 </div>
-              )}
+              </div>
             </div>
             <button
               onClick={onClose}
@@ -134,32 +119,28 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
           {activeChatRoom.messages.map((message) => (
             <div
               key={message.id}
-              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${message.senderType === 'customer' ? 'justify-end' : 'justify-start'}`}
             >
               <div
                 className={`max-w-[70%] ${
-                  message.sender === 'user'
+                  message.senderType === 'customer'
                     ? 'order-2'
                     : 'order-1'
                 }`}
               >
                 <div
                   className={`px-4 py-2 rounded-2xl ${
-                    message.sender === 'user'
-                      ? 'bg-primary-main text-white rounded-br-sm'
+                    message.senderType === 'customer'
+                      ? 'bg-blue-600 text-white rounded-br-sm'
+                      : message.senderType === 'system'
+                      ? 'bg-gray-200 text-gray-700 rounded-lg text-sm'
                       : 'bg-gray-100 text-gray-900 rounded-bl-sm'
                   }`}
                 >
-                  {message.projectTitle && (
-                  <div className="text-xs opacity-75 mb-1">
-                    <Briefcase className="w-3 h-3 inline mr-1" />
-                    {message.projectTitle}
-                  </div>
-                )}
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                 </div>
                 <p className={`text-xs text-gray-500 mt-1 ${
-                  message.sender === 'user' ? 'text-right' : 'text-left'
+                  message.senderType === 'customer' ? 'text-right' : 'text-left'
                 }`}>
                   {formatTime(message.timestamp)}
                 </p>
@@ -177,13 +158,13 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-              placeholder={selectedProject ? `[${activeChatRoom.relatedProjects.find(p => p.id === selectedProject)?.title}] 메시지 입력...` : "메시지를 입력하세요..."}
-              className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-main focus:border-transparent text-sm"
+              placeholder="메시지를 입력하세요..."
+              className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             />
             <button
               onClick={handleSend}
               disabled={!inputMessage.trim()}
-              className="px-4 py-2 bg-primary-main text-white rounded-lg hover:bg-primary-hover disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
               <Send className="w-4 h-4" />
             </button>

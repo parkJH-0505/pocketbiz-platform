@@ -537,3 +537,15 @@ export interface BuildupDashboard {
     total_investment: number;
   };
 }
+
+// Re-export phase transition types from the new file
+export type {
+  PhaseTransitionTrigger,
+  PhaseTransitionStatus,
+  PhaseTransitionEvent,
+  PhaseTransitionRule,
+  PhaseTransitionApprovalRequest,
+  PhaseTransitionListener,
+  MeetingType,
+  GuideMeetingRecord
+} from './phaseTransition.types';

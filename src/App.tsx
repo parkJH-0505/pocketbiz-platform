@@ -48,6 +48,12 @@ import BuildupCalendarV3 from './pages/startup/buildup/BuildupCalendarV3';
 import Cart from './pages/startup/Cart';
 import CheckoutEnhanced from './pages/startup/CheckoutEnhanced';
 import Messages from './pages/startup/Messages';
+
+// New Tab Pages
+import PocketMentor from './pages/startup/PocketMentor';
+import PocketDay from './pages/startup/PocketDay';
+import PocketBuilder from './pages/startup/PocketBuilder';
+import ConnectAI from './pages/startup/ConnectAI';
 import NotificationCenterPage from './pages/startup/NotificationCenter';
 
 // Admin Pages
@@ -150,6 +156,13 @@ function App() {
                               <Route path="custom" element={<CustomRecommendation />} />
                               <Route path="all" element={<AllOpportunities />} />
                             </Route>
+
+                            {/* 새로운 메뉴 탭들 */}
+                            <Route path="mentor" element={<PocketMentor />} />
+                            <Route path="pocket-day" element={<PocketDay />} />
+                            <Route path="pocket-builder" element={<PocketBuilder />} />
+                            <Route path="connect-ai" element={<ConnectAI />} />
+
                             <Route path="profile" element={<div className="p-8 text-center">VDR/마이프로필 (개발중)</div>} />
                             <Route path="cart" element={<Cart />} />
                             <Route path="checkout" element={<CheckoutEnhanced />} />

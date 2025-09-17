@@ -139,3 +139,95 @@
 - [ ] 엑셀 임포트 성공률 > 95%
 - [ ] 관리 작업 시간 50% 단축
 - [ ] 데이터 무결성 100% 보장
+
+---
+
+## 담당 PM/빌더 배정 시스템 구현 계획
+
+### 현재 상황 (2024-12-17 업데이트)
+- ✅ **사용자 기반 전담 빌더 배정 시스템 구현됨**
+- ✅ **스마트매칭 채팅 시스템에 전담 빌더 연동됨**
+- ✅ **포켓빌드업 프로젝트 채팅에 전담 빌더 배정됨**
+- ⏳ 관리자 페이지에서 담당 빌더 변경 기능 필요
+
+### 구현된 시스템 현황
+
+#### ✅ Step 1: 사용자별 전담 빌더 배정 (완료)
+- ✅ `UserBasicInfo` 타입에 `assignedBuilder` 속성 추가
+- ✅ 가입 시 기본 빌더 자동 배정 (`김수민` Senior PM)
+- ✅ 사용자별 일관된 빌더 서비스 제공
+
+```typescript
+// 구현된 타입 구조
+interface AssignedBuilder {
+  id: string;
+  name: string;
+  role: string;
+  email: string;
+  company: string;
+}
+
+interface UserBasicInfo {
+  assignedBuilder?: AssignedBuilder;
+  // ... 기타 필드
+}
+```
+
+#### ✅ Step 2: 채팅 시스템 통합 (완료)
+- ✅ **스마트매칭 상담**: 전담 빌더가 자동 응답
+- ✅ **포켓빌드업 프로젝트**: 전담 빌더가 PM 역할 수행
+- ✅ 채팅방 생성 시 전담 빌더 정보 자동 연결
+- ✅ 일관된 서비스 경험 제공
+
+#### ⏳ Step 3: 관리자 빌더 변경 시스템 (미완료)
+- [ ] 관리자 페이지에서 사용자별 담당 빌더 변경 기능
+- [ ] 빌더 변경 시 기존 채팅 히스토리 유지
+- [ ] 새로운 빌더 배정 시 채팅방 참여자 업데이트
+- [ ] "새로운 담당 빌더가 배정되었습니다" 시스템 메시지 자동 추가
+
+### 관련 파일들 (현재 구현됨)
+- ✅ `src/types/userProfile.ts` - `AssignedBuilder` 타입 정의
+- ✅ `src/contexts/UserProfileContext.tsx` - 기본 빌더 배정 로직
+- ✅ `src/contexts/ChatContext.tsx` - 전담 빌더 연동 채팅 시스템
+- ✅ `src/pages/startup/smartMatching/tabs/CustomRecommendation.tsx` - 스마트매칭 채팅
+- ✅ `src/pages/startup/buildup/ProjectDetail.tsx` - 프로젝트 채팅 연동
+
+### 향후 관리자 기능 확장 계획
+- [ ] **사용자 관리 페이지**: 전체 사용자 목록 및 담당 빌더 현황
+- [ ] **빌더 관리 페이지**: 빌더 목록, 담당 사용자 수, 성과 지표
+- [ ] **빌더 배정 변경**: 드래그 앤 드롭으로 사용자-빌더 재배정
+- [ ] **빌더 성과 대시보드**: 응답률, 만족도, 프로젝트 성공률
+- [ ] **자동 배정 알고리즘**: 프로젝트 타입, 빌더 전문분야 매칭
+- [ ] **워크로드 밸런싱**: 빌더별 담당 사용자 수 자동 조절
+
+### 관리자 UI 컴포넌트 계획
+```typescript
+// 향후 구현할 관리자 컴포넌트들
+interface AdminBuilderManagement {
+  // 빌더 목록 테이블
+  BuilderListTable: React.FC;
+
+  // 사용자-빌더 매핑 뷰
+  UserBuilderMappingView: React.FC;
+
+  // 빌더 배정 변경 모달
+  BuilderAssignmentModal: React.FC<{
+    userId: string;
+    currentBuilder: AssignedBuilder;
+    availableBuilders: AssignedBuilder[];
+  }>;
+
+  // 빌더 성과 대시보드
+  BuilderPerformanceDashboard: React.FC;
+}
+```
+
+### 우선순위
+- ✅ **완료**: 사용자별 전담 빌더 배정 시스템
+- ✅ **완료**: 채팅 시스템 통합
+- ⏳ **진행중**: Phase C - 시스템 통합 연동
+- 🔄 **다음**: 관리자 빌더 관리 기능
+
+---
+*PM 배정 시스템 추가일: 2024-12-17*
+*담당자: Claude Code Assistant*

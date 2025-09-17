@@ -15,7 +15,12 @@
       "Bash(git stash:*)",
       "Bash(grep:*)",
       "Bash(git checkout:*)",
-      "Bash(npx prettier:*)"
+      "Bash(npx prettier:*)",
+      "Bash(pkill:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run:*)",
+      "Bash(git rm:*)",
+      "Bash(git reset:*)"
     ],
     "deny": [],
     "ask": []

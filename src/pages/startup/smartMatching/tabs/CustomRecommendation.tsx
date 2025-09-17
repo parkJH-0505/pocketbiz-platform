@@ -61,6 +61,15 @@ const CustomRecommendation: React.FC = () => {
   const [recommendations, setRecommendations] = useState<MatchingResult[]>([]);
   const [buildupRecommendations, setBuildupRecommendations] = useState<ProjectRecommendation[]>([]);
   const [theOneCandidate, setTheOneCandidate] = useState<MatchingResult | null>(null);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [chatEventData, setChatEventData] = useState<any>(null);
+  const [chatMessage, setChatMessage] = useState('');
+  const [messages, setMessages] = useState<Array<{
+    id: string;
+    type: 'user' | 'builder';
+    content: string;
+    timestamp: Date;
+  }>>([]);
 
   // 사용자 Core5 점수 (KPI Context에서 가져오거나 기본값)
   const userScores: Core5Requirements = axisScores && Object.values(axisScores).some(v => v > 0)
@@ -92,7 +101,7 @@ const CustomRecommendation: React.FC = () => {
       return baseData;
     });
     return data;
-  }, [selectedEvent, userScores.GO, userScores.EC, userScores.PT, userScores.PF, userScores.TO]);
+  }, [selectedEvent, userScores, recommendations]);
 
   // Mock 데이터 로드 및 THE ONE 후보 선별
   useEffect(() => {
@@ -127,11 +136,60 @@ const CustomRecommendation: React.FC = () => {
     } else {
       setBuildupRecommendations([]);
     }
-  }, [selectedEvent, userScores.GO, userScores.EC, userScores.PT, userScores.PF, userScores.TO]);
+  }, [selectedEvent, userScores, recommendations]);
+
+  // 이벤트 상담 핸들러
+  const handleEventConsultation = (event: any) => {
+    setChatEventData(event);
+    setShowChatModal(true);
+
+    // 초기 빌더 메시지 추가
+    setMessages([{
+      id: 'welcome-' + Date.now(),
+      type: 'builder',
+      content: `안녕하세요! 스마트매칭 빌더입니다 🙋‍♀️\n\n**${event.title}** 이벤트에 대해 상담 도와드리겠습니다.\n\n어떤 부분이 궁금하신가요?`,
+      timestamp: new Date()
+    }]);
+  };
+
+  // 메시지 전송 핸들러
+  const handleSendMessage = () => {
+    if (!chatMessage.trim()) return;
+
+    const userMessage = {
+      id: 'user-' + Date.now(),
+      type: 'user' as const,
+      content: chatMessage.trim(),
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setChatMessage('');
+
+    // 빌더 자동 응답 (2초 후)
+    setTimeout(() => {
+      const responses = [
+        "좋은 질문이네요! 해당 이벤트는 매우 경쟁이 치열하니 미리 준비하시는 것이 좋겠습니다.",
+        "이 분야에 대한 경험이 있으시다면 더 유리할 것 같은데, 어떤 배경을 가지고 계신가요?",
+        "지원서류 준비에 도움이 필요하시면 포켓빌드업 서비스를 확인해보세요!",
+        "해당 기관의 과거 선정 기준을 보면, 이런 부분들을 중점적으로 평가합니다.",
+        "더 구체적인 상담을 원하시면 빌드업 프로젝트로 연결해드릴 수 있어요."
+      ];
+
+      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+
+      setMessages(prev => [...prev, {
+        id: 'builder-' + Date.now(),
+        type: 'builder',
+        content: randomResponse,
+        timestamp: new Date()
+      }]);
+    }, 2000);
+  };
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 relative">
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -350,6 +408,7 @@ const CustomRecommendation: React.FC = () => {
                                 compatibility.meetCount >= 2 ? 'preparing' : 'insufficient'
                       }}
                       isTheOne={isTheOne}
+                      onBuilderConsult={() => handleEventConsultation(rec.event)}
                     />
                   </div>
                 </div>
@@ -358,6 +417,157 @@ const CustomRecommendation: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 우측 슬라이드 채팅 모달 - ChatSideModal 스타일 */}
+      {showChatModal && chatEventData && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-30 z-40 transition-opacity"
+            onClick={() => setShowChatModal(false)}
+          />
+
+          {/* Chat Panel */}
+          <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl z-50 flex flex-col overflow-hidden border border-gray-200"
+               style={{
+                 borderRadius: '20px',
+                 boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)'
+               }}>
+
+            {/* Header with gradient */}
+            <div className="px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                    <span className="text-lg">💬</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">빌더 상담</h3>
+                    <p className="text-xs text-blue-100 truncate">{chatEventData.title}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+                    title="최소화"
+                  >
+                    <span className="w-4 h-4 block">−</span>
+                  </button>
+                  <button
+                    onClick={() => setShowChatModal(false)}
+                    className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+                    title="닫기"
+                  >
+                    <span className="w-4 h-4 block">✕</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Event Info Section */}
+            <div className="px-4 py-3 bg-blue-50 border-b border-blue-200">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-blue-600">📋</span>
+                <span className="text-sm font-medium text-blue-900">이벤트 정보</span>
+              </div>
+              <div className="space-y-1 text-xs text-blue-800">
+                <div className="flex justify-between">
+                  <span className="text-blue-600">이벤트:</span>
+                  <span className="font-medium truncate ml-2">{chatEventData.title}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-blue-600">마감:</span>
+                  <span className="font-medium">{new Date(chatEventData.applicationEndDate).toLocaleDateString('ko-KR')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-blue-600">주관:</span>
+                  <span className="font-medium truncate ml-2">{chatEventData.hostOrganization || chatEventData.vcName || '미정'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-blue-600">지원:</span>
+                  <span className="font-medium truncate ml-2">{chatEventData.fundingAmount || chatEventData.investmentAmount || '미정'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50" style={{ height: 'calc(100% - 200px)' }}>
+              {messages.map((message) => (
+                <div key={message.id} className="flex items-start gap-3">
+                  {message.type === 'builder' ? (
+                    <>
+                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-sm flex-shrink-0">
+                        빌
+                      </div>
+                      <div className="flex-1">
+                        <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border">
+                          <p className="text-sm text-gray-900 leading-relaxed whitespace-pre-line">
+                            {message.content}
+                          </p>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1 ml-1">
+                          {message.timestamp.toLocaleTimeString('ko-KR', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex-1"></div>
+                      <div className="flex-1">
+                        <div className="bg-blue-600 rounded-2xl rounded-br-sm px-4 py-3 shadow-sm ml-auto max-w-xs">
+                          <p className="text-sm text-white leading-relaxed whitespace-pre-line">
+                            {message.content}
+                          </p>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1 text-right mr-1">
+                          {message.timestamp.toLocaleTimeString('ko-KR', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                      <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white text-sm flex-shrink-0">
+                        나
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Input */}
+            <div className="p-4 border-t border-gray-200 bg-white">
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  placeholder="메시지를 입력하세요..."
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && chatMessage.trim()) {
+                      handleSendMessage();
+                    }
+                  }}
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!chatMessage.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  <span className="text-sm">📤</span>
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 text-center">
+                💡 실제 빌더 연결은 프로젝트 구매 후 가능합니다
+              </p>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

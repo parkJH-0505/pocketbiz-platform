@@ -12,6 +12,20 @@ export interface Core5Scores {
   TO: number;  // Team & Organization (팀 및 조직)
 }
 
+// 빌더(PM) 정보
+export interface AssignedBuilder {
+  id: string;
+  name: string;
+  role: string;
+  email: string;
+  company: string;
+  phone?: string;
+  experience_years?: number;
+  specialties?: string[];
+  profile_image?: string;
+  bio?: string;
+}
+
 // 사용자 기본 정보
 export interface UserBasicInfo {
   id: string;
@@ -22,6 +36,8 @@ export interface UserBasicInfo {
   position?: string;
   joinedAt: Date;
   lastLoginAt?: Date;
+  // 전담 빌더 정보
+  assignedBuilder?: AssignedBuilder;
 }
 
 // 클러스터 정보

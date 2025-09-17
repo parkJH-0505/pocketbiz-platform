@@ -92,7 +92,8 @@ export default function CheckoutEnhanced() {
   const {
     cart,
     clearCart,
-    createProject
+    createProject,
+    handlePaymentCompleted
   } = useBuildupContext();
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -300,16 +301,20 @@ export default function CheckoutEnhanced() {
     setIsGenerating(true);
 
     try {
-      // 프로젝트 생성
+      // 프로젝트 생성 및 결제 완료 처리
+      const createdProjects = [];
+
       for (const item of cart) {
         const option = checkoutData.serviceOptions[item.service.service_id];
 
-        await createProject({
+        // 프로젝트 생성
+        const newProject = await createProject({
           title: item.service.name,
           service_id: item.service.service_id,
           category: item.service.category as any,
-          status: 'active', // preparing → active로 변경 (바로 활성화)
+          status: 'active',
           created_from: 'checkout',
+          phase: 'contract_pending', // 초기 단계: 계약중
           contract: {
             id: checkoutData.contractData.contractNumber,
             value: calculateServicePrice(item.service.service_id),
@@ -327,20 +332,37 @@ export default function CheckoutEnhanced() {
             }
           } as any
         });
+
+        createdProjects.push(newProject);
+
+        // 결제 완료 트리거 - 자동 단계 전환 (contract_pending → contract_signed)
+        const paymentData = {
+          amount: calculateServicePrice(item.service.service_id),
+          paymentId: `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          paymentMethod: checkoutData.agreementData.paymentMethod,
+          paidBy: checkoutData.buyerInfo.contactPerson,
+          contractId: checkoutData.contractData.contractNumber
+        };
+
+        console.log(`💳 결제 완료 처리: 프로젝트 ${newProject.id} → 자동 단계 전환 트리거`);
+        handlePaymentCompleted(newProject.id, paymentData);
       }
 
       // 장바구니 비우기
       clearCart();
+
+      console.log(`✅ ${createdProjects.length}개 프로젝트 생성 및 결제 완료 처리 완료`);
 
       // 성공 메시지와 함께 프로젝트 대시보드로 이동
       setTimeout(() => {
         navigate('/startup/buildup/dashboard', {
           state: {
             orderComplete: true,
-            message: `${cart.length}개의 프로젝트가 생성되었습니다.`
+            message: `${createdProjects.length}개의 프로젝트가 생성되고 자동으로 계약완료 단계로 전환되었습니다.`,
+            createdProjects: createdProjects.map(p => p.id)
           }
         });
-      }, 1000);
+      }, 1500); // 단계 전환 처리 시간 고려하여 1.5초로 증가
     } catch (error) {
       console.error('프로젝트 생성 실패:', error);
       setIsGenerating(false);

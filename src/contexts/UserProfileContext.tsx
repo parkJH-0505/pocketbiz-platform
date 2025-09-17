@@ -55,11 +55,26 @@ export const UserProfileProvider: React.FC<UserProfileProviderProps> = ({ childr
 
   // 프로필 초기화
   const initializeProfile = (name: string, email?: string) => {
+    // 기본 전담 빌더 배정 (Mock 데이터)
+    const defaultBuilder = {
+      id: 'builder-001',
+      name: '김수민',
+      role: 'Senior PM',
+      email: 'kim@pocket.com',
+      company: '포켓컴퍼니',
+      phone: '02-1234-5678',
+      experience_years: 5,
+      specialties: ['스타트업 성장', 'IR 및 브랜딩', '투자 유치'],
+      profile_image: '/avatars/kim-sumin.jpg',
+      bio: 'IR 및 브랜딩 전문 PM. 100+ 성공 프로젝트 경험'
+    };
+
     const basicInfo = {
       id: `user_${Date.now()}`,
       name,
       email,
-      joinedAt: new Date()
+      joinedAt: new Date(),
+      assignedBuilder: defaultBuilder
     };
 
     const newProfile = defaultUserProfile(basicInfo);

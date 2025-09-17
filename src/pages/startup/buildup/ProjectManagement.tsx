@@ -19,10 +19,14 @@ import {
   PlayCircle,
   Star,
   Zap,
-  ArrowRight
+  ArrowRight,
+  Settings,
+  Edit2
 } from 'lucide-react';
 import { useBuildupContext } from '../../../contexts/BuildupContext';
 import type { Project, ProjectPhase } from '../../../types/buildup.types';
+import PhaseTransitionModal from '../../../components/project/PhaseTransitionModal';
+import ProjectPhaseIndicator from '../../../components/project/ProjectPhaseIndicator';
 import {
   PHASE_INFO,
   ALL_PHASES,
@@ -34,8 +38,10 @@ type ProjectFilter = 'all' | 'active' | 'completed' | 'wishlist';
 
 export default function ProjectManagement() {
   const navigate = useNavigate();
-  const { projects, activeProjects, completedProjects } = useBuildupContext();
+  const { projects, activeProjects, completedProjects, updateProject } = useBuildupContext();
   const [selectedFilter, setSelectedFilter] = useState<ProjectFilter>('active');
+  const [showPhaseModal, setShowPhaseModal] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // 7단계 기반 진행률 계산
   const calculateProgress = (project: Project) => {
@@ -99,6 +105,36 @@ export default function ProjectManagement() {
   };
 
   const todaysTasks = getTodaysTasks();
+
+  // 단계 전환 핸들러
+  const handlePhaseTransition = (newPhase: ProjectPhase, reason: string) => {
+    if (!selectedProject) return;
+
+    // 프로젝트 업데이트
+    updateProject(selectedProject.id, {
+      phase: newPhase,
+      phaseHistory: [
+        ...(selectedProject.phaseHistory || []),
+        {
+          phase: newPhase,
+          timestamp: new Date().toISOString(),
+          reason,
+          changedBy: 'admin' // TODO: 실제 사용자 ID
+        }
+      ]
+    });
+
+    // 모달 닫기
+    setShowPhaseModal(false);
+    setSelectedProject(null);
+  };
+
+  // 단계 변경 버튼 클릭 핸들러
+  const handlePhaseChangeClick = (e: React.MouseEvent, project: Project) => {
+    e.stopPropagation(); // 카드 클릭 이벤트 전파 방지
+    setSelectedProject(project);
+    setShowPhaseModal(true);
+  };
 
   // 찜한 서비스 (Mock)
   const wishlistServices = [
@@ -389,6 +425,14 @@ export default function ProjectManagement() {
                                 <span className="text-base text-gray-600 font-semibold">
                                   {progress.phaseInfo.label}
                                 </span>
+                                {/* 단계 변경 버튼 */}
+                                <button
+                                  onClick={(e) => handlePhaseChangeClick(e, project)}
+                                  className="mt-2 px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full transition-colors flex items-center gap-1"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                  단계 변경
+                                </button>
                               </div>
 
                               {/* 7단계 점들 - 원 주위에 배치 */}
@@ -622,6 +666,19 @@ export default function ProjectManagement() {
         </div>
       </div>
     </div>
+
+    {/* Phase Transition Modal */}
+    {selectedProject && (
+      <PhaseTransitionModal
+        isOpen={showPhaseModal}
+        onClose={() => {
+          setShowPhaseModal(false);
+          setSelectedProject(null);
+        }}
+        project={selectedProject}
+        onTransition={handlePhaseTransition}
+      />
+    )}
     </>
   );
 }

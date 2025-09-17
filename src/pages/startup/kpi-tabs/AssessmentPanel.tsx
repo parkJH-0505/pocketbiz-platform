@@ -27,7 +27,6 @@ import {
 import { crossValidate } from '../../../utils/validation';
 import { setupCSVWatcher } from '../../../utils/csvWatcher';
 import type { AxisKey, KPIDefinition } from '../../../types';
-import { FloatingProgressButton } from '../../../components/assessment/FloatingProgressButton';
 
 export const AssessmentPanel = () => {
   const { cluster, updateStage, getStageInfo } = useCluster();
@@ -640,32 +639,6 @@ export const AssessmentPanel = () => {
           </div>
         </div>
       )}
-      
-      {/* 플로팅 진행률 버튼 */}
-      <FloatingProgressButton
-        currentAxisProgress={currentAxisProgress}
-        isLastAxis={isLastAxis}
-        isFirstAxis={isFirstAxis}
-        axisName={currentAxisInfo?.label || currentAxis}
-        nextAxisName={!isLastAxis ? axes[axes.findIndex(a => a.key === currentAxis) + 1]?.label : undefined}
-        prevAxisName={!isFirstAxis ? axes[axes.findIndex(a => a.key === currentAxis) - 1]?.label : undefined}
-        onNext={() => {
-          if (isLastAxis) {
-            // 결과 탭으로 이동
-            const searchParams = new URLSearchParams(window.location.search);
-            searchParams.set('tab', 'insights');
-            window.history.pushState({}, '', `${window.location.pathname}?${searchParams}`);
-            window.dispatchEvent(new PopStateEvent('popstate'));
-          } else {
-            // 다음 축으로 이동
-            const nextIndex = axes.findIndex(a => a.key === currentAxis) + 1;
-            setCurrentAxis(axes[nextIndex].key as AxisKey);
-          }
-        }}
-        onPrevious={() => {
-          // 이전 축 기능 비활성화
-        }}
-      />
     </div>
   );
 };

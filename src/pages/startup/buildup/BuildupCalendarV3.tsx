@@ -34,6 +34,8 @@ import { useBuildupContext } from '../../../contexts/BuildupContext';
 import { useChatContext } from '../../../contexts/ChatContext';
 import AddEventModal from '../../../components/calendar/AddEventModal';
 import EditEventModal from '../../../components/calendar/EditEventModal';
+import MeetingCompletionModal from '../../../components/calendar/MeetingCompletionModal';
+import Toast, { type ToastType } from '../../../components/ui/Toast';
 import { CalendarIntegration } from '../../../utils/calendarIntegration';
 import {
   EventMetadataUtils,
@@ -48,6 +50,7 @@ import {
 } from '../../../utils/calendarUtils';
 import { MEETING_TYPE_CONFIG } from '../../../types/meeting.types';
 import type { CalendarEvent } from '../../../types/calendar.types';
+import type { GuideMeetingRecord } from '../../../types/buildup.types';
 import type { EnhancedMeetingData } from '../../../types/meeting.types';
 
 export default function BuildupCalendarV3() {
@@ -62,7 +65,8 @@ export default function BuildupCalendarV3() {
     stats,
     executeQuickAction,
     contactPMAboutEvent,
-    syncWithProjects
+    syncWithProjects,
+    handleMeetingCompleted
   } = useCalendarContext();
   const { projects } = useBuildupContext();
   const { openChatWithPM } = useChatContext();
@@ -72,8 +76,17 @@ export default function BuildupCalendarV3() {
   const [view, setView] = useState<'month' | 'week' | 'list'>('month');
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [eventToComplete, setEventToComplete] = useState<CalendarEvent | null>(null);
   // 필터 프리셋 제거 - 불필요
   const [showExportMenu, setShowExportMenu] = useState(false);
+
+  // Toast 상태
+  const [toast, setToast] = useState<{
+    show: boolean;
+    message: string;
+    type: ToastType;
+  }>({ show: false, message: '', type: 'info' });
 
   // 현재 월의 시작과 끝
   const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -101,6 +114,52 @@ export default function BuildupCalendarV3() {
     const newDate = new Date(currentDate);
     newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
     setCurrentDate(newDate);
+  };
+
+  // 미팅 완료 버튼 클릭 핸들러
+  const handleMeetingCompleteClick = (event: CalendarEvent) => {
+    setEventToComplete(event);
+    setShowCompletionModal(true);
+  };
+
+  // 미팅 완료 처리
+  const handleMeetingCompletion = async (record: Partial<GuideMeetingRecord>) => {
+    if (!eventToComplete) return;
+
+    try {
+      // CalendarContext의 handleMeetingCompleted 호출
+      await handleMeetingCompleted(eventToComplete.id, record.notes || '');
+
+      // 성공 토스트 표시
+      setToast({
+        show: true,
+        message: '미팅이 성공적으로 완료되었습니다!',
+        type: 'success'
+      });
+
+      // 모달 닫기
+      setShowCompletionModal(false);
+      setEventToComplete(null);
+
+      // LocalStorage에 미팅 기록 임시 저장 (추후 백엔드 연동)
+      const meetingRecords = JSON.parse(localStorage.getItem('meetingRecords') || '[]');
+      meetingRecords.push({
+        ...record,
+        eventId: eventToComplete.id,
+        completedAt: new Date().toISOString()
+      });
+      localStorage.setItem('meetingRecords', JSON.stringify(meetingRecords));
+
+    } catch (error) {
+      console.error('미팅 완료 처리 중 오류:', error);
+
+      // 에러 토스트 표시
+      setToast({
+        show: true,
+        message: '미팅 완료 처리 중 오류가 발생했습니다.',
+        type: 'error'
+      });
+    }
   };
 
   // 오늘로 이동
@@ -581,6 +640,20 @@ export default function BuildupCalendarV3() {
                                       <Video className="w-4 h-4" />
                                     </button>
                                   )}
+
+                                  {/* 미팅 완료 버튼 - 프로젝트와 연결된 미팅만 */}
+                                  {event.type === 'meeting' && event.projectId && event.status === 'scheduled' && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleMeetingCompleteClick(event);
+                                      }}
+                                      className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                      title="미팅 완료"
+                                    >
+                                      <CheckCircle className="w-4 h-4" />
+                                    </button>
+                                  )}
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -837,6 +910,26 @@ export default function BuildupCalendarV3() {
         onClose={() => setShowAddModal(false)}
         preselectedDate={selectedDate || undefined}
       />
+
+      {/* Meeting Completion Modal */}
+      <MeetingCompletionModal
+        isOpen={showCompletionModal}
+        onClose={() => {
+          setShowCompletionModal(false);
+          setEventToComplete(null);
+        }}
+        event={eventToComplete}
+        onComplete={handleMeetingCompletion}
+      />
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ ...toast, show: false })}
+        />
+      )}
 
       {/* Edit Event Modal */}
       {selectedEvent && (

@@ -24,6 +24,20 @@ const tenDaysLater = createDate(10);    // 🔵 여유 (10일)
 const twoWeeksLater = createDate(14);   // 🔵 여유 (14일)
 const threeWeeksLater = createDate(21); // 🔵 여유 (21일)
 
+// 기본 경영지원팀 PM 정보
+export const defaultBusinessSupportPM = {
+  id: 'pm-business-support',
+  name: '경영지원팀',
+  role: 'Business Support Manager',
+  email: 'support@pocket.com',
+  company: '포켓컴퍼니',
+  phone: '02-1234-5678',
+  experience_years: 3,
+  specialties: ['고객 지원', '프로젝트 초기 상담', '일정 조율'],
+  profile_image: '/avatars/business-support.jpg',
+  bio: '포켓빌드업 고객지원 및 초기 상담 전담팀입니다. 담당 PM 배정 전까지 프로젝트 시작을 도와드립니다.'
+};
+
 export const mockProjects: Project[] = [
   {
     id: 'PRJ-001',

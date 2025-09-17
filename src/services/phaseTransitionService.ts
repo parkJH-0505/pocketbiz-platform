@@ -1,55 +1,43 @@
-/**
- * Automatic Phase Transition Service
- * 자동 단계 전환 엔진 - 미팅 완료, 결제 확인 등의 트리거 기반으로 프로젝트 단계 자동 전환
- */
-
-import type { Project, ProjectPhase } from '../types/buildup.types';
 import type {
-  PhaseTransitionRule,
+  ProjectPhase,
+  Project,
   PhaseTransitionEvent,
+  PhaseTransitionRule,
   PhaseTransitionTrigger,
+  PhaseTransitionApprovalRequest,
+  PhaseTransitionListener,
   GuideMeetingRecord,
   MeetingType
-} from '../types/meeting.types';
-import type { CalendarEvent } from '../types/calendar.types';
+} from '../types/buildup.types';
+import { globalIntegrationManager } from './integrationManager';
 import {
-  DEFAULT_PHASE_TRANSITION_RULES,
-  canTransitionToPhase,
   createPhaseTransitionEvent,
-  getNextPhase,
   checkMeetingBasedPhaseTransition
-} from '../utils/projectPhaseUtils';
-import { globalIntegrationManager } from '../utils/calendarMeetingIntegration';
+} from '../utils/phaseTransitionUtils';
+import { phaseTransitionRules } from '../data/phaseTransitionRules';
 
 /**
- * 단계 전환 이벤트 리스너 타입
- */
-export type PhaseTransitionListener = (event: PhaseTransitionEvent) => void;
-
-/**
- * 단계 전환 승인 요청 타입
- */
-export interface PhaseTransitionApprovalRequest {
-  id: string;
-  phaseTransitionEvent: PhaseTransitionEvent;
-  requestedBy: string;
-  requestedAt: Date;
-  reason: string;
-  status: 'pending' | 'approved' | 'rejected';
-  approvedBy?: string;
-  approvedAt?: Date;
-  rejectionReason?: string;
-}
-
-/**
- * 자동 단계 전환 엔진
+ * 단계 전환 엔진
+ * 프로젝트 단계 전환의 중앙 처리 시스템
  */
 export class PhaseTransitionEngine {
+  private rules: PhaseTransitionRule[] = phaseTransitionRules;
   private listeners: PhaseTransitionListener[] = [];
   private pendingTransitions: Map<string, PhaseTransitionEvent> = new Map();
-  private approvalRequests: Map<string, PhaseTransitionApprovalRequest> = new Map();
   private transitionHistory: PhaseTransitionEvent[] = [];
-  private rules: PhaseTransitionRule[] = [...DEFAULT_PHASE_TRANSITION_RULES];
+  private approvalRequests: Map<string, PhaseTransitionApprovalRequest> = new Map();
+
+  constructor() {
+    this.initializeRules();
+  }
+
+  /**
+   * 규칙 초기화
+   */
+  private initializeRules(): void {
+    // 기본 규칙은 이미 phaseTransitionRules에 정의되어 있음
+    console.log(`Initialized ${this.rules.length} phase transition rules`);
+  }
 
   /**
    * 이벤트 리스너 등록
@@ -66,7 +54,7 @@ export class PhaseTransitionEngine {
   }
 
   /**
-   * 이벤트 발생 알림
+   * 이벤트 발생
    */
   private emitEvent(event: PhaseTransitionEvent): void {
     this.listeners.forEach(listener => {
@@ -79,37 +67,25 @@ export class PhaseTransitionEngine {
   }
 
   /**
-   * 커스텀 규칙 추가
-   */
-  addRule(rule: PhaseTransitionRule): void {
-    this.rules.push(rule);
-    this.rules.sort((a, b) => a.priority - b.priority);
-  }
-
-  /**
-   * 규칙 제거
-   */
-  removeRule(ruleId: string): void {
-    this.rules = this.rules.filter(rule => rule.id !== ruleId);
-  }
-
-  /**
    * 결제 완료 트리거
    */
-  triggerPaymentCompleted(projectId: string, paymentData: {
-    amount: number;
-    paymentId: string;
-    paymentMethod: string;
-    paidBy: string;
-  }): PhaseTransitionEvent | null {
+  triggerPaymentCompleted(
+    projectId: string,
+    paymentData: {
+      amount: number;
+      paymentMethod: string;
+      paidBy: string;
+    }
+  ): PhaseTransitionEvent | null {
     const project = this.getProject(projectId);
-    if (!project || project.phase !== 'contract_pending') {
+    if (!project) {
       return null;
     }
 
+    // 결제 완료 시 가능한 전환 확인
     const rule = this.findApplicableRule(
       project.phase,
-      'contract_signed',
+      'preparation_required',
       'payment_completed'
     );
 
@@ -120,11 +96,10 @@ export class PhaseTransitionEngine {
     const transitionEvent = createPhaseTransitionEvent(
       projectId,
       project.phase,
-      'contract_signed',
+      rule.toPhase,
       'payment_completed',
       'system',
       {
-        paymentId: paymentData.paymentId,
         amount: paymentData.amount,
         paymentMethod: paymentData.paymentMethod,
         paidBy: paymentData.paidBy
@@ -134,4 +109,384 @@ export class PhaseTransitionEngine {
     if (rule.autoApply) {
       this.applyTransition(transitionEvent);
     } else {
-      this.requestApproval(transitionEvent, 'system', '결제 완료로 인한 자동 단계 전환');\n    }\n\n    return transitionEvent;\n  }\n\n  /**\n   * 미팅 완료 트리거\n   */\n  triggerMeetingCompleted(\n    projectId: string,\n    meetingRecord: GuideMeetingRecord,\n    pmId: string\n  ): PhaseTransitionEvent | null {\n    const project = this.getProject(projectId);\n    if (!project) {\n      return null;\n    }\n\n    const transitionCheck = checkMeetingBasedPhaseTransition(project.phase, meetingRecord);\n    \n    if (!transitionCheck.shouldTransition || !transitionCheck.rule) {\n      return null;\n    }\n\n    const transitionEvent = createPhaseTransitionEvent(\n      projectId,\n      project.phase,\n      transitionCheck.rule.toPhase,\n      'meeting_completed',\n      pmId,\n      {\n        meetingRecordId: meetingRecord.id,\n        calendarEventId: meetingRecord.calendarEventId,\n        meetingType: meetingRecord.type\n      }\n    );\n\n    if (transitionCheck.rule.autoApply) {\n      this.applyTransition(transitionEvent);\n    } else {\n      this.requestApproval(\n        transitionEvent,\n        pmId,\n        `${meetingRecord.type} 미팅 완료로 인한 단계 전환`\n      );\n    }\n\n    return transitionEvent;\n  }\n\n  /**\n   * 수동 단계 전환 요청\n   */\n  requestManualTransition(\n    projectId: string,\n    fromPhase: ProjectPhase,\n    toPhase: ProjectPhase,\n    requestedBy: string,\n    reason: string\n  ): PhaseTransitionEvent | null {\n    const rule = this.findApplicableRule(fromPhase, toPhase, 'manual');\n    \n    if (!rule) {\n      throw new Error(`No rule found for transition from ${fromPhase} to ${toPhase}`);\n    }\n\n    const transitionEvent = createPhaseTransitionEvent(\n      projectId,\n      fromPhase,\n      toPhase,\n      'manual',\n      requestedBy,\n      { reason }\n    );\n\n    this.requestApproval(transitionEvent, requestedBy, reason);\n    return transitionEvent;\n  }\n\n  /**\n   * 승인 요청 생성\n   */\n  private requestApproval(\n    transitionEvent: PhaseTransitionEvent,\n    requestedBy: string,\n    reason: string\n  ): void {\n    const approvalRequest: PhaseTransitionApprovalRequest = {\n      id: `approval-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,\n      phaseTransitionEvent: transitionEvent,\n      requestedBy,\n      requestedAt: new Date(),\n      reason,\n      status: 'pending'\n    };\n\n    this.approvalRequests.set(approvalRequest.id, approvalRequest);\n    this.pendingTransitions.set(transitionEvent.id, transitionEvent);\n\n    // 승인 요청 이벤트 발생\n    this.emitEvent({\n      ...transitionEvent,\n      status: 'approval_required'\n    });\n  }\n\n  /**\n   * 승인 처리\n   */\n  approveTransition(approvalRequestId: string, approvedBy: string): boolean {\n    const request = this.approvalRequests.get(approvalRequestId);\n    if (!request || request.status !== 'pending') {\n      return false;\n    }\n\n    request.status = 'approved';\n    request.approvedBy = approvedBy;\n    request.approvedAt = new Date();\n\n    const transitionEvent = request.phaseTransitionEvent;\n    this.applyTransition(transitionEvent);\n\n    return true;\n  }\n\n  /**\n   * 승인 거절\n   */\n  rejectTransition(approvalRequestId: string, rejectedBy: string, reason: string): boolean {\n    const request = this.approvalRequests.get(approvalRequestId);\n    if (!request || request.status !== 'pending') {\n      return false;\n    }\n\n    request.status = 'rejected';\n    request.rejectionReason = reason;\n\n    const transitionEvent = request.phaseTransitionEvent;\n    transitionEvent.status = 'rejected';\n    transitionEvent.completedAt = new Date();\n\n    this.pendingTransitions.delete(transitionEvent.id);\n    this.transitionHistory.push(transitionEvent);\n\n    this.emitEvent(transitionEvent);\n    return true;\n  }\n\n  /**\n   * 단계 전환 적용\n   */\n  private applyTransition(transitionEvent: PhaseTransitionEvent): void {\n    try {\n      // 프로젝트 단계 업데이트 (실제로는 BuildupContext를 통해 처리)\n      this.updateProjectPhase(transitionEvent.projectId, transitionEvent.toPhase);\n\n      // 관련 캘린더 이벤트 업데이트\n      if (transitionEvent.triggerData?.calendarEventId) {\n        this.updateCalendarEventPhase(\n          transitionEvent.triggerData.calendarEventId,\n          transitionEvent.toPhase\n        );\n      }\n\n      // 전환 완료 처리\n      transitionEvent.status = 'completed';\n      transitionEvent.completedAt = new Date();\n\n      this.transitionHistory.push(transitionEvent);\n      this.pendingTransitions.delete(transitionEvent.id);\n\n      this.emitEvent(transitionEvent);\n\n      console.log(`Phase transition completed: ${transitionEvent.projectId} -> ${transitionEvent.toPhase}`);\n\n    } catch (error) {\n      console.error('Error applying phase transition:', error);\n      transitionEvent.status = 'failed';\n      transitionEvent.completedAt = new Date();\n      this.emitEvent(transitionEvent);\n    }\n  }\n\n  /**\n   * 적용 가능한 규칙 찾기\n   */\n  private findApplicableRule(\n    fromPhase: ProjectPhase,\n    toPhase: ProjectPhase,\n    trigger: PhaseTransitionTrigger,\n    meetingType?: MeetingType\n  ): PhaseTransitionRule | null {\n    return this.rules.find(rule =>\n      rule.fromPhase === fromPhase &&\n      rule.toPhase === toPhase &&\n      rule.trigger === trigger &&\n      (!rule.meetingTypes || !meetingType || rule.meetingTypes.includes(meetingType))\n    ) || null;\n  }\n\n  /**\n   * 프로젝트 조회 (외부 의존성)\n   */\n  private getProject(projectId: string): Project | null {\n    // TODO: BuildupContext에서 프로젝트 조회\n    // 임시로 null 반환\n    return null;\n  }\n\n  /**\n   * 프로젝트 단계 업데이트 (외부 의존성)\n   */\n  private updateProjectPhase(projectId: string, newPhase: ProjectPhase): void {\n    // TODO: BuildupContext를 통해 프로젝트 단계 업데이트\n    console.log(`Updating project ${projectId} phase to ${newPhase}`);\n  }\n\n  /**\n   * 캘린더 이벤트 단계 업데이트\n   */\n  private updateCalendarEventPhase(calendarEventId: string, newPhase: ProjectPhase): void {\n    const calendarEvent = globalIntegrationManager.findCalendarEventByMeetingRecord('');\n    if (calendarEvent) {\n      // CalendarContext를 통해 업데이트\n      console.log(`Updating calendar event ${calendarEventId} phase to ${newPhase}`);\n    }\n  }\n\n  /**\n   * 대기 중인 승인 요청 조회\n   */\n  getPendingApprovalRequests(): PhaseTransitionApprovalRequest[] {\n    return Array.from(this.approvalRequests.values())\n      .filter(request => request.status === 'pending');\n  }\n\n  /**\n   * 프로젝트별 전환 이력 조회\n   */\n  getTransitionHistory(projectId?: string): PhaseTransitionEvent[] {\n    if (!projectId) {\n      return this.transitionHistory;\n    }\n    return this.transitionHistory.filter(event => event.projectId === projectId);\n  }\n\n  /**\n   * 대기 중인 전환 조회\n   */\n  getPendingTransitions(): PhaseTransitionEvent[] {\n    return Array.from(this.pendingTransitions.values());\n  }\n\n  /**\n   * 프로젝트의 다음 가능한 전환들 조회\n   */\n  getAvailableTransitions(projectId: string): {\n    automatic: PhaseTransitionRule[];\n    manual: PhaseTransitionRule[];\n  } {\n    const project = this.getProject(projectId);\n    if (!project) {\n      return { automatic: [], manual: [] };\n    }\n\n    const currentPhase = project.phase;\n    const availableRules = this.rules.filter(rule => rule.fromPhase === currentPhase);\n\n    return {\n      automatic: availableRules.filter(rule => rule.autoApply),\n      manual: availableRules.filter(rule => !rule.autoApply)\n    };\n  }\n\n  /**\n   * 통계 조회\n   */\n  getStatistics() {\n    const totalTransitions = this.transitionHistory.length;\n    const completedTransitions = this.transitionHistory.filter(t => t.status === 'completed').length;\n    const failedTransitions = this.transitionHistory.filter(t => t.status === 'failed').length;\n    const pendingApprovals = this.getPendingApprovalRequests().length;\n\n    const byTrigger = this.transitionHistory.reduce((acc, t) => {\n      acc[t.trigger] = (acc[t.trigger] || 0) + 1;\n      return acc;\n    }, {} as Record<PhaseTransitionTrigger, number>);\n\n    return {\n      totalTransitions,\n      completedTransitions,\n      failedTransitions,\n      pendingApprovals,\n      successRate: totalTransitions > 0 ? (completedTransitions / totalTransitions) * 100 : 0,\n      byTrigger\n    };\n  }\n\n  /**\n   * 엔진 상태 초기화\n   */\n  reset(): void {\n    this.pendingTransitions.clear();\n    this.approvalRequests.clear();\n    this.transitionHistory = [];\n  }\n}\n\n/**\n * 전역 단계 전환 엔진 인스턴스\n */\nexport const globalPhaseTransitionEngine = new PhaseTransitionEngine();\n\n/**\n * 편의 함수들\n */\nexport const PhaseTransitionService = {\n  /**\n   * 결제 완료 처리\n   */\n  handlePaymentCompleted: (projectId: string, paymentData: any) => {\n    return globalPhaseTransitionEngine.triggerPaymentCompleted(projectId, paymentData);\n  },\n\n  /**\n   * 미팅 완료 처리\n   */\n  handleMeetingCompleted: (projectId: string, meetingRecord: GuideMeetingRecord, pmId: string) => {\n    return globalPhaseTransitionEngine.triggerMeetingCompleted(projectId, meetingRecord, pmId);\n  },\n\n  /**\n   * 수동 전환 요청\n   */\n  requestTransition: (projectId: string, fromPhase: ProjectPhase, toPhase: ProjectPhase, requestedBy: string, reason: string) => {\n    return globalPhaseTransitionEngine.requestManualTransition(projectId, fromPhase, toPhase, requestedBy, reason);\n  },\n\n  /**\n   * 승인 처리\n   */\n  approve: (approvalRequestId: string, approvedBy: string) => {\n    return globalPhaseTransitionEngine.approveTransition(approvalRequestId, approvedBy);\n  },\n\n  /**\n   * 거절 처리\n   */\n  reject: (approvalRequestId: string, rejectedBy: string, reason: string) => {\n    return globalPhaseTransitionEngine.rejectTransition(approvalRequestId, rejectedBy, reason);\n  },\n\n  /**\n   * 이벤트 리스너 등록\n   */\n  addEventListener: (listener: PhaseTransitionListener) => {\n    globalPhaseTransitionEngine.addEventListener(listener);\n  },\n\n  /**\n   * 통계 조회\n   */\n  getStatistics: () => {\n    return globalPhaseTransitionEngine.getStatistics();\n  },\n\n  /**\n   * 대기 중인 승인 요청\n   */\n  getPendingApprovals: () => {\n    return globalPhaseTransitionEngine.getPendingApprovalRequests();\n  },\n\n  /**\n   * 전환 이력\n   */\n  getHistory: (projectId?: string) => {\n    return globalPhaseTransitionEngine.getTransitionHistory(projectId);\n  }\n};
+      this.requestApproval(transitionEvent, 'system', '결제 완료로 인한 자동 단계 전환');
+    }
+
+    return transitionEvent;
+  }
+
+  /**
+   * 미팅 완료 트리거
+   */
+  triggerMeetingCompleted(
+    projectId: string,
+    meetingRecord: GuideMeetingRecord,
+    pmId: string
+  ): PhaseTransitionEvent | null {
+    const project = this.getProject(projectId);
+    if (!project) {
+      return null;
+    }
+
+    const transitionCheck = checkMeetingBasedPhaseTransition(project.phase, meetingRecord);
+
+    if (!transitionCheck.shouldTransition || !transitionCheck.rule) {
+      return null;
+    }
+
+    const transitionEvent = createPhaseTransitionEvent(
+      projectId,
+      project.phase,
+      transitionCheck.rule.toPhase,
+      'meeting_completed',
+      pmId,
+      {
+        meetingRecordId: meetingRecord.id,
+        calendarEventId: meetingRecord.calendarEventId,
+        meetingType: meetingRecord.type
+      }
+    );
+
+    if (transitionCheck.rule.autoApply) {
+      this.applyTransition(transitionEvent);
+    } else {
+      this.requestApproval(
+        transitionEvent,
+        pmId,
+        `${meetingRecord.type} 미팅 완료로 인한 단계 전환`
+      );
+    }
+
+    return transitionEvent;
+  }
+
+  /**
+   * 수동 단계 전환 요청
+   */
+  requestManualTransition(
+    projectId: string,
+    fromPhase: ProjectPhase,
+    toPhase: ProjectPhase,
+    requestedBy: string,
+    reason: string
+  ): PhaseTransitionEvent | null {
+    const rule = this.findApplicableRule(fromPhase, toPhase, 'manual');
+
+    if (!rule) {
+      throw new Error(`No rule found for transition from ${fromPhase} to ${toPhase}`);
+    }
+
+    const transitionEvent = createPhaseTransitionEvent(
+      projectId,
+      fromPhase,
+      toPhase,
+      'manual',
+      requestedBy,
+      { reason }
+    );
+
+    this.requestApproval(transitionEvent, requestedBy, reason);
+    return transitionEvent;
+  }
+
+  /**
+   * 승인 요청 생성
+   */
+  private requestApproval(
+    transitionEvent: PhaseTransitionEvent,
+    requestedBy: string,
+    reason: string
+  ): void {
+    const approvalRequest: PhaseTransitionApprovalRequest = {
+      id: `approval-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      phaseTransitionEvent: transitionEvent,
+      requestedBy,
+      requestedAt: new Date(),
+      reason,
+      status: 'pending'
+    };
+
+    this.approvalRequests.set(approvalRequest.id, approvalRequest);
+    this.pendingTransitions.set(transitionEvent.id, transitionEvent);
+
+    // 승인 요청 이벤트 발생
+    this.emitEvent({
+      ...transitionEvent,
+      status: 'approval_required'
+    });
+  }
+
+  /**
+   * 승인 처리
+   */
+  approveTransition(approvalRequestId: string, approvedBy: string): boolean {
+    const request = this.approvalRequests.get(approvalRequestId);
+    if (!request || request.status !== 'pending') {
+      return false;
+    }
+
+    request.status = 'approved';
+    request.approvedBy = approvedBy;
+    request.approvedAt = new Date();
+
+    const transitionEvent = request.phaseTransitionEvent;
+    this.applyTransition(transitionEvent);
+
+    return true;
+  }
+
+  /**
+   * 승인 거절
+   */
+  rejectTransition(approvalRequestId: string, rejectedBy: string, reason: string): boolean {
+    const request = this.approvalRequests.get(approvalRequestId);
+    if (!request || request.status !== 'pending') {
+      return false;
+    }
+
+    request.status = 'rejected';
+    request.rejectionReason = reason;
+
+    const transitionEvent = request.phaseTransitionEvent;
+    transitionEvent.status = 'rejected';
+    transitionEvent.completedAt = new Date();
+
+    this.pendingTransitions.delete(transitionEvent.id);
+    this.transitionHistory.push(transitionEvent);
+
+    this.emitEvent(transitionEvent);
+    return true;
+  }
+
+  /**
+   * 단계 전환 적용
+   */
+  private applyTransition(transitionEvent: PhaseTransitionEvent): void {
+    try {
+      // 프로젝트 단계 업데이트 (실제로는 BuildupContext를 통해 처리)
+      this.updateProjectPhase(transitionEvent.projectId, transitionEvent.toPhase);
+
+      // 관련 캘린더 이벤트 업데이트
+      if (transitionEvent.triggerData?.calendarEventId) {
+        this.updateCalendarEventPhase(
+          transitionEvent.triggerData.calendarEventId,
+          transitionEvent.toPhase
+        );
+      }
+
+      // 전환 완료 처리
+      transitionEvent.status = 'completed';
+      transitionEvent.completedAt = new Date();
+
+      this.transitionHistory.push(transitionEvent);
+      this.pendingTransitions.delete(transitionEvent.id);
+
+      this.emitEvent(transitionEvent);
+
+      console.log(`Phase transition completed: ${transitionEvent.projectId} -> ${transitionEvent.toPhase}`);
+
+    } catch (error) {
+      console.error('Error applying phase transition:', error);
+      transitionEvent.status = 'failed';
+      transitionEvent.completedAt = new Date();
+      this.emitEvent(transitionEvent);
+    }
+  }
+
+  /**
+   * 적용 가능한 규칙 찾기
+   */
+  private findApplicableRule(
+    fromPhase: ProjectPhase,
+    toPhase: ProjectPhase,
+    trigger: PhaseTransitionTrigger,
+    meetingType?: MeetingType
+  ): PhaseTransitionRule | null {
+    return this.rules.find(rule =>
+      rule.fromPhase === fromPhase &&
+      rule.toPhase === toPhase &&
+      rule.trigger === trigger &&
+      (!rule.meetingTypes || !meetingType || rule.meetingTypes.includes(meetingType))
+    ) || null;
+  }
+
+  /**
+   * 프로젝트 조회 (외부 의존성)
+   */
+  private getProject(projectId: string): Project | null {
+    // TODO: BuildupContext에서 프로젝트 조회
+    // 임시로 null 반환
+    return null;
+  }
+
+  /**
+   * 프로젝트 단계 업데이트 (외부 의존성)
+   */
+  private updateProjectPhase(projectId: string, newPhase: ProjectPhase): void {
+    // TODO: BuildupContext를 통해 프로젝트 단계 업데이트
+    console.log(`Updating project ${projectId} phase to ${newPhase}`);
+  }
+
+  /**
+   * 캘린더 이벤트 단계 업데이트
+   */
+  private updateCalendarEventPhase(calendarEventId: string, newPhase: ProjectPhase): void {
+    const calendarEvent = globalIntegrationManager.findCalendarEventByMeetingRecord('');
+    if (calendarEvent) {
+      // CalendarContext를 통해 업데이트
+      console.log(`Updating calendar event ${calendarEventId} phase to ${newPhase}`);
+    }
+  }
+
+  /**
+   * 대기 중인 승인 요청 조회
+   */
+  getPendingApprovalRequests(): PhaseTransitionApprovalRequest[] {
+    return Array.from(this.approvalRequests.values())
+      .filter(request => request.status === 'pending');
+  }
+
+  /**
+   * 프로젝트별 전환 이력 조회
+   */
+  getTransitionHistory(projectId?: string): PhaseTransitionEvent[] {
+    if (!projectId) {
+      return this.transitionHistory;
+    }
+    return this.transitionHistory.filter(event => event.projectId === projectId);
+  }
+
+  /**
+   * 대기 중인 전환 조회
+   */
+  getPendingTransitions(): PhaseTransitionEvent[] {
+    return Array.from(this.pendingTransitions.values());
+  }
+
+  /**
+   * 프로젝트의 다음 가능한 전환들 조회
+   */
+  getAvailableTransitions(projectId: string): {
+    automatic: PhaseTransitionRule[];
+    manual: PhaseTransitionRule[];
+  } {
+    const project = this.getProject(projectId);
+    if (!project) {
+      return { automatic: [], manual: [] };
+    }
+
+    const currentPhase = project.phase;
+    const availableRules = this.rules.filter(rule => rule.fromPhase === currentPhase);
+
+    return {
+      automatic: availableRules.filter(rule => rule.autoApply),
+      manual: availableRules.filter(rule => !rule.autoApply)
+    };
+  }
+
+  /**
+   * 통계 조회
+   */
+  getStatistics() {
+    const totalTransitions = this.transitionHistory.length;
+    const completedTransitions = this.transitionHistory.filter(t => t.status === 'completed').length;
+    const failedTransitions = this.transitionHistory.filter(t => t.status === 'failed').length;
+    const pendingApprovals = this.getPendingApprovalRequests().length;
+
+    const byTrigger = this.transitionHistory.reduce((acc, t) => {
+      acc[t.trigger] = (acc[t.trigger] || 0) + 1;
+      return acc;
+    }, {} as Record<PhaseTransitionTrigger, number>);
+
+    return {
+      totalTransitions,
+      completedTransitions,
+      failedTransitions,
+      pendingApprovals,
+      successRate: totalTransitions > 0 ? (completedTransitions / totalTransitions) * 100 : 0,
+      byTrigger
+    };
+  }
+
+  /**
+   * 엔진 상태 초기화
+   */
+  reset(): void {
+    this.pendingTransitions.clear();
+    this.approvalRequests.clear();
+    this.transitionHistory = [];
+  }
+}
+
+/**
+ * 전역 단계 전환 엔진 인스턴스
+ */
+export const globalPhaseTransitionEngine = new PhaseTransitionEngine();
+
+/**
+ * 편의 함수들
+ */
+export const PhaseTransitionService = {
+  /**
+   * 결제 완료 처리
+   */
+  handlePaymentCompleted: (projectId: string, paymentData: any) => {
+    return globalPhaseTransitionEngine.triggerPaymentCompleted(projectId, paymentData);
+  },
+
+  /**
+   * 미팅 완료 처리
+   */
+  handleMeetingCompleted: (projectId: string, meetingRecord: GuideMeetingRecord, pmId: string) => {
+    return globalPhaseTransitionEngine.triggerMeetingCompleted(projectId, meetingRecord, pmId);
+  },
+
+  /**
+   * 수동 전환 요청
+   */
+  requestTransition: (projectId: string, fromPhase: ProjectPhase, toPhase: ProjectPhase, requestedBy: string, reason: string) => {
+    return globalPhaseTransitionEngine.requestManualTransition(projectId, fromPhase, toPhase, requestedBy, reason);
+  },
+
+  /**
+   * 승인 처리
+   */
+  approve: (approvalRequestId: string, approvedBy: string) => {
+    return globalPhaseTransitionEngine.approveTransition(approvalRequestId, approvedBy);
+  },
+
+  /**
+   * 거절 처리
+   */
+  reject: (approvalRequestId: string, rejectedBy: string, reason: string) => {
+    return globalPhaseTransitionEngine.rejectTransition(approvalRequestId, rejectedBy, reason);
+  },
+
+  /**
+   * 이벤트 리스너 등록
+   */
+  addEventListener: (listener: PhaseTransitionListener) => {
+    globalPhaseTransitionEngine.addEventListener(listener);
+  },
+
+  /**
+   * 통계 조회
+   */
+  getStatistics: () => {
+    return globalPhaseTransitionEngine.getStatistics();
+  },
+
+  /**
+   * 대기 중인 승인 요청
+   */
+  getPendingApprovals: () => {
+    return globalPhaseTransitionEngine.getPendingApprovalRequests();
+  },
+
+  /**
+   * 전환 이력
+   */
+  getHistory: (projectId?: string) => {
+    return globalPhaseTransitionEngine.getTransitionHistory(projectId);
+  }
+};

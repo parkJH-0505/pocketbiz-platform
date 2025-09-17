@@ -46,6 +46,42 @@ import {
   calculatePhaseProgress,
   getPhaseIndex
 } from '../../../utils/projectPhaseUtils';
+import PhaseTransitionControls from '../../../components/phaseTransition/PhaseTransitionControls';
+
+// Phase 색상 매핑 (ProjectPhaseIndicator와 동일)
+const PHASE_COLORS: Record<ProjectPhase, {
+  textColor: string;
+  bgColor: string;
+}> = {
+  contract_pending: {
+    textColor: 'text-gray-700',
+    bgColor: 'bg-gray-100'
+  },
+  contract_signed: {
+    textColor: 'text-green-700',
+    bgColor: 'bg-green-100'
+  },
+  planning: {
+    textColor: 'text-blue-700',
+    bgColor: 'bg-blue-100'
+  },
+  design: {
+    textColor: 'text-indigo-700',
+    bgColor: 'bg-indigo-100'
+  },
+  execution: {
+    textColor: 'text-purple-700',
+    bgColor: 'bg-purple-100'
+  },
+  review: {
+    textColor: 'text-orange-700',
+    bgColor: 'bg-orange-100'
+  },
+  completed: {
+    textColor: 'text-green-700',
+    bgColor: 'bg-green-100'
+  }
+};
 
 type DashboardView = 'overview' | 'projects';
 type ProjectFilter = 'all' | 'active' | 'completed' | 'wishlist';
@@ -203,6 +239,9 @@ export default function BuildupDashboard() {
           </div>
         </div>
       )}
+
+      {/* Phase Transition Controls - 관리자 전용 */}
+      <PhaseTransitionControls />
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -404,6 +443,7 @@ export default function BuildupDashboard() {
                 const progress = calculateProgress(project);
                 const phase = project.phase || 'contract_pending';
                 const phaseInfo = PHASE_INFO[phase];
+                const phaseColors = PHASE_COLORS[phase] || PHASE_COLORS.contract_pending;
 
                 return (
                   <div
@@ -455,14 +495,6 @@ export default function BuildupDashboard() {
                               </div>
                             )}
 
-                            {project.contract && (
-                              <div className="text-right">
-                                <div className="text-xs text-neutral-dark">계약 금액</div>
-                                <div className="text-sm font-bold text-neutral-darkest">
-                                  {(project.contract.value / 1000000).toFixed(0)}백만원
-                                </div>
-                              </div>
-                            )}
                           </div>
                         </div>
 
@@ -470,10 +502,9 @@ export default function BuildupDashboard() {
                         <div className="mb-4">
                           <div className="flex items-center justify-between mb-3">
                             <span className="text-sm font-medium text-neutral-darkest">프로젝트 진행도</span>
-                            <span className="text-sm font-bold text-primary-main">{phaseInfo.label}</span>
                           </div>
 
-                          <div className="relative">
+                          <div className="relative pb-8">
                             {/* 배경 트랙 */}
                             <div className="flex items-center gap-1">
                               {ALL_PHASES.map((p, idx) => {
@@ -482,6 +513,7 @@ export default function BuildupDashboard() {
                                 const isPassed = phaseIdx <= currentIdx;
                                 const isCurrent = phaseIdx === currentIdx;
                                 const phaseData = PHASE_INFO[p];
+                                const currentPhaseColors = PHASE_COLORS[p] || PHASE_COLORS.contract_pending;
 
                                 return (
                                   <div key={p} className="group/phase relative flex-1">
@@ -508,13 +540,37 @@ export default function BuildupDashboard() {
                                           </div>
                                         </div>
                                       )}
+
+                                      {/* 현재 단계 색상 배지 - 프로그레스 바 위에 위치 */}
+                                      {isCurrent && (
+                                        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 z-10">
+                                          <div className={`px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap ${currentPhaseColors.textColor} ${currentPhaseColors.bgColor} shadow-lg border-2 border-white`}>
+                                            {phaseData.label}
+                                          </div>
+                                          {/* 화살표 */}
+                                          <div
+                                            className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent"
+                                            style={{
+                                              borderTopColor: p === 'contract_pending' ? '#f3f4f6' :
+                                                             p === 'contract_signed' ? '#dcfce7' :
+                                                             p === 'planning' ? '#dbeafe' :
+                                                             p === 'design' ? '#e0e7ff' :
+                                                             p === 'execution' ? '#f3e8ff' :
+                                                             p === 'review' ? '#fed7aa' :
+                                                             '#dcfce7'
+                                            }}
+                                          ></div>
+                                        </div>
+                                      )}
                                     </div>
 
-                                    {/* 호버 툴팁 - 더 고급스럽게 */}
-                                    <div className="opacity-0 group-hover/phase:opacity-100 absolute bottom-8 left-1/2 transform -translate-x-1/2 z-30 transition-all duration-200">
-                                      <div className="bg-neutral-darkest/95 backdrop-blur-sm text-white px-3 py-2 rounded-lg shadow-xl border border-white/10">
-                                        <div className="text-xs font-semibold">{phaseData.label}</div>
-                                        <div className="text-[10px] opacity-70">{phaseData.description}</div>
+                                    {/* 호버 툴팁 - 개선된 버전 */}
+                                    <div className="opacity-0 group-hover/phase:opacity-100 absolute -top-20 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300 pointer-events-none">
+                                      <div className="bg-gray-900 text-white px-3 py-2 rounded-lg shadow-2xl border border-gray-700 whitespace-nowrap">
+                                        <div className="text-sm font-semibold">{phaseData.label}</div>
+                                        <div className="text-xs opacity-80 mt-1">{phaseData.description}</div>
+                                        {/* 화살표 */}
+                                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
                                       </div>
                                     </div>
                                   </div>

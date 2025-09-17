@@ -11,6 +11,7 @@
       "tags": ["투자유치", "IR", "피칭", "스토리텔링", "재무모델"],
 
       "price": {
+        "type": "consultation",
         "original": 5000000,
         "discounted": 4500000,
         "unit": "프로젝트",
@@ -245,6 +246,7 @@
       "tags": ["MVP", "웹개발", "React", "Node.js", "프로토타입"],
 
       "price": {
+        "type": "consultation",
         "original": 8000000,
         "discounted": 7200000,
         "unit": "프로젝트",
@@ -865,6 +867,7 @@
       "tags": ["투자유치", "VC매칭", "실사대응", "밸류에이션", "투자전략"],
 
       "price": {
+        "type": "consultation",
         "original": 8000000,
         "discounted": 7200000,
         "unit": "프로젝트",
@@ -1028,6 +1031,7 @@
       "tags": ["비즈니스모델", "수익화", "전략", "BM", "컨설팅"],
 
       "price": {
+        "type": "consultation",
         "original": 6000000,
         "discounted": 5400000,
         "unit": "프로젝트",
@@ -1159,6 +1163,7 @@
       "tags": ["사업계획서", "정부지원", "창업지원", "문서작성"],
 
       "price": {
+        "type": "consultation",
         "original": 3000000,
         "discounted": 2400000,
         "unit": "프로젝트",
@@ -1318,6 +1323,7 @@
       "tags": ["웹개발", "반응형", "홈페이지", "SEO", "웹사이트"],
 
       "price": {
+        "type": "consultation",
         "original": 8000000,
         "discounted": null,
         "unit": "프로젝트"
