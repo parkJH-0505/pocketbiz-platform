@@ -215,30 +215,6 @@ export const CalculationInput: React.FC<CalculationInputProps> = ({
               </div>
             </div>
           </div>
-          {/* 점수 계산 및 ScoreIndicator 표시 */}
-          {minMax && (() => {
-            const percentage = calculatedValue * 100;
-            let score = 0;
-            
-            if (percentage <= minMax.min) {
-              score = 0;
-            } else if (percentage >= minMax.max) {
-              score = 100;
-            } else {
-              score = ((percentage - minMax.min) / (minMax.max - minMax.min)) * 100;
-            }
-            
-            return (
-              <div className="mt-3 space-y-2">
-                <ScoreIndicator score={Math.round(score)} size="sm" showBar={true} />
-                <div className="text-xs text-neutral-gray">
-                  <span>0점: {minMax.min}% 미만</span>
-                  <span className="mx-2">|</span>
-                  <span>100점: {minMax.max}% 이상</span>
-                </div>
-              </div>
-            );
-          })()}
         </div>
       )}
 

@@ -34,6 +34,14 @@ import {
 import { CalendarService } from '../services/calendarService';
 import { useBuildupContext } from './BuildupContext';
 import { useChatContext } from './ChatContext';
+import {
+  globalIntegrationManager,
+  initializeIntegrationSystem,
+  updateCalendarEventOnMeetingCompletion,
+  updateEventsOnPhaseTransition,
+  type IntegrationEvent
+} from '../utils/calendarMeetingIntegration';
+import type { GuideMeetingRecord } from '../types/meeting.types';
 
 interface CalendarContextType {
   // Events
@@ -84,6 +92,15 @@ interface CalendarContextType {
   // Sync with Projects
   syncWithProjects: () => void;
   generateEventsFromProject: (project: Project) => CalendarEvent[];
+
+  // Calendar-Meeting Integration
+  linkEventToMeetingRecord: (eventId: string, meetingRecordId: string) => void;
+  findMeetingRecordByEvent: (eventId: string) => GuideMeetingRecord | null;
+  findEventByMeetingRecord: (meetingRecordId: string) => CalendarEvent | null;
+  onMeetingCompleted: (meetingRecord: GuideMeetingRecord) => void;
+  onPhaseTransition: (projectId: string, fromPhase: string, toPhase: string, triggeredBy: string) => void;
+  getIntegrationStatus: (projectId: string) => any;
+  integrationEvents: IntegrationEvent[];
 }
 
 const CalendarContext = createContext<CalendarContextType | undefined>(undefined);
@@ -95,6 +112,25 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [filter, setFilterState] = useState<CalendarFilter>({});
+  const [integrationEvents, setIntegrationEvents] = useState<IntegrationEvent[]>([]);
+
+  // 통합 이벤트 리스너 등록
+  useEffect(() => {
+    const handleIntegrationEvent = (event: IntegrationEvent) => {
+      setIntegrationEvents(prev => [...prev, event]);
+
+      // 캘린더 이벤트 업데이트가 필요한 경우
+      if (event.type === 'meeting_completed' || event.type === 'phase_transition_applied') {
+        setEvents(CalendarService.getAllEvents());
+      }
+    };
+
+    globalIntegrationManager.addEventListener(handleIntegrationEvent);
+
+    return () => {
+      globalIntegrationManager.removeEventListener(handleIntegrationEvent);
+    };
+  }, []);
 
   /**
    * 프로젝트에서 이벤트 생성
@@ -302,6 +338,10 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (activeProjects.length > 0) {
       syncWithProjects();
+
+      // 통합 시스템 초기화
+      const currentEvents = CalendarService.getAllEvents();
+      initializeIntegrationSystem(currentEvents, []);
     }
   }, [activeProjects, syncWithProjects]);
 
@@ -478,6 +518,10 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
 
     // CalendarService에도 추가
     const addedEvent = CalendarService.addEvent(newEvent);
+
+    // 통합 시스템에 등록
+    globalIntegrationManager.registerCalendarEvent(addedEvent);
+
     setEvents(CalendarService.getAllEvents());
     return addedEvent;
   }, [projects]);
@@ -609,7 +653,38 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     approveReschedule: async () => {}, // TODO: Implement
     rejectReschedule: async () => {}, // TODO: Implement
     syncWithProjects,
-    generateEventsFromProject
+    generateEventsFromProject,
+
+    // Calendar-Meeting Integration Methods
+    linkEventToMeetingRecord: (eventId: string, meetingRecordId: string) => {
+      globalIntegrationManager.createLinkage(eventId, meetingRecordId);
+    },
+
+    findMeetingRecordByEvent: (eventId: string): GuideMeetingRecord | null => {
+      return globalIntegrationManager.findMeetingRecordByCalendarEvent(eventId);
+    },
+
+    findEventByMeetingRecord: (meetingRecordId: string): CalendarEvent | null => {
+      return globalIntegrationManager.findCalendarEventByMeetingRecord(meetingRecordId);
+    },
+
+    onMeetingCompleted: (meetingRecord: GuideMeetingRecord) => {
+      globalIntegrationManager.registerMeetingRecord(meetingRecord);
+      const updatedEvent = updateCalendarEventOnMeetingCompletion(meetingRecord.calendarEventId || '', meetingRecord);
+      if (updatedEvent) {
+        setEvents(CalendarService.getAllEvents());
+      }
+    },
+
+    onPhaseTransition: (projectId: string, fromPhase: string, toPhase: string, triggeredBy: string) => {
+      updateEventsOnPhaseTransition(projectId, fromPhase as any, toPhase as any, triggeredBy);
+    },
+
+    getIntegrationStatus: (projectId: string) => {
+      return globalIntegrationManager.getProjectIntegrationStatus(projectId);
+    },
+
+    integrationEvents
   };
 
   return (

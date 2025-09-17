@@ -4,13 +4,14 @@ import { validateKPI } from '../../utils/validation';
 import type { KPIDefinition, KPIResponse, RawValue } from '../../types';
 import type { StageRule } from '../../utils/csvParser';
 import { getKPIInputLabels } from '../../data/kpiLoader';
-import { 
-  NumericInput, 
-  RubricInput, 
-  MultiSelectInput, 
-  CalculationInput, 
+import { DevDebugPanel } from './DevDebugPanel';
+import {
+  NumericInput,
+  RubricInput,
+  MultiSelectInput,
+  CalculationInput,
   StageInput,
-  ChecklistInput 
+  ChecklistInput
 } from '../kpi';
 
 interface CSVKPICardProps {
@@ -115,7 +116,6 @@ export const CSVKPICard: React.FC<CSVKPICardProps> = ({
             choices={stageRule.choices || []}
             selectedIndex={typeof value === 'object' && 'selectedIndex' in value ? value.selectedIndex : undefined}
             onChange={(val) => handleValueChange({ selectedIndex: val.selectedIndex })}
-            weight={stageRule.weight}
           />
         );
 
@@ -125,7 +125,6 @@ export const CSVKPICard: React.FC<CSVKPICardProps> = ({
             choices={stageRule.choices || []}
             selectedIndices={typeof value === 'object' && 'selectedIndices' in value ? value.selectedIndices : []}
             onChange={(val) => handleValueChange({ selectedIndices: val.selectedIndices })}
-            weight={stageRule.weight}
           />
         );
 
@@ -146,16 +145,15 @@ export const CSVKPICard: React.FC<CSVKPICardProps> = ({
         const stageOptions = (stageRule.choices || []).map(choice => ({
           value: `stage-${choice.index}`,
           label: choice.label,
-          description: choice.label,
-          score: choice.score
+          description: choice.label
+          // score 정보는 개발자 모드에서만 확인 가능
         }));
-        
+
         return (
           <StageInput
             stages={stageOptions}
             selectedStage={typeof value === 'object' && 'stage' in value ? value.stage : undefined}
-            onChange={(val) => handleValueChange({ stage: val.stage, score: val.score })}
-            weight={stageRule.weight}
+            onChange={(val) => handleValueChange({ stage: val.stage, score: 0 })} // score는 내부에서 계산
           />
         );
 
@@ -165,7 +163,6 @@ export const CSVKPICard: React.FC<CSVKPICardProps> = ({
             choices={stageRule.choices || []}
             selectedIndices={typeof value === 'object' && 'selectedIndices' in value ? value.selectedIndices : []}
             onChange={(val) => handleValueChange({ selectedIndices: val.selectedIndices })}
-            weight={stageRule.weight}
           />
         );
 
@@ -205,50 +202,41 @@ export const CSVKPICard: React.FC<CSVKPICardProps> = ({
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h4 className="font-semibold text-xl text-neutral-dark">{kpi.title}</h4>
-            {stageRule?.weight && stageRule.weight !== 'x1' && (
-              <span className={`text-sm font-semibold px-2 py-1 rounded ${
-                stageRule.weight === 'x3' ? 'bg-accent-red-light text-accent-red' :
-                stageRule.weight === 'x2' ? 'bg-accent-orange-light text-accent-orange' :
-                'bg-neutral-light text-neutral-gray'
-              }`}>
-                {stageRule.weight}
-              </span>
-            )}
+            {/* 가중치 배지는 개발자 모드에서만 표시 - DevDebugPanel에서 확인 가능 */}
           </div>
           <p className="text-base text-neutral-gray mt-1">{kpi.question}</p>
         </div>
         
         <div className="flex items-center gap-2">
-          {/* 정보 툴팁 */}
+          {/* 개발자 디버그 패널 */}
+          <DevDebugPanel
+            kpi={kpi}
+            stageRule={stageRule}
+            currentValue={value}
+            calculatedScore={response?.score}
+          />
+
+          {/* 사용자용 도움말 */}
           <div className="relative">
             <button
-              onClick={() => setShowDetails(!showDetails)}
-              onMouseEnter={() => setShowDetails(true)}
-              onMouseLeave={() => setShowDetails(false)}
+              onClick={() => setShowHelp(!showHelp)}
               className="p-2 hover:bg-white/50 rounded-lg transition-all duration-200"
             >
-              <Info size={18} className="text-neutral-gray" />
+              <HelpCircle size={18} className="text-neutral-gray" />
             </button>
-            
-            {showDetails && (
+
+            {showHelp && (
               <div className="absolute right-0 top-10 z-[100] w-72 p-4 rounded-xl
                 bg-white border border-neutral-border shadow-2xl animate-fade-in">
                 <div className="space-y-2">
-                  <div>
-                    <p className="text-xs font-semibold text-neutral-gray mb-1">KPI ID</p>
-                    <p className="text-sm font-mono">{kpi.kpi_id}</p>
-                  </div>
-                  {kpi.formula && (
-                    <div>
-                      <p className="text-xs font-semibold text-neutral-gray mb-1">계산식</p>
-                      <p className="text-xs font-mono bg-neutral-light/50 p-2 rounded">
-                        {kpi.formula}
-                      </p>
+                  <p className="text-sm text-neutral-dark font-medium">입력 가이드</p>
+                  <p className="text-xs text-neutral-gray">{getHelpTextForKPI(kpi)}</p>
+                  {kpi.example && (
+                    <div className="mt-2 p-2 bg-neutral-light/50 rounded">
+                      <p className="text-xs font-medium text-neutral-gray">예시</p>
+                      <p className="text-xs text-neutral-dark">{kpi.example}</p>
                     </div>
                   )}
-                  <p className="text-xs text-neutral-gray mt-2">
-                    {getHelpTextForKPI(kpi)}
-                  </p>
                 </div>
               </div>
             )}
@@ -344,12 +332,13 @@ function getUnitForKPI(kpiId: string): string {
 
 function getHelpTextForKPI(kpi: KPIDefinition): string {
   const helpTexts: Record<string, string> = {
-    'Numeric': '정확한 숫자 값을 입력해주세요. 최대한 정확한 데이터를 입력할수록 더 나은 평가를 받을 수 있습니다.',
+    'Numeric': '정확한 숫자 값을 입력해주세요. 최대한 정확한 데이터를 입력할수록 더 나은 진단을 받을 수 있습니다.',
     'Calculation': '다른 KPI 값들을 참조하여 자동으로 계산됩니다. 필요한 값들을 모두 입력해주세요.',
-    'Rubric': '가장 적합한 선택지를 하나만 선택해주세요. 각 선택지마다 다른 점수가 부여됩니다.',
-    'MultiSelect': '해당되는 모든 항목을 선택해주세요. 선택한 항목들의 가중치 합으로 점수가 계산됩니다.',
-    'Stage': '현재 달성한 단계를 선택해주세요. 높은 단계일수록 더 높은 점수를 받습니다.'
+    'Rubric': '현재 상황에 가장 적합한 선택지를 하나만 선택해주세요.',
+    'MultiSelect': '해당되는 모든 항목을 선택해주세요. 복수 선택이 가능합니다.',
+    'Stage': '현재 달성한 단계를 선택해주세요. 가장 근사한 단계를 선택하시면 됩니다.',
+    'Checklist': '해당되는 모든 항목을 체크해주세요.'
   };
-  
+
   return helpTexts[kpi.input_type] || '정확한 정보를 입력해주세요.';
 }

@@ -1,4 +1,7 @@
 import type { ProjectPhase } from '../types/buildup.types';
+import type { PhaseTransitionRule, PhaseTransitionEvent, PhaseTransitionTrigger } from '../types/meeting.types';
+import type { GuideMeetingRecord, MeetingType } from '../types/meeting.types';
+import type { CalendarEvent } from '../types/calendar.types';
 
 /**
  * 프로젝트 단계 관리 유틸리티
@@ -212,4 +215,229 @@ export function checkAutoPhaseTransition(
   }
 
   return phase;
+}
+
+/**
+ * 기본 단계 전환 규칙 정의
+ */
+export const DEFAULT_PHASE_TRANSITION_RULES: PhaseTransitionRule[] = [
+  {
+    id: 'payment_to_contract_signed',
+    fromPhase: 'contract_pending',
+    toPhase: 'contract_signed',
+    trigger: 'payment_completed',
+    autoApply: true,
+    description: '대금 지불 완료시 계약완료 단계로 자동 전환',
+    priority: 1
+  },
+  {
+    id: 'kickoff_to_planning',
+    fromPhase: 'contract_signed',
+    toPhase: 'planning',
+    trigger: 'meeting_completed',
+    meetingTypes: ['pm_meeting'],
+    autoApply: true,
+    description: '킥오프 미팅 완료 후 기획 단계로 전환',
+    priority: 2
+  },
+  {
+    id: 'planning_review_to_design',
+    fromPhase: 'planning',
+    toPhase: 'design',
+    trigger: 'meeting_completed',
+    meetingTypes: ['pm_meeting'],
+    autoApply: false,
+    description: '기획 검토 미팅 완료 후 설계 단계로 전환 (PM 승인 필요)',
+    priority: 3
+  },
+  {
+    id: 'design_review_to_execution',
+    fromPhase: 'design',
+    toPhase: 'execution',
+    trigger: 'meeting_completed',
+    meetingTypes: ['pm_meeting'],
+    autoApply: false,
+    description: '설계 검토 미팅 완료 후 실행 단계로 전환 (PM 승인 필요)',
+    priority: 4
+  },
+  {
+    id: 'execution_demo_to_review',
+    fromPhase: 'execution',
+    toPhase: 'review',
+    trigger: 'meeting_completed',
+    meetingTypes: ['pm_meeting'],
+    autoApply: false,
+    description: '실행 완료 데모 미팅 후 검토 단계로 전환 (PM 승인 필요)',
+    priority: 5
+  },
+  {
+    id: 'final_review_to_completed',
+    fromPhase: 'review',
+    toPhase: 'completed',
+    trigger: 'meeting_completed',
+    meetingTypes: ['pm_meeting'],
+    autoApply: false,
+    description: '최종 검토 미팅 완료 후 프로젝트 완료 (PM 승인 필요)',
+    priority: 6
+  }
+];
+
+/**
+ * 단계 전환 가능 여부 체크
+ */
+export function canTransitionToPhase(
+  currentPhase: ProjectPhase,
+  targetPhase: ProjectPhase,
+  trigger: PhaseTransitionTrigger,
+  meetingType?: MeetingType
+): PhaseTransitionRule | null {
+  const applicableRules = DEFAULT_PHASE_TRANSITION_RULES.filter(rule =>
+    rule.fromPhase === currentPhase &&
+    rule.toPhase === targetPhase &&
+    rule.trigger === trigger &&
+    (!rule.meetingTypes || !meetingType || rule.meetingTypes.includes(meetingType))
+  );
+
+  // 우선순위가 가장 높은 규칙 반환
+  return applicableRules.sort((a, b) => a.priority - b.priority)[0] || null;
+}
+
+/**
+ * 미팅 완료 시 자동 단계 전환 체크
+ */
+export function checkMeetingBasedPhaseTransition(
+  currentPhase: ProjectPhase,
+  meetingRecord: GuideMeetingRecord
+): { shouldTransition: boolean; rule?: PhaseTransitionRule; requiresApproval: boolean } {
+  const rule = canTransitionToPhase(
+    currentPhase,
+    getNextPhase(currentPhase) as ProjectPhase,
+    'meeting_completed',
+    meetingRecord.type
+  );
+
+  if (!rule) {
+    return { shouldTransition: false, requiresApproval: false };
+  }
+
+  return {
+    shouldTransition: true,
+    rule,
+    requiresApproval: !rule.autoApply
+  };
+}
+
+/**
+ * 단계 전환 이벤트 생성
+ */
+export function createPhaseTransitionEvent(
+  projectId: string,
+  fromPhase: ProjectPhase,
+  toPhase: ProjectPhase,
+  trigger: PhaseTransitionTrigger,
+  triggeredBy: string,
+  triggerData?: {
+    meetingRecordId?: string;
+    calendarEventId?: string;
+    paymentId?: string;
+    [key: string]: any;
+  }
+): PhaseTransitionEvent {
+  return {
+    id: `pt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    projectId,
+    fromPhase,
+    toPhase,
+    trigger,
+    triggeredBy,
+    triggeredAt: new Date(),
+    status: 'pending',
+    triggerData
+  };
+}
+
+/**
+ * 캘린더 이벤트와 미팅 기록 연결
+ */
+export function linkCalendarEventToMeeting(
+  calendarEvent: CalendarEvent,
+  meetingRecord: GuideMeetingRecord
+): { updatedCalendarEvent: CalendarEvent; updatedMeetingRecord: GuideMeetingRecord } {
+  const updatedCalendarEvent: CalendarEvent = {
+    ...calendarEvent,
+    meetingRecordId: meetingRecord.id,
+    meetingData: {
+      ...calendarEvent.meetingData,
+      recordId: meetingRecord.id
+    }
+  };
+
+  const updatedMeetingRecord: GuideMeetingRecord = {
+    ...meetingRecord,
+    calendarEventId: calendarEvent.id
+  };
+
+  return {
+    updatedCalendarEvent,
+    updatedMeetingRecord
+  };
+}
+
+/**
+ * 미팅 완료 시 단계 전환 트리거
+ */
+export function triggerPhaseTransitionFromMeeting(
+  projectId: string,
+  currentPhase: ProjectPhase,
+  meetingRecord: GuideMeetingRecord,
+  pmId: string
+): PhaseTransitionEvent | null {
+  const transitionCheck = checkMeetingBasedPhaseTransition(currentPhase, meetingRecord);
+
+  if (!transitionCheck.shouldTransition || !transitionCheck.rule) {
+    return null;
+  }
+
+  return createPhaseTransitionEvent(
+    projectId,
+    currentPhase,
+    transitionCheck.rule.toPhase,
+    'meeting_completed',
+    pmId,
+    {
+      meetingRecordId: meetingRecord.id,
+      calendarEventId: meetingRecord.calendarEventId
+    }
+  );
+}
+
+/**
+ * 단계별 필수 미팅 타입 정의
+ */
+export const PHASE_REQUIRED_MEETINGS: Record<ProjectPhase, MeetingType[]> = {
+  contract_pending: [],
+  contract_signed: ['pm_meeting'], // 킥오프 미팅
+  planning: ['pm_meeting'], // 기획 검토 미팅
+  design: ['pm_meeting'], // 설계 검토 미팅
+  execution: ['pm_meeting'], // 실행 완료 데모 미팅
+  review: ['pm_meeting'], // 최종 검토 미팅
+  completed: []
+};
+
+/**
+ * 다음 단계 진행을 위한 필수 미팅 조건 체크
+ */
+export function getRequiredMeetingsForPhaseTransition(
+  currentPhase: ProjectPhase
+): { nextPhase: ProjectPhase | null; requiredMeetings: MeetingType[] } {
+  const nextPhase = getNextPhase(currentPhase);
+
+  if (!nextPhase) {
+    return { nextPhase: null, requiredMeetings: [] };
+  }
+
+  return {
+    nextPhase,
+    requiredMeetings: PHASE_REQUIRED_MEETINGS[currentPhase] || []
+  };
 }

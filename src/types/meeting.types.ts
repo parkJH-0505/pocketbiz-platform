@@ -358,6 +358,15 @@ export interface GuideMeetingRecord {
   meetingLink?: string;
   status: GuideMeetingStatus;
 
+  // ===== 연동 필드 추가 =====
+  calendarEventId?: string;           // 캘린더 일정과의 연결
+  triggeredPhaseChange?: {            // 단계 전환 트리거 정보
+    fromPhase: string;
+    toPhase: string;
+    triggeredAt: Date;
+    triggeredBy: string;
+  };
+
   // 참석자 정보
   participants: {
     pm: {
@@ -468,5 +477,222 @@ export const GUIDE_MEETING_STATUS_CONFIG = {
     label: '취소',
     color: 'text-red-600 bg-red-50',
     icon: 'XCircle'
+  }
+};
+
+// ===========================================
+// 단계 자동 전환 시스템
+// ===========================================
+
+/**
+ * 프로젝트 단계 타입 (7단계)
+ */
+export type ProjectPhase =
+  | 'contract_pending'   // 계약중
+  | 'contract_signed'    // 계약완료
+  | 'planning'           // 기획
+  | 'design'             // 설계
+  | 'execution'          // 실행
+  | 'review'             // 검토
+  | 'completed';         // 완료
+
+/**
+ * 단계 전환 트리거 타입
+ */
+export type PhaseTransitionTrigger =
+  | 'payment_completed'    // 대금 지불 완료
+  | 'meeting_scheduled'    // 미팅 예약
+  | 'meeting_completed'    // 미팅 완료
+  | 'manual_override';     // 수동 조정
+
+/**
+ * 단계 전환 규칙
+ */
+export interface PhaseTransitionRule {
+  fromPhase: ProjectPhase;
+  toPhase: ProjectPhase;
+  trigger: PhaseTransitionTrigger;
+  conditions?: {
+    meetingType?: GuideMeetingType;
+    meetingRound?: number;
+    requiredStatus?: GuideMeetingStatus;
+  };
+  autoApply: boolean;      // 자동 적용 여부
+  description: string;
+}
+
+/**
+ * 단계 전환 이벤트
+ */
+export interface PhaseTransitionEvent {
+  id: string;
+  projectId: string;
+  fromPhase: ProjectPhase;
+  toPhase: ProjectPhase;
+  trigger: PhaseTransitionTrigger;
+  triggeredBy: string;     // 트리거한 사용자/시스템
+  triggeredAt: Date;
+
+  // 트리거 소스 정보
+  sourceId?: string;       // 미팅 ID, 결제 ID 등
+  sourceType?: 'meeting' | 'payment' | 'manual';
+
+  // 메타데이터
+  metadata?: {
+    meetingTitle?: string;
+    oldPhaseLabel?: string;
+    newPhaseLabel?: string;
+    autoApplied?: boolean;
+  };
+
+  // 알림 정보
+  notificationsSent?: {
+    chat: boolean;
+    email: boolean;
+    push: boolean;
+  };
+}
+
+/**
+ * 기본 단계 전환 규칙 정의
+ */
+export const DEFAULT_PHASE_TRANSITION_RULES: PhaseTransitionRule[] = [
+  {
+    fromPhase: 'contract_pending',
+    toPhase: 'contract_signed',
+    trigger: 'payment_completed',
+    autoApply: true,
+    description: '대금 지불 완료시 계약완료 단계로 자동 전환'
+  },
+  {
+    fromPhase: 'contract_signed',
+    toPhase: 'planning',
+    trigger: 'meeting_scheduled',
+    conditions: {
+      meetingType: 'guide',
+      meetingRound: 1
+    },
+    autoApply: true,
+    description: '가이드미팅 1차 예약시 기획 단계로 자동 전환'
+  },
+  {
+    fromPhase: 'planning',
+    toPhase: 'design',
+    trigger: 'meeting_completed',
+    conditions: {
+      meetingType: 'guide',
+      meetingRound: 1,
+      requiredStatus: 'completed'
+    },
+    autoApply: true,
+    description: '가이드미팅 1차 완료시 설계 단계로 자동 전환'
+  },
+  {
+    fromPhase: 'design',
+    toPhase: 'execution',
+    trigger: 'meeting_completed',
+    conditions: {
+      meetingType: 'guide',
+      meetingRound: 2,
+      requiredStatus: 'completed'
+    },
+    autoApply: true,
+    description: '가이드미팅 2차 완료시 실행 단계로 자동 전환'
+  },
+  {
+    fromPhase: 'execution',
+    toPhase: 'review',
+    trigger: 'meeting_completed',
+    conditions: {
+      meetingType: 'guide',
+      meetingRound: 3,
+      requiredStatus: 'completed'
+    },
+    autoApply: true,
+    description: '가이드미팅 3차 완료시 검토 단계로 자동 전환'
+  },
+  {
+    fromPhase: 'review',
+    toPhase: 'completed',
+    trigger: 'manual_override',
+    autoApply: false,
+    description: '검토 완료 후 PM이 수동으로 프로젝트 완료 처리'
+  }
+];
+
+/**
+ * 단계별 정보 설정
+ */
+export const PHASE_TRANSITION_CONFIG: Record<ProjectPhase, {
+  label: string;
+  shortLabel: string;
+  color: string;
+  bgColor: string;
+  description: string;
+  icon: string;
+  order: number;
+}> = {
+  contract_pending: {
+    label: '계약중',
+    shortLabel: '계약중',
+    color: 'text-yellow-600',
+    bgColor: 'bg-yellow-50',
+    description: '견적서 전달 후 계약 협상 단계',
+    icon: 'FileText',
+    order: 1
+  },
+  contract_signed: {
+    label: '계약완료',
+    shortLabel: '계약완료',
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-50',
+    description: '계약 체결 및 대금 지불 완료',
+    icon: 'CheckCircle',
+    order: 2
+  },
+  planning: {
+    label: '기획',
+    shortLabel: '기획',
+    color: 'text-purple-600',
+    bgColor: 'bg-purple-50',
+    description: '프로젝트 기획 및 요구사항 정의',
+    icon: 'Lightbulb',
+    order: 3
+  },
+  design: {
+    label: '설계',
+    shortLabel: '설계',
+    color: 'text-indigo-600',
+    bgColor: 'bg-indigo-50',
+    description: '상세 설계 및 시안 작업',
+    icon: 'Palette',
+    order: 4
+  },
+  execution: {
+    label: '실행',
+    shortLabel: '실행',
+    color: 'text-orange-600',
+    bgColor: 'bg-orange-50',
+    description: '본격적인 개발/제작 진행',
+    icon: 'Play',
+    order: 5
+  },
+  review: {
+    label: '검토',
+    shortLabel: '검토',
+    color: 'text-green-600',
+    bgColor: 'bg-green-50',
+    description: '최종 검토 및 수정 작업',
+    icon: 'Eye',
+    order: 6
+  },
+  completed: {
+    label: '완료',
+    shortLabel: '완료',
+    color: 'text-emerald-600',
+    bgColor: 'bg-emerald-50',
+    description: '프로젝트 성공적으로 완료',
+    icon: 'Trophy',
+    order: 7
   }
 };

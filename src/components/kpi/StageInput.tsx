@@ -47,19 +47,6 @@ export const StageInput: React.FC<StageInputProps> = ({
 
   return (
     <div className="space-y-3">
-      {/* 가중치 표시 */}
-      {weight && weight !== 'x1' && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-neutral-gray">가중치</span>
-          <span className={`text-xs font-semibold px-2 py-1 rounded ${
-            weight === 'x3' ? 'bg-accent-red-light text-accent-red' :
-            weight === 'x2' ? 'bg-accent-orange-light text-accent-orange' :
-            'bg-neutral-light text-neutral-gray'
-          }`}>
-            {weight}
-          </span>
-        </div>
-      )}
 
       {/* Stage 카드 */}
       <div className="grid grid-cols-2 gap-3">
@@ -85,10 +72,6 @@ export const StageInput: React.FC<StageInputProps> = ({
                 <span className="text-sm font-semibold text-neutral-dark">
                   {stage.label}
                 </span>
-                <span className={`text-sm font-bold ${
-                  isSelected ? getStageColor(index, true).split(' ')[1] : 'text-neutral-gray'
-                }`}>
-                  {stage.score}점                </span>
               </div>
               {stage.description && (
                 <p className="text-xs text-neutral-gray">
@@ -100,29 +83,6 @@ export const StageInput: React.FC<StageInputProps> = ({
         })}
       </div>
 
-      {/* 선택된 Stage 정보 */}
-      {selectedStage && (
-        <div className="mt-3 p-4 rounded-lg bg-neutral-light">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-sm text-neutral-gray">현재 단계</span>
-              <p className="text-base font-semibold text-neutral-dark mt-1">
-                {stages.find(s => s.value === selectedStage)?.label}
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-sm text-neutral-gray">획득 점수</span>
-              <p className="text-2xl font-bold text-primary-main mt-1">
-                {stages.find(s => s.value === selectedStage)?.score}점                {weight !== 'x1' && (
-                  <span className="text-sm text-neutral-gray ml-1">
-                    ({weight})
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -715,9 +715,38 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProject = (projectId: string, data: Partial<Project>) => {
-    setProjects(projects.map(project => 
+    setProjects(projects.map(project =>
       project.id === projectId ? { ...project, ...data } : project
     ));
+  };
+
+  // Phase transition functions
+  const triggerPhaseTransition = (projectId: string, meetingRecord: GuideMeetingRecord, pmId: string) => {
+    PhaseTransitionService.handleMeetingCompleted(projectId, meetingRecord, pmId);
+  };
+
+  const handlePaymentCompleted = (projectId: string, paymentData: any) => {
+    PhaseTransitionService.handlePaymentCompleted(projectId, paymentData);
+  };
+
+  const requestManualPhaseTransition = (projectId: string, fromPhase: string, toPhase: string, requestedBy: string, reason: string) => {
+    PhaseTransitionService.requestTransition(projectId, fromPhase as any, toPhase as any, requestedBy, reason);
+  };
+
+  const approvePhaseTransition = (approvalRequestId: string, approvedBy: string): boolean => {
+    return PhaseTransitionService.approve(approvalRequestId, approvedBy);
+  };
+
+  const rejectPhaseTransition = (approvalRequestId: string, rejectedBy: string, reason: string): boolean => {
+    return PhaseTransitionService.reject(approvalRequestId, rejectedBy, reason);
+  };
+
+  const getPendingPhaseApprovals = (): PhaseTransitionApprovalRequest[] => {
+    return PhaseTransitionService.getPendingApprovals();
+  };
+
+  const getPhaseTransitionHistory = (projectId?: string): PhaseTransitionEvent[] => {
+    return PhaseTransitionService.getHistory(projectId);
   };
 
   const getRecommendedServices = (userAxis?: Record<AxisKey, number>) => {

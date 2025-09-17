@@ -5,6 +5,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import type { MatchingResult } from '../../types/smartMatching';
+import { calculateDday, getDdayColorClass } from '../../utils/dateUtils';
 
 // 카테고리 라벨 매핑
 const categoryLabels: Record<string, string> = {
@@ -52,12 +53,7 @@ const formatDate = (date: Date | string) => {
   });
 };
 
-const calculateDday = (endDate: Date) => {
-  const today = new Date();
-  const diffTime = endDate.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
-};
+// calculateDday 함수는 dateUtils로 이동됨
 
 interface EventCardProps {
   result: MatchingResult;
@@ -83,13 +79,8 @@ const EventCard: React.FC<EventCardProps> = ({
   const dday = calculateDday(event.applicationEndDate);
   const supportField = (event as any).supportField || '미분류';
 
-  // D-Day 색상 결정
-  const getDdayColor = () => {
-    if (dday <= 0) return 'text-gray-500 bg-gray-100';
-    if (dday <= 7) return 'text-red-700 bg-red-50';
-    if (dday <= 14) return 'text-amber-700 bg-amber-50';
-    return 'text-blue-700 bg-blue-50';
-  };
+  // D-Day 색상 결정 (유틸 함수 사용)
+  const ddayColorClass = getDdayColorClass(dday);
 
   // 상태 스타일
   const getStatusStyle = () => {
@@ -147,7 +138,7 @@ const EventCard: React.FC<EventCardProps> = ({
               <h3 className="text-lg font-semibold text-gray-900 flex-1">
                 {event.title}
               </h3>
-              <div className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${getDdayColor()}`}>
+              <div className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${ddayColorClass}`}>
                 {dday > 0 ? `D-${dday}` : '마감'}
               </div>
             </div>

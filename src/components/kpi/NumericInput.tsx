@@ -99,12 +99,6 @@ export const NumericInput: React.FC<NumericInputProps> = ({
         </div>
       )}
       
-      {/* 점수 표시 */}
-      {score !== null && (
-        <div className="mt-2 p-2 bg-gray-50 rounded-lg">
-          <ScoreIndicator score={score} size="sm" />
-        </div>
-      )}
       
       {getHelpText()}
     </div>

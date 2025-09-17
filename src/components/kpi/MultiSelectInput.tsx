@@ -50,19 +50,6 @@ export const MultiSelectInput: React.FC<MultiSelectInputProps> = ({
 
   return (
     <div className="space-y-3">
-      {/* 가중치 표시 */}
-      {weight && weight !== 'x1' && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-neutral-gray">가중치</span>
-          <span className={`text-xs font-semibold px-2 py-1 rounded ${
-            weight === 'x3' ? 'bg-accent-red-light text-accent-red' :
-            weight === 'x2' ? 'bg-accent-orange-light text-accent-orange' :
-            'bg-neutral-light text-neutral-gray'
-          }`}>
-            {weight}
-          </span>
-        </div>
-      )}
 
       {/* 안내 메시지 */}
       <div className="flex items-start gap-2 p-3 bg-primary-light bg-opacity-20 rounded-lg">
@@ -110,9 +97,6 @@ export const MultiSelectInput: React.FC<MultiSelectInputProps> = ({
                     <span className="text-base font-medium text-neutral-dark">
                       {choice.label}
                     </span>
-                    <span className={`text-base font-semibold px-2 py-1 rounded ${getWeightBgColor(choice.weight || 0)} ${getWeightColor(choice.weight || 0)}`}>
-                      {choice.weight || 0}점
-                    </span>
                   </div>
                 </div>
               </div>
@@ -122,47 +106,16 @@ export const MultiSelectInput: React.FC<MultiSelectInputProps> = ({
       </div>
 
       {/* 선택된 항목 요약 */}
-      <div className="mt-3 p-4 rounded-lg bg-neutral-light">
-        <div className="space-y-2">
+      {selectedIndices.length > 0 && (
+        <div className="mt-3 p-4 rounded-lg bg-neutral-light">
           <div className="flex items-center justify-between">
             <span className="text-base text-neutral-gray">선택된 항목</span>
             <span className="text-base font-medium text-neutral-dark">
               {selectedIndices.length}개
             </span>
           </div>
-          
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-neutral-gray">획득 점수</span>
-            <div className="flex items-center gap-2">
-              <span className={`text-lg font-bold ${getWeightColor(totalScore)}`}>
-                {totalScore}점
-              </span>
-              <span className="text-sm text-neutral-gray">
-                / 15점
-              </span>
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-neutral-gray">정규화 점수</span>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-primary-main">
-                {Math.round(normalizedScore)}점
-              </span>
-              {weight !== 'x1' && (
-                <span className="text-sm text-neutral-gray">
-                  (가중치 {weight} 적용)
-                </span>
-              )}
-            </div>
-          </div>
-          
-          {/* ScoreIndicator 추가 */}
-          <div className="mt-2">
-            <ScoreIndicator score={Math.round(normalizedScore)} size="sm" showBar={true} />
-          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -77,6 +77,10 @@ export interface CalendarEvent {
   // ===== 미팅 데이터 =====
   meetingData?: MeetingData;  // EnhancedMeetingData 타입
 
+  // ===== 연동 필드 추가 =====
+  meetingRecordId?: string;   // 가이드미팅 기록과의 연결
+  phaseChangeTriggered?: boolean; // 이 미팅이 단계 전환을 트리거했는지
+
   // ===== 참여자 정보 =====
   participants?: {
     id: string;

@@ -28,6 +28,7 @@ import {
   type ProjectRecommendation
 } from '../../../../data/axisProjectMapping';
 import EventCard from '../../../../components/smartMatching/EventCard';
+import { getTheOneCandidate } from '../../../../utils/dateUtils';
 
 // 축 라벨 매핑
 const axisLabels = {
@@ -54,6 +55,7 @@ const CustomRecommendation: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<MatchingResult[]>([]);
   const [buildupRecommendations, setBuildupRecommendations] = useState<ProjectRecommendation[]>([]);
+  const [theOneCandidate, setTheOneCandidate] = useState<MatchingResult | null>(null);
 
   // 사용자 Core5 점수 (KPI Context에서 가져오거나 기본값)
   const userScores: Core5Requirements = axisScores && Object.values(axisScores).some(v => v > 0)
@@ -87,11 +89,18 @@ const CustomRecommendation: React.FC = () => {
     return data;
   }, [selectedEvent, userScores.GO, userScores.EC, userScores.PT, userScores.PF, userScores.TO]);
 
-  // Mock 데이터 로드
+  // Mock 데이터 로드 및 THE ONE 후보 선별
   useEffect(() => {
     setRecommendations(mockRecommendations);
-    // 첫 번째 이벤트 자동 선택
-    if (mockRecommendations.length > 0) {
+
+    // THE ONE 후보 선별 (21일 이상 남은 이벤트)
+    const candidate = getTheOneCandidate(mockRecommendations);
+    setTheOneCandidate(candidate);
+
+    // 첫 번째 이벤트 또는 THE ONE 후보 자동 선택
+    if (candidate) {
+      setSelectedEvent(candidate.event.id);
+    } else if (mockRecommendations.length > 0) {
       setSelectedEvent(mockRecommendations[0].event.id);
     }
   }, []);
@@ -273,10 +282,22 @@ const CustomRecommendation: React.FC = () => {
 
           {/* 오른쪽: 이벤트 카드 리스트 */}
           <div className="col-span-8 space-y-6">
+            {/* THE ONE 후보가 없을 때 안내 메시지 */}
+            {!theOneCandidate && recommendations.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-2 text-amber-700">
+                  <span className="text-sm font-medium">⚠️ 충분한 준비 시간이 있는 기회가 제한적입니다</span>
+                </div>
+                <p className="text-sm text-amber-600 mt-1">
+                  3주 이상 여유가 있는 기회를 찾기 위해 더 많은 프로그램을 확인해보세요.
+                </p>
+              </div>
+            )}
+
             {recommendations.map((rec, index) => {
               const compatibility = calculateCompatibility(userScores, rec.event.category);
               const isSelected = selectedEvent === rec.event.id;
-              const isTheOne = index === 0; // 첫 번째 카드가 THE ONE
+              const isTheOne = theOneCandidate?.event.id === rec.event.id; // THE ONE 후보와 일치하는지 확인
 
               return (
                 <div key={rec.event.id} className={isTheOne ? "relative" : ""}>
