@@ -249,7 +249,7 @@ const CustomRecommendation: React.FC = () => {
                             {axisLabels[recommendation.axis as keyof typeof axisLabels]}
                           </span>
                           <span className="text-xs text-gray-500">
-                            갭 {recommendation.gap}점
+                            갭 {Math.round(recommendation.gap)}점
                           </span>
                         </div>
                         <div className="space-y-2">
