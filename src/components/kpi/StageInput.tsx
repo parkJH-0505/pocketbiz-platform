@@ -1,88 +1,77 @@
 import { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
-
-interface StageOption {
-  value: string;
-  label: string;
-  description?: string;
-  score: number;
-}
+import { Check, Circle } from 'lucide-react';
 
 interface StageInputProps {
-  stages: StageOption[];
+  stages: { value: string; label: string; description?: string }[];
   selectedStage?: string;
   onChange: (value: { stage: string; score: number }) => void;
   weight?: string;
 }
 
-export const StageInput: React.FC<StageInputProps> = ({ 
-  stages, 
-  selectedStage, 
+export const StageInput: React.FC<StageInputProps> = ({
+  stages,
+  selectedStage,
   onChange,
   weight = 'x1'
 }) => {
-  const [hoveredStage, setHoveredStage] = useState<string | null>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  const handleSelect = (stage: StageOption) => {
-    onChange({ stage: stage.value, score: stage.score });
-  };
-
-  const getStageColor = (index: number, isSelected: boolean) => {
-    if (!isSelected) return 'border-neutral-border text-neutral-gray';
-    
-    const colors = [
-      'border-accent-red text-accent-red',
-      'border-accent-orange text-accent-orange',
-      'border-primary-main text-primary-main',
-      'border-secondary-main text-secondary-main'
-    ];
-    
-    return colors[index] || colors[0];
-  };
-
-  const getStageIcon = (index: number) => {
-    const icons = ['🌱', '🚀', '📈', '🎯'];
-    return icons[index] || '📊';
+  const handleSelect = (index: number, stage: any) => {
+    onChange({ stage: stage.value, score: 0 }); // score는 내부에서 계산
   };
 
   return (
     <div className="space-y-3">
-
-      {/* Stage 카드 */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* 선택지 목록 */}
+      <div className="space-y-2">
         {stages.map((stage, index) => {
           const isSelected = selectedStage === stage.value;
-          const isHovered = hoveredStage === stage.value;
-          
+          const isHovered = hoveredIndex === index;
+
           return (
             <button
-              key={stage.value}
-              onClick={() => handleSelect(stage)}
-              onMouseEnter={() => setHoveredStage(stage.value)}
-              onMouseLeave={() => setHoveredStage(null)}
-              className={`p-4 rounded-lg border-2 text-left transition-all
-                ${isSelected 
-                  ? `${getStageColor(index, true)} bg-opacity-5` 
+              key={index}
+              onClick={() => handleSelect(index, stage)}
+              onMouseEnter={() => setHoveredIndex(index)}
+              onMouseLeave={() => setHoveredIndex(null)}
+              className={`w-full text-left p-4 rounded-lg border transition-all
+                ${isSelected
+                  ? 'border-primary-main bg-primary-light bg-opacity-10'
                   : isHovered
                   ? 'border-primary-hover bg-neutral-light'
                   : 'border-neutral-border hover:border-neutral-gray'
                 }`}
             >
-              <div className="flex items-start justify-between mb-2">
-                <span className="text-sm font-semibold text-neutral-dark">
-                  {stage.label}
-                </span>
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5">
+                  {isSelected ? (
+                    <div className="w-5 h-5 rounded-full bg-primary-main flex items-center justify-center">
+                      <Check size={12} className="text-white" />
+                    </div>
+                  ) : (
+                    <Circle size={20} className="text-neutral-lighter" />
+                  )}
+                </div>
+
+                <div className="flex-1">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <span className="text-base font-medium text-neutral-dark">
+                        {stage.label}
+                      </span>
+                      {stage.description && (
+                        <p className="text-sm text-neutral-gray mt-1">
+                          {stage.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-              {stage.description && (
-                <p className="text-xs text-neutral-gray">
-                  {stage.description}
-                </p>
-              )}
             </button>
           );
         })}
       </div>
-
     </div>
   );
 };
