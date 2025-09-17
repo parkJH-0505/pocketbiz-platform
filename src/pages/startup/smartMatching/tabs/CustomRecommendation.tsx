@@ -28,7 +28,12 @@ import {
   type ProjectRecommendation
 } from '../../../../data/axisProjectMapping';
 import EventCard from '../../../../components/smartMatching/EventCard';
-import { getTheOneCandidate } from '../../../../utils/dateUtils';
+import {
+  getTheOneCandidate,
+  calculateDday,
+  getPreparationMessage,
+  getTheOneType
+} from '../../../../utils/dateUtils';
 
 // 축 라벨 매핑
 const axisLabels = {
@@ -219,7 +224,7 @@ const CustomRecommendation: React.FC = () => {
                   <div key={key} className="text-center">
                     <p className="text-xs text-gray-500 mb-1">{label}</p>
                     <p className="text-lg font-bold text-gray-900">
-                      {userScores[key as keyof Core5Requirements]}
+                      {Math.round(userScores[key as keyof Core5Requirements])}
                     </p>
                   </div>
                 ))}
@@ -284,12 +289,12 @@ const CustomRecommendation: React.FC = () => {
           <div className="col-span-8 space-y-6">
             {/* THE ONE 후보가 없을 때 안내 메시지 */}
             {!theOneCandidate && recommendations.length > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-                <div className="flex items-center gap-2 text-amber-700">
-                  <span className="text-sm font-medium">⚠️ 충분한 준비 시간이 있는 기회가 제한적입니다</span>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-2 text-red-700">
+                  <span className="text-sm font-medium">⚠️ 준비 시간이 충분한 기회가 없습니다</span>
                 </div>
-                <p className="text-sm text-amber-600 mt-1">
-                  3주 이상 여유가 있는 기회를 찾기 위해 더 많은 프로그램을 확인해보세요.
+                <p className="text-sm text-red-600 mt-1">
+                  모든 기회가 7일 이내 마감입니다. 기존 자료로 빠르게 지원하거나 전체 기회에서 더 찾아보세요.
                 </p>
               </div>
             )}
@@ -299,16 +304,37 @@ const CustomRecommendation: React.FC = () => {
               const isSelected = selectedEvent === rec.event.id;
               const isTheOne = theOneCandidate?.event.id === rec.event.id; // THE ONE 후보와 일치하는지 확인
 
+              // THE ONE일 때 준비 정보 계산
+              const dday = isTheOne ? calculateDday(rec.event.applicationEndDate) : 0;
+              const theOneType = isTheOne ? getTheOneType(dday) : null;
+              const preparationMsg = isTheOne ? getPreparationMessage(dday) : '';
+
               return (
                 <div key={rec.event.id} className={isTheOne ? "relative" : ""}>
                   {/* THE ONE 라벨 */}
-                  {isTheOne && (
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full text-sm font-semibold">
-                        <Sparkles className="w-4 h-4" />
-                        검토 추천
+                  {isTheOne && theOneType && (
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold ${
+                          theOneType.type === 'excellent'
+                            ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white'
+                            : theOneType.type === 'good'
+                            ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
+                            : 'bg-gradient-to-r from-orange-500 to-red-500 text-white'
+                        }`}>
+                          <span className="text-base">{theOneType.icon}</span>
+                          {theOneType.label}
+                        </div>
+                        <span className="text-sm text-gray-600">D-{dday}일 남음</span>
                       </div>
-                      <span className="text-sm text-gray-500">가장 적합한 기회로 판단됩니다</span>
+                    </div>
+                  )}
+
+                  {/* THE ONE 준비 메시지 */}
+                  {isTheOne && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800 font-medium mb-1">🎯 준비 가이드</p>
+                      <p className="text-sm text-blue-700">{preparationMsg}</p>
                     </div>
                   )}
 
