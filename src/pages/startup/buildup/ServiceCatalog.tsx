@@ -212,7 +212,7 @@ export default function ServiceCatalog() {
         unit: (service.price?.unit || '프로젝트') as any
       },
       duration: service.duration?.display || `${service.duration?.weeks || 0}주`,
-      rating: service.reviews?.avg_rating || 0,
+      rating: Math.round((service.reviews?.avg_rating || 0) * 10) / 10,
       reviews: service.reviews?.total_count || 0,
       recentClient: service.portfolio?.highlights?.[0]?.client_type,
       tags: service.tags || [],

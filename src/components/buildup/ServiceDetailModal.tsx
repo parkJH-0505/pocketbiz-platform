@@ -171,7 +171,7 @@ export default function ServiceDetailModal({ service, onClose, onAddToCart }: Se
                   <p className="text-sm text-gray-600">완료 프로젝트</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900">{service.reviews?.avg_rating || 0}</p>
+                  <p className="text-2xl font-bold text-gray-900">{(service.reviews?.avg_rating || 0).toFixed(1)}</p>
                   <p className="text-sm text-gray-600">평균 평점</p>
                 </div>
                 <div className="text-center">
