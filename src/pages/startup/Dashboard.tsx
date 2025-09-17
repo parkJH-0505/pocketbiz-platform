@@ -1,5 +1,5 @@
 import { RadarChart } from '../../components/charts/RadarChart';
-import { ArrowRight, AlertCircle, Activity, Target, Award, TrendingUp, TrendingDown, Package, Calendar, CheckCircle } from 'lucide-react';
+import { ArrowRight, AlertCircle, Activity, Target, Award, TrendingUp, TrendingDown, Package, Calendar, CheckCircle, FileText, Users, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardBody } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -10,9 +10,22 @@ import { useBuildupContext } from '../../contexts/BuildupContext';
 import { useMemo } from 'react';
 import type { AxisKey } from '../../types';
 import { PHASE_INFO, ALL_PHASES, calculatePhaseProgress } from '../../utils/projectPhaseUtils';
+import { IndustryInsights, CompetitorUpdates } from '../../components/dashboard/IndustryInsights';
+import { GrowthChart, GoalTracking, MilestoneTracking } from '../../components/dashboard/GrowthTracking';
+import { SmartRecommendations, PersonalizedInsights } from '../../components/dashboard/PersonalizedRecommendations';
+import { IRDeckBuilder } from '../../components/automation/IRDeckBuilder';
+import { VCEmailBuilder } from '../../components/automation/VCEmailBuilder';
+import { GovernmentDocBuilder } from '../../components/automation/GovernmentDocBuilder';
+import { NotificationToastContainer } from '../../components/notifications/NotificationToast';
+import { useNotifications } from '../../contexts/NotificationContext';
+import { useState, useEffect } from 'react';
 
 const Dashboard = () => {
+  const [showIRBuilder, setShowIRBuilder] = useState(false);
+  const [showVCEmailBuilder, setShowVCEmailBuilder] = useState(false);
+  const [showGovernmentDocBuilder, setShowGovernmentDocBuilder] = useState(false);
   const { cluster } = useCluster();
+  const { notifications, getUnreadNotifications, removeNotification, addNotification } = useNotifications();
   const {
     axisScores,
     overallScore,
@@ -105,6 +118,66 @@ const Dashboard = () => {
     return unansweredKPIs.slice(0, 5); // 최대 5개
   }, [responses]);
 
+  // 샘플 알림 생성 (테스트용)
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => {
+        addNotification({
+          type: 'achievement',
+          priority: 'medium',
+          title: '🎉 대시보드에 오신 것을 환영합니다!',
+          message: '실시간 알림 시스템이 활성화되었습니다. KPI 변화와 중요한 업데이트를 놓치지 마세요.',
+          icon: '🎉',
+          color: 'text-blue-600',
+          actionUrl: '/startup/kpi',
+          actionLabel: 'KPI 확인하기'
+        });
+      }, 2000),
+
+      setTimeout(() => {
+        addNotification({
+          type: 'investment_match',
+          priority: 'high',
+          title: '💰 새로운 투자 기회 발견!',
+          message: 'TIPS 프로그램과 85% 매칭됩니다. 마감일이 7일 남았으니 서둘러 지원하세요.',
+          icon: '💰',
+          color: 'text-green-600',
+          actionUrl: '/startup/matching',
+          actionLabel: '자세히 보기'
+        });
+      }, 4000),
+
+      setTimeout(() => {
+        addNotification({
+          type: 'kpi_milestone',
+          priority: 'urgent',
+          title: '🎯 성장·운영 영역 80점 돌파!',
+          message: '축하합니다! 성장·운영 영역에서 80점을 달성했습니다. (현재: 82.3점)',
+          icon: '🎯',
+          color: 'text-green-600',
+          actionUrl: '/startup/kpi',
+          actionLabel: 'KPI 상세보기'
+        });
+      }, 6000),
+
+      setTimeout(() => {
+        addNotification({
+          type: 'program_deadline',
+          priority: 'urgent',
+          title: '⏰ Series A 투자계획서 마감 임박!',
+          message: 'Series A 투자계획서 제출 마감까지 2일 남았습니다. 지금 확인하세요!',
+          icon: '⏰',
+          color: 'text-red-600',
+          actionUrl: '/startup/buildup',
+          actionLabel: '빠른 지원',
+          expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) // 2일 후 만료
+        });
+      }, 8000)
+    ];
+
+    return () => timers.forEach(clearTimeout);
+  }, [addNotification]);
+
   const recentPrograms = [
     { id: 1, name: 'TIPS ?�로그램', deadline: '2025.04.15', match: 85 },
     { id: 2, name: 'Series A ?�자?�치', deadline: '2025.05.01', match: 78 },
@@ -114,248 +187,205 @@ const Dashboard = () => {
   return (
     <div className="p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-neutral-dark">대시보드</h1>
-        <p className="text-neutral-gray mt-2">스타트업 성장 현황을 한눈에 확인하세요</p>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardBody className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-neutral-gray mb-1">현재 등급</p>
-                <p className="text-2xl font-bold text-neutral-dark">{cluster.stage}</p>
-              </div>
-              <div className="bg-primary-light p-3 rounded-full">
-                <Award className="text-primary-main" size={24} />
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-        
-        <Card>
-          <CardBody className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-neutral-gray mb-1">종합 점수</p>
-                <p className="text-2xl font-bold text-neutral-dark">{Math.round(overallScore)}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                {scoreChange > 0 ? (
-                  <>
-                    <TrendingUp className="text-success-main" size={20} />
-                    <span className="text-success-main text-sm font-semibold">+{Math.abs(scoreChange).toFixed(1)}</span>
-                  </>
-                ) : scoreChange < 0 ? (
-                  <>
-                    <TrendingDown className="text-error-main" size={20} />
-                    <span className="text-error-main text-sm font-semibold">{scoreChange.toFixed(1)}</span>
-                  </>
-                ) : (
-                  <>
-                    <Activity className="text-neutral-gray" size={20} />
-                    <span className="text-neutral-gray text-sm font-semibold">0.0</span>
-                  </>
-                )}
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-neutral-gray mb-1">섹터</p>
-                <p className="text-2xl font-bold text-neutral-dark">{cluster.sector}</p>
-                <p className="text-xs text-neutral-gray mt-1">{getSectorName(cluster.sector)}</p>
-              </div>
-              <div className="bg-accent-purple-light bg-opacity-20 p-3 rounded-full">
-                <Target className="text-accent-purple" size={24} />
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-neutral-gray mb-1">진단 완료율</p>
-                <p className="text-2xl font-bold text-neutral-dark">{completionRate}%</p>
-              </div>
-              <div className="w-full max-w-[80px] bg-neutral-border rounded-full h-2 mt-2">
-                <div className="bg-secondary-main h-2 rounded-full transition-all duration-500" style={{width: `${completionRate}%`}} />
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* 포켓빌드업 프로젝트 현황 */}
-      {activeProjects.length > 0 && (
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-neutral-dark">진행중인 프로젝트</h2>
-            <Link to="/startup/buildup/projects" className="text-sm text-primary-main hover:text-primary-dark">
-              전체보기 <ArrowRight className="inline w-4 h-4" />
-            </Link>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-neutral-dark">대시보드</h1>
+          <p className="text-neutral-gray mt-2">스타트업 성장 현황을 한눈에 확인하세요</p>
+        </div>
+        <div className="flex gap-4 text-right">
+          <div>
+            <p className="text-xs text-neutral-gray">등급</p>
+            <p className="text-sm font-semibold text-neutral-dark">{cluster.stage}</p>
           </div>
-          <div className="grid grid-cols-3 gap-4">
-            {activeProjects.slice(0, 3).map(project => {
-              const phase = project.phase || 'contract_pending';
-              const phaseInfo = PHASE_INFO[phase];
-              const progress = calculatePhaseProgress(phase);
-
-              return (
-                <Card key={project.id}>
-                  <CardBody className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <Package className="w-5 h-5 text-primary-main" />
-                        <h3 className="font-semibold text-neutral-dark text-sm">{project.title}</h3>
-                      </div>
-                    </div>
-
-                    {/* 7단계 미니 프로그레스 */}
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-neutral-gray">{phaseInfo.label}</span>
-                        <span className="text-xs font-bold text-primary-main">{Math.round(progress)}%</span>
-                      </div>
-                      <div className="h-2 bg-neutral-border rounded-full overflow-hidden">
-                        <div
-                          className="h-2 bg-primary-main rounded-full transition-all duration-500"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between mt-1">
-                        {ALL_PHASES.map((p, idx) => (
-                          <div
-                            key={p}
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              calculatePhaseProgress(p) <= progress ? 'bg-primary-main' : 'bg-neutral-border'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 다음 미팅 정보 */}
-                    {project.meetings && project.meetings.length > 0 && (
-                      <div className="flex items-center gap-2 text-xs text-neutral-gray">
-                        <Calendar className="w-3 h-3" />
-                        <span>
-                          다음 미팅: {new Date(project.meetings[0].date).toLocaleDateString('ko-KR', {
-                            month: 'short',
-                            day: 'numeric'
-                          })}
-                        </span>
-                      </div>
-                    )}
-
-                    <Link
-                      to={`/startup/buildup/projects/${project.id}`}
-                      className="mt-3 block text-center py-2 px-3 bg-primary-light text-primary-main rounded-lg hover:bg-primary-main hover:text-white transition-colors text-sm font-medium"
-                    >
-                      상세보기
-                    </Link>
-                  </CardBody>
-                </Card>
-              );
-            })}
+          <div>
+            <p className="text-xs text-neutral-gray">섹터</p>
+            <p className="text-sm font-semibold text-neutral-dark">{cluster.sector}</p>
           </div>
         </div>
-      )}
+      </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        {/* Radar Chart */}
-        <div className="col-span-2">
-          <Card>
-            <CardHeader
-              title="5축 평가 결과"
-              subtitle={`${cluster.sector} · ${cluster.stage} 단계`}
-            />
-            <CardBody>
-              <div className="h-96">
-                <RadarChart 
-                  data={radarData}
-                  compareData={peerData}
-                  showComparison={true}
-                />
+      {/* 메인 컨텐츠 그리드 */}
+      <div className="grid grid-cols-12 gap-6">
+        {/* 좌측 메인 영역 (8칸) */}
+        <div className="col-span-8 space-y-6">
+          {/* 이번 주 일정 */}
+          <Card className="bg-white/80 backdrop-blur-sm border border-neutral-border/50">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-neutral-dark">이번 주 일정</h2>
+                <span className="text-sm text-neutral-gray">
+                  {new Date().toLocaleDateString('ko-KR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </span>
               </div>
-              <div className="flex justify-center gap-6 mt-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-primary-main rounded-full"></div>
-                  <span className="text-sm text-neutral-gray">우리 회사</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-neutral-gray rounded-full opacity-50"></div>
-                  <span className="text-sm text-neutral-gray">피어 평균</span>
-                </div>
-              </div>
-              
-              {/* 축별 점수 요약 */}
-              <div className="grid grid-cols-5 gap-3 mt-6">
-                {axes.map(axis => {
-                  const score = axisScores[axis.key as AxisKey] || 0;
-                  const diff = score - peerAverage[axis.key as AxisKey];
-                  return (
-                    <div key={axis.key} className="text-center">
-                      <p className="text-xs text-neutral-gray mb-1">{axis.fullName}</p>
-                      <p className="text-xl font-bold text-neutral-dark">{Math.round(score)}</p>
-                      <p className={`text-xs ${diff > 0 ? 'text-success-main' : diff < 0 ? 'text-error-main' : 'text-neutral-gray'}`}>
-                        {diff > 0 ? '+' : ''}{Math.round(diff)}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardBody>
-          </Card>
-        </div>
-
-        {/* Right Panel */}
-        <div className="space-y-6">
-          {/* To-do List */}
-          <Card>
-            <CardHeader
-              title="미완료 항목"
-              subtitle={`${todoItems.length}개의 항목이 남아있습니다`}
-            />
-            <CardBody>
-              <div className="space-y-3">
-                {todoItems.length > 0 ? (
-                  todoItems.map(item => (
-                    <Link
-                      key={item.id}
-                      to="/startup/kpi?tab=assess"
-                      className="flex items-center justify-between p-3 rounded-lg bg-neutral-light hover:bg-neutral-border transition-all duration-200 group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <AlertCircle className="text-accent-orange" size={18} />
-                        <span className="text-sm text-neutral-dark font-medium">{item.label}</span>
-                        <span className={`text-xs px-2 py-1 rounded-full ${getAxisColor(item.axis)}`}>
-                          {item.axis}
-                        </span>
-                      </div>
-                      <ArrowRight size={16} className="text-neutral-lighter group-hover:text-neutral-dark transition-colors" />
-                    </Link>
-                  ))
-                ) : (
-                  <div className="text-center py-4 text-sm text-neutral-gray">
-                    모든 KPI가 완료되었습니다!
+            </CardHeader>
+            <CardBody className="space-y-6">
+              {/* 진행중인 프로젝트 */}
+              <div>
+                <h3 className="text-sm font-medium text-neutral-gray mb-3">진행중인 프로젝트</h3>
+                {activeProjects.length > 0 ? (
+                  <div className="space-y-3">
+                    {activeProjects.slice(0, 3).map(project => {
+                      const phase = project.phase || 'contract_pending';
+                      const progress = calculatePhaseProgress(phase);
+                      return (
+                        <div key={project.id} className="flex items-center justify-between p-3 bg-neutral-light rounded-lg">
+                          <div className="flex-1">
+                            <p className="font-medium text-neutral-dark">{project.title}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className="w-32 h-2 bg-neutral-border rounded-full">
+                                <div
+                                  className="h-2 bg-primary-main rounded-full transition-all"
+                                  style={{ width: `${progress}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-neutral-gray">
+                                {Math.round(progress)}%
+                              </span>
+                            </div>
+                          </div>
+                          <Link
+                            to={`/startup/buildup/projects/${project.id}`}
+                            className="ml-4 px-3 py-1 bg-primary-main text-white rounded-md text-sm hover:bg-primary-hover transition-colors"
+                          >
+                            보기
+                          </Link>
+                        </div>
+                      );
+                    })}
                   </div>
+                ) : (
+                  <p className="text-sm text-neutral-gray italic">진행중인 프로젝트가 없습니다</p>
                 )}
+              </div>
+
+              {/* 이번 주 미팅 */}
+              <div>
+                <h3 className="text-sm font-medium text-neutral-gray mb-3">이번 주 미팅</h3>
+                <div className="space-y-2">
+                  {/* 샘플 미팅 데이터 */}
+                  <div className="flex items-center gap-3 p-3 border border-neutral-border rounded-lg">
+                    <div className="w-3 h-3 rounded-full bg-primary-main" />
+                    <div className="flex-1">
+                      <p className="font-medium text-neutral-dark">IR덱 검토 미팅</p>
+                      <p className="text-sm text-neutral-gray">1월 18일 14:00 · 온라인</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 border border-neutral-border rounded-lg">
+                    <div className="w-3 h-3 rounded-full bg-secondary-main" />
+                    <div className="flex-1">
+                      <p className="font-medium text-neutral-dark">TIPS 프로그램 멘토링</p>
+                      <p className="text-sm text-neutral-gray">1월 20일 10:00 · 강남</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 이번 주 마감 */}
+              <div>
+                <h3 className="text-sm font-medium text-neutral-gray mb-3">마감 예정</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-3 border border-orange-200 bg-orange-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-neutral-dark">Series A 투자계획서</p>
+                      <p className="text-sm text-orange-600">D-2 · 1월 17일</p>
+                    </div>
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">긴급</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 border border-neutral-border rounded-lg">
+                    <div>
+                      <p className="font-medium text-neutral-dark">월간 KPI 업데이트</p>
+                      <p className="text-sm text-neutral-gray">D-5 · 1월 20일</p>
+                    </div>
+                    <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">일반</span>
+                  </div>
+                </div>
               </div>
             </CardBody>
           </Card>
 
-          {/* Recommended Programs */}
-          <Card>
-            <CardHeader title="추천 프로그램" />
+          {/* 성장 트래킹 */}
+          <GrowthChart />
+
+          {/* 목표 및 마일스톤 */}
+          <div className="grid grid-cols-2 gap-6">
+            <GoalTracking />
+            <MilestoneTracking />
+          </div>
+
+          {/* 개인화 인사이트 */}
+          <PersonalizedInsights />
+        </div>
+
+        {/* 우측 사이드 영역 (4칸) */}
+        <div className="col-span-4 space-y-6">
+          {/* 맞춤 추천 */}
+          <SmartRecommendations />
+
+          {/* 업계 인사이트 */}
+          <IndustryInsights />
+
+          {/* 빠른 작업 */}
+          <Card className="bg-white/80 backdrop-blur-sm border border-neutral-border/50">
+            <CardHeader>
+              <h3 className="text-lg font-semibold text-neutral-dark">빠른 작업</h3>
+            </CardHeader>
+            <CardBody>
+              <div className="grid grid-cols-2 gap-3">
+                <Link
+                  to="/startup/kpi?tab=assess"
+                  className="flex flex-col items-center gap-2 p-4 rounded-lg bg-primary-main text-white border border-primary-main hover:bg-primary-hover transition-all"
+                >
+                  <Activity className="w-4 h-4" />
+                  <span className="text-sm font-medium">KPI 업데이트</span>
+                </Link>
+                <button
+                  onClick={() => setShowIRBuilder(true)}
+                  className="flex flex-col items-center gap-2 p-4 rounded-lg bg-white text-neutral-dark border border-neutral-border hover:border-primary-main hover:bg-primary-light transition-all"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span className="text-sm font-medium">IR덱 생성</span>
+                </button>
+                <button
+                  onClick={() => setShowVCEmailBuilder(true)}
+                  className="flex flex-col items-center gap-2 p-4 rounded-lg bg-white text-neutral-dark border border-neutral-border hover:border-primary-main hover:bg-primary-light transition-all"
+                >
+                  <Mail className="w-4 h-4" />
+                  <span className="text-sm font-medium">VC 이메일</span>
+                </button>
+                <Link
+                  to="/startup/buildup/catalog"
+                  className="flex flex-col items-center gap-2 p-4 rounded-lg bg-white text-neutral-dark border border-neutral-border hover:border-primary-main hover:bg-primary-light transition-all"
+                >
+                  <Users className="w-4 h-4" />
+                  <span className="text-sm font-medium">빌드업 상담</span>
+                </Link>
+                <Link
+                  to="/startup/matches"
+                  className="flex flex-col items-center gap-2 p-4 rounded-lg bg-white text-neutral-dark border border-neutral-border hover:border-primary-main hover:bg-primary-light transition-all"
+                >
+                  <Target className="w-4 h-4" />
+                  <span className="text-sm font-medium">투자 매칭</span>
+                </Link>
+                <button
+                  onClick={() => setShowGovernmentDocBuilder(true)}
+                  className="flex flex-col items-center gap-2 p-4 rounded-lg bg-white text-neutral-dark border border-neutral-border hover:border-primary-main hover:bg-primary-light transition-all"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span className="text-sm font-medium">정부지원</span>
+                </button>
+              </div>
+            </CardBody>
+          </Card>
+
+          {/* 추천 프로그램 */}
+          <Card className="bg-white/80 backdrop-blur-sm border border-neutral-border/50">
+            <CardHeader>
+              <h3 className="text-lg font-semibold text-neutral-dark">추천 프로그램</h3>
+            </CardHeader>
             <CardBody>
               <div className="space-y-3">
                 {recentPrograms.map(program => (
@@ -367,7 +397,7 @@ const Dashboard = () => {
                     <p className="text-sm text-neutral-gray">마감: {program.deadline}</p>
                     <div className="mt-3">
                       <div className="w-full bg-neutral-border rounded-full h-1.5">
-                        <div 
+                        <div
                           className="bg-secondary-main h-1.5 rounded-full transition-all duration-300"
                           style={{width: `${program.match}%`}}
                         />
@@ -388,6 +418,29 @@ const Dashboard = () => {
           </Card>
         </div>
       </div>
+
+      {/* IR덱 빌더 모달 */}
+      {showIRBuilder && (
+        <IRDeckBuilder onClose={() => setShowIRBuilder(false)} />
+      )}
+
+      {/* VC 이메일 빌더 모달 */}
+      {showVCEmailBuilder && (
+        <VCEmailBuilder onClose={() => setShowVCEmailBuilder(false)} />
+      )}
+
+      {/* 정부지원 서류 빌더 모달 */}
+      {showGovernmentDocBuilder && (
+        <GovernmentDocBuilder onClose={() => setShowGovernmentDocBuilder(false)} />
+      )}
+
+      {/* 알림 토스트 컨테이너 */}
+      <NotificationToastContainer
+        notifications={getUnreadNotifications().filter(n => n.priority === 'urgent' || n.priority === 'high')}
+        onRemove={removeNotification}
+        maxToasts={3}
+        position="top-right"
+      />
     </div>
   );
 };

@@ -1,9 +1,9 @@
 import React from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  ShoppingBag, 
-  FolderKanban 
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  Calendar
 } from 'lucide-react';
 
 export default function BuildupLayout() {
@@ -11,23 +11,23 @@ export default function BuildupLayout() {
   const location = useLocation();
 
   const tabs = [
-    { 
-      id: 'dashboard', 
-      label: '프로젝트 대시보드', 
+    {
+      id: 'dashboard',
+      label: '프로젝트 대시보드',
       icon: LayoutDashboard,
       path: '/startup/buildup/dashboard'
     },
-    { 
-      id: 'catalog', 
-      label: '카탈로그', 
+    {
+      id: 'catalog',
+      label: '카탈로그',
       icon: ShoppingBag,
       path: '/startup/buildup/catalog'
     },
-    { 
-      id: 'projects', 
-      label: '프로젝트 관리', 
-      icon: FolderKanban,
-      path: '/startup/buildup/projects'
+    {
+      id: 'calendar',
+      label: '빌드업 캘린더',
+      icon: Calendar,
+      path: '/startup/buildup/calendar'
     }
   ];
 

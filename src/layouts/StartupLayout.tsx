@@ -10,10 +10,13 @@ import {
   LogOut,
   Bell,
   ChevronLeft,
-  ShoppingCart
+  ShoppingCart,
+  MessageSquare
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useBuildupContext } from '../contexts/BuildupContext';
+import { useChatContext } from '../contexts/ChatContext';
+import { NotificationBell } from '../components/notifications/NotificationBell';
 
 const StartupLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -21,6 +24,7 @@ const StartupLayout = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { cart } = useBuildupContext();
+  const { totalUnreadCount } = useChatContext();
   
   // KPI 진단 페이지의 평가 탭인지 확인
   const isKPIAssessmentTab = location.pathname === '/startup/kpi' && 
@@ -134,11 +138,22 @@ const StartupLayout = () => {
                 )}
               </button>
 
-              {/* Notification Icon */}
-              <button className="relative p-2 text-neutral-gray hover:text-neutral-dark transition-colors">
-                <Bell size={20} />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+              {/* Messages Icon */}
+              <button
+                onClick={() => navigate('/startup/messages')}
+                className="relative p-2 text-neutral-gray hover:text-neutral-dark transition-colors"
+                title="메시지함"
+              >
+                <MessageSquare size={20} />
+                {totalUnreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center font-bold">
+                    {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
+                  </span>
+                )}
               </button>
+
+              {/* Notification Bell */}
+              <NotificationBell />
 
               {/* Profile Icon */}
               <button className="p-2 text-neutral-gray hover:text-neutral-dark transition-colors">

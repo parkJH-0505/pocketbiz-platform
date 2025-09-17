@@ -1,18 +1,28 @@
 /**
- * Mock Projects Data
+ * Mock Projects Data - 7단계 라이프사이클 기반
  * 실제 프로젝트 진행 상황을 반영한 현실적인 데이터
  */
 
-import type { Project } from '../types/buildup.types';
+import type { Project, ProjectPhase } from '../types/buildup.types';
 
+// 날짜 헬퍼 함수
 const today = new Date();
-const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
-const oneMonthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-const threeDaysLater = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000);
-const oneWeekLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-const twoWeeksLater = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
-const threeWeeksLater = new Date(today.getTime() + 21 * 24 * 60 * 60 * 1000);
+const createDate = (daysOffset: number) => new Date(today.getTime() + daysOffset * 24 * 60 * 60 * 1000);
+
+// 과거 날짜들
+const oneWeekAgo = createDate(-7);
+const twoWeeksAgo = createDate(-14);
+const oneMonthAgo = createDate(-30);
+
+// 미래 날짜들 - D-Day 긴급도 분류용
+const tomorrow = createDate(1);        // 🔴 긴급 (1일)
+const dayAfterTomorrow = createDate(2); // 🔴 긴급 (2일)
+const threeDaysLater = createDate(3);   // 🟡 주의 (3일)
+const fiveDaysLater = createDate(5);    // 🟡 주의 (5일)
+const oneWeekLater = createDate(7);     // 🟡 주의 (7일)
+const tenDaysLater = createDate(10);    // 🔵 여유 (10일)
+const twoWeeksLater = createDate(14);   // 🔵 여유 (14일)
+const threeWeeksLater = createDate(21); // 🔵 여유 (21일)
 
 export const mockProjects: Project[] = [
   {
@@ -21,7 +31,7 @@ export const mockProjects: Project[] = [
     service_id: 'SVC-DOC-001',
     category: '문서작업',
     status: 'active',
-    phase: 'design',  // 현재 설계 단계
+    phase: 'execution' as ProjectPhase,  // 5단계: 실행 - 콘텐츠 제작 중
     created_from: 'catalog',
     contract: {
       id: 'CNT-001',
@@ -112,9 +122,14 @@ export const mockProjects: Project[] = [
       pm: {
         id: 'pm-001',
         name: '김수민',
-        role: 'Project Manager',
+        role: 'Senior Project Manager',
         email: 'kim@pocket.com',
-        company: '포켓컴퍼니'
+        company: '포켓컴퍼니',
+        phone: '010-1234-5678',
+        experience_years: 5,
+        specialties: ['IR 컨설팅', '문서 작업', '브랜딩'],
+        profile_image: '/avatars/pm-kim.jpg',
+        bio: 'IR 및 브랜딩 전문 PM. 100+ 성공 프로젝트 경험'
       },
       members: [
         {
@@ -144,30 +159,37 @@ export const mockProjects: Project[] = [
     meetings: [
       {
         id: 'MTG-001',
-        title: '가이드 미팅 2차',
-        type: 'review',
-        date: new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000), // 2일 후
+        title: 'IR 콘텐츠 검토 미팅',
+        type: 'pm_meeting',
+        date: threeDaysLater, // 3일 후 (🟡 주의)
         duration: 60,
         attendees: ['정대표', '김수민 PM', '최디자인'],
-        agenda: '1. 디자인 시안 검토\n2. 피드백 수렴\n3. 수정 방향 논의',
+        agenda: '1. 실행 단계 진행률 점검\n2. 콘텐츠 작업 결과 검토\n3. 다음 주 디자인 작업 계획',
         location: '줌',
         meeting_link: 'https://zoom.us/j/123456789'
       },
       {
         id: 'MTG-002',
-        title: '가이드 미팅 3차',
-        type: 'progress',
-        date: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000), // 1주일 후
-        duration: 30,
-        attendees: ['정대표', '김수민 PM'],
-        agenda: '1. 진행 현황 공유\n2. 이슈 사항 논의',
+        title: 'IR 덱 중간 점검',
+        type: 'project_meeting',
+        date: oneWeekLater, // 1주일 후 (🟡 주의)
+        duration: 45,
+        attendees: ['정대표', '김수민 PM', '이작가', '최디자인'],
+        agenda: '1. 주간 진행 현황\n2. 클라이언트 피드백 반영\n3. 리스크 및 이슈 논의',
         location: '포켓 내방'
       }
     ],
     files: [],
     communication: {
       unread_messages: 2,
-      last_activity: new Date(today.getTime() - 2 * 60 * 60 * 1000) // 2시간 전
+      last_activity: createDate(-0.08), // 2시간 전
+      last_message: {
+        from: '김수민 PM',
+        content: '디자인 시안 1차 검토 완료했습니다. 피드백 첨부파일 확인해주세요.',
+        timestamp: createDate(-0.08)
+      },
+      total_messages: 47,
+      response_time_avg: 3.5 // 평균 응답시간 (시간)
     }
   },
   {
@@ -176,7 +198,7 @@ export const mockProjects: Project[] = [
     service_id: 'SVC-DEV-001',
     category: '개발',
     status: 'active',
-    phase: 'execution',  // 현재 실행 단계
+    phase: 'design' as ProjectPhase,  // 4단계: 설계 - 상세 설계 진행 중
     created_from: 'catalog',
     contract: {
       id: 'CNT-002',
@@ -257,9 +279,14 @@ export const mockProjects: Project[] = [
       pm: {
         id: 'pm-002',
         name: '박준영',
-        role: 'Technical PM',
+        role: 'Senior Technical PM',
         email: 'park@pocket.com',
-        company: '포켓컴퍼니'
+        company: '포켓컴퍼니',
+        phone: '010-2345-6789',
+        experience_years: 7,
+        specialties: ['MVP 개발', '앱/웹 개발', '시스템 설계'],
+        profile_image: '/avatars/pm-park.jpg',
+        bio: '풀스택 개발 출신 테크니컬 PM. 스타트업 MVP 전문'
       },
       members: [
         {
@@ -313,30 +340,37 @@ export const mockProjects: Project[] = [
     meetings: [
       {
         id: 'MTG-001',
-        title: '가이드 미팅 1차',
-        type: 'progress',
-        date: new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000), // 내일
-        duration: 60,
-        attendees: ['김창업', '박준영 PM', '김백엔드', '이프론트'],
-        agenda: '1. 스프린트 목표 달성도\n2. 블로커 논의\n3. 다음 스프린트 계획',
+        title: '기술 스택 확정 미팅',
+        type: 'pm_meeting',
+        date: dayAfterTomorrow, // 2일 후
+        duration: 90,
+        attendees: ['김창업', '박준영 PM'],
+        agenda: '1. 최종 기술 스택 결정\n2. 인프라 구성 논의\n3. 보안 요구사항 검토',
         location: '줌',
         meeting_link: 'https://meet.google.com/abc-defg-hij'
       },
       {
         id: 'MTG-002',
-        title: '가이드 미팅 2차',
-        type: 'demo',
-        date: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000), // 1주일 후
+        title: '개발 스프린트 리뷰',
+        type: 'project_meeting',
+        date: tenDaysLater, // 10일 후
         duration: 90,
-        attendees: ['김창업', '박준영 PM', '이프론트'],
-        agenda: '1. 구현 기능 시연\n2. UI/UX 피드백\n3. 수정사항 논의',
-        location: '외부(강남역 스타벅스)'
+        attendees: ['김창업', '박준영 PM', '김백엔드', '이프론트', '최풀스택'],
+        agenda: '1. 스프린트 진행 상황\n2. 코드 리뷰\n3. 다음 스프린트 계획',
+        location: '포켓 내방'
       }
     ],
     files: [],
     communication: {
       unread_messages: 1,
-      last_activity: new Date(today.getTime() - 4 * 60 * 60 * 1000) // 4시간 전
+      last_activity: createDate(-0.17), // 4시간 전
+      last_message: {
+        from: '김창업 CTO',
+        content: '내일 PM 미팅에서 API 명세서 리뷰 예정입니다. 준비 부탁드려요.',
+        timestamp: createDate(-0.17)
+      },
+      total_messages: 23,
+      response_time_avg: 2.1 // 평균 응답시간 (시간)
     }
   },
   {
@@ -345,7 +379,7 @@ export const mockProjects: Project[] = [
     service_id: 'SVC-DES-001',
     category: '디자인',
     status: 'completed',
-    phase: 'completed',  // 완료
+    phase: 'completed' as ProjectPhase,  // 7단계: 완료
     created_from: 'catalog',
     contract: {
       id: 'CNT-003',

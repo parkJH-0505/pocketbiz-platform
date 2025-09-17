@@ -332,9 +332,9 @@ export default function CheckoutEnhanced() {
       // 장바구니 비우기
       clearCart();
 
-      // 성공 메시지와 함께 프로젝트 관리 페이지로 이동
+      // 성공 메시지와 함께 프로젝트 대시보드로 이동
       setTimeout(() => {
-        navigate('/startup/buildup/projects', {
+        navigate('/startup/buildup/dashboard', {
           state: {
             orderComplete: true,
             message: `${cart.length}개의 프로젝트가 생성되었습니다.`

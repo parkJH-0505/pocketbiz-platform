@@ -26,6 +26,11 @@ import {
   calculateBundleDiscount
 } from '../utils/buildupServiceLoader';
 import { mockProjects } from '../data/mockProjects';
+import {
+  calculatePhaseProgress,
+  PHASE_INFO,
+  getNextPhase
+} from '../utils/projectPhaseUtils';
 
 interface BuildupContextType {
   // Services
@@ -47,6 +52,26 @@ interface BuildupContextType {
   completedProjects: Project[];
   createProject: (data: Partial<Project>) => void;
   updateProject: (projectId: string, data: Partial<Project>) => void;
+
+  // Project calculations
+  calculateDDay: (project: Project) => { days: number; isUrgent: boolean; isWarning: boolean; text: string } | null;
+  getUrgentProjects: () => Project[];
+  getTodayTasks: () => Array<{
+    id: string;
+    type: 'meeting' | 'deliverable' | 'review' | 'milestone';
+    title: string;
+    project: string;
+    time?: string;
+    priority: 'high' | 'medium' | 'low';
+    status: 'pending' | 'in_progress' | 'completed';
+  }>;
+  getProjectProgress: (project: Project) => {
+    phaseProgress: number;
+    deliverableProgress: number;
+    overallProgress: number;
+    currentPhase: string;
+    nextPhase: string | null;
+  };
   
   // Recommendations
   getRecommendedServices: (userAxis?: Record<AxisKey, number>) => BuildupService[];
@@ -84,9 +109,9 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
   const [isProjectsInitialized, setIsProjectsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Initialize with mock projects
+  // Initialize with all mock projects
   const getInitialProjects = (): Project[] => {
-    return mockProjects.slice(0, 2); // 처음 2개 프로젝트만 활성화
+    return mockProjects; // 모든 프로젝트 활성화
   };
 
   const [projects, setProjects] = useState<Project[]>(getInitialProjects());
@@ -804,6 +829,188 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
   const cartTotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
   const bundleDiscount = calculateBundleDiscount(cart.map(item => item.service));
 
+  // D-Day 계산 함수
+  const calculateDDay = (project: Project) => {
+    if (!project.meetings || project.meetings.length === 0) return null;
+
+    const nextMeeting = project.meetings[0];
+    const now = new Date();
+    const meetingDate = new Date(nextMeeting.date);
+
+    const daysRemaining = Math.ceil(
+      (meetingDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    return {
+      days: daysRemaining,
+      isUrgent: daysRemaining <= 2,     // 🔴 긴급: 1-2일
+      isWarning: daysRemaining <= 7,    // 🟡 주의: 3-7일
+      text: daysRemaining > 0 ? `D-${daysRemaining}` : daysRemaining === 0 ? '오늘' : '지남'
+    };
+  };
+
+  // 긴급 프로젝트 조회
+  const getUrgentProjects = () => {
+    return activeProjects.filter(project => {
+      const dday = calculateDDay(project);
+      return dday && dday.isUrgent;
+    });
+  };
+
+  // 오늘의 할 일 생성 (개선된 버전)
+  const getTodayTasks = () => {
+    const tasks: Array<{
+      id: string;
+      type: 'meeting' | 'deliverable' | 'review' | 'milestone';
+      title: string;
+      project: string;
+      time?: string;
+      priority: 'high' | 'medium' | 'low';
+      status: 'pending' | 'in_progress' | 'completed';
+    }> = [];
+
+    const today = new Date();
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    const dayAfterTomorrow = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+
+    activeProjects.forEach(project => {
+      const dday = calculateDDay(project);
+
+      // 1. 미팅 관련 할 일
+      if (project.meetings) {
+        project.meetings.forEach(meeting => {
+          const meetingDate = new Date(meeting.date);
+
+          // 오늘, 내일, 모레 미팅
+          if (meetingDate.toDateString() === today.toDateString() ||
+              meetingDate.toDateString() === tomorrow.toDateString() ||
+              meetingDate.toDateString() === dayAfterTomorrow.toDateString()) {
+
+            const priority: 'high' | 'medium' | 'low' =
+              meetingDate.toDateString() === today.toDateString() ? 'high' :
+              dday?.isUrgent ? 'high' :
+              dday?.isWarning ? 'medium' : 'low';
+
+            const timeLabel = meetingDate.toDateString() === today.toDateString() ? '오늘' :
+                            meetingDate.toDateString() === tomorrow.toDateString() ? '내일' : '모레';
+
+            tasks.push({
+              id: `${project.id}-${meeting.id}`,
+              type: 'meeting',
+              title: `${timeLabel} ${meeting.title}`,
+              project: project.title,
+              time: meetingDate.toLocaleTimeString('ko-KR', {
+                hour: '2-digit',
+                minute: '2-digit'
+              }),
+              priority,
+              status: 'pending'
+            });
+          }
+        });
+      }
+
+      // 2. 산출물 마감 관련 할 일
+      if (project.deliverables) {
+        project.deliverables.forEach(deliverable => {
+          const dueDate = new Date(deliverable.due_date);
+          const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+          // 3일 이내 마감인 산출물
+          if (daysUntilDue <= 3 && daysUntilDue >= 0 &&
+              (deliverable.status === 'pending' || deliverable.status === 'in_progress')) {
+
+            const priority: 'high' | 'medium' | 'low' =
+              daysUntilDue === 0 ? 'high' :
+              daysUntilDue === 1 ? 'high' : 'medium';
+
+            const dueDateLabel = daysUntilDue === 0 ? '오늘 마감' :
+                               daysUntilDue === 1 ? '내일 마감' : `${daysUntilDue}일 후 마감`;
+
+            tasks.push({
+              id: `${project.id}-${deliverable.id}`,
+              type: 'deliverable',
+              title: `${deliverable.name} (${dueDateLabel})`,
+              project: project.title,
+              priority,
+              status: deliverable.status === 'in_progress' ? 'in_progress' : 'pending'
+            });
+          }
+        });
+      }
+
+      // 3. 읽지 않은 메시지 확인
+      if (project.communication?.unread_messages > 0) {
+        const priority: 'high' | 'medium' | 'low' =
+          project.communication.unread_messages >= 5 ? 'high' :
+          project.communication.unread_messages >= 2 ? 'medium' : 'low';
+
+        tasks.push({
+          id: `${project.id}-messages`,
+          type: 'review',
+          title: `읽지 않은 메시지 ${project.communication.unread_messages}개`,
+          project: project.title,
+          priority,
+          status: 'pending'
+        });
+      }
+
+      // 4. 프로젝트 단계 전환 필요 (검토 단계에서 7일 이상 머물러 있는 경우)
+      if (project.phase === 'review' && project.timeline?.phase_updated_at) {
+        const phaseUpdatedDate = new Date(project.timeline.phase_updated_at);
+        const daysInCurrentPhase = Math.ceil((today.getTime() - phaseUpdatedDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysInCurrentPhase >= 7) {
+          tasks.push({
+            id: `${project.id}-phase-transition`,
+            type: 'milestone',
+            title: '프로젝트 완료 검토 필요',
+            project: project.title,
+            priority: 'medium',
+            status: 'pending'
+          });
+        }
+      }
+    });
+
+    // 중요도 순으로 정렬 (high -> medium -> low)
+    return tasks.sort((a, b) => {
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
+  };
+
+  // 7단계 기반 진행률 계산
+  const getProjectProgress = (project: Project) => {
+    // 1. 단계 기반 진행률 계산
+    const phaseProgress = project.phase ? calculatePhaseProgress(project.phase) : 0;
+
+    // 2. 산출물 기반 진행률 계산
+    let deliverableProgress = 0;
+    if (project.deliverables && project.deliverables.length > 0) {
+      const completedDeliverables = project.deliverables.filter(
+        d => d.status === 'approved' || d.status === 'completed'
+      ).length;
+      deliverableProgress = Math.round((completedDeliverables / project.deliverables.length) * 100);
+    }
+
+    // 3. 전체 진행률 계산 (단계 60% + 산출물 40%)
+    const overallProgress = Math.round(phaseProgress * 0.6 + deliverableProgress * 0.4);
+
+    // 4. 현재 단계 정보
+    const currentPhase = project.phase ? PHASE_INFO[project.phase].label : '알 수 없음';
+    const nextPhase = project.phase ? getNextPhase(project.phase) : null;
+    const nextPhaseLabel = nextPhase ? PHASE_INFO[nextPhase].label : null;
+
+    return {
+      phaseProgress,
+      deliverableProgress,
+      overallProgress,
+      currentPhase,
+      nextPhase: nextPhaseLabel
+    };
+  };
+
   const value: BuildupContextType = {
     // 서비스 데이터
     services,
@@ -825,6 +1032,12 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     completedProjects,
     createProject,
     updateProject,
+
+    // 프로젝트 계산 함수
+    calculateDDay,
+    getUrgentProjects,
+    getTodayTasks,
+    getProjectProgress,
 
     // 서비스 조회 및 필터링
     getService,

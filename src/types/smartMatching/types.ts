@@ -15,6 +15,18 @@ export type EventCategory =
 export type Stage = 'A-1' | 'A-2' | 'A-3' | 'A-4' | 'A-5';
 export type Sector = 'S-1' | 'S-2' | 'S-3' | 'S-4' | 'S-5';
 
+// Core5 점수 타입 (기존과 동일)
+export interface Core5Scores {
+  GO: number;  // Growth Opportunity (성장기회) 0-100
+  EC: number;  // Execution Capability (실행역량) 0-100
+  PT: number;  // Product Technology (제품기술) 0-100
+  PF: number;  // Platform (플랫폼) 0-100
+  TO: number;  // Team Organization (팀조직) 0-100
+}
+
+// Core5 요구사항 (별칭)
+export type Core5Requirements = Core5Scores;
+
 // 기본 이벤트 인터페이스
 export interface BaseEvent {
   id: string;
@@ -35,6 +47,7 @@ export interface BaseEvent {
   // 커스텀 속성
   matchingScore?: number;
   relatedServices?: string[];
+  originalUrl?: string;
 }
 
 // 지원사업 특화 속성
@@ -92,6 +105,7 @@ export interface TipsProgramEvent extends BaseEvent {
   requirementLevel: string;
   evaluationCriteria: string[];
   supportBenefits: string[];
+  hostOrganization: string;
 }
 
 // 융자프로그램 특화 속성
@@ -99,59 +113,57 @@ export interface LoanProgramEvent extends BaseEvent {
   category: 'loan_program';
   loanAmount: string;
   interestRate: string;
-  repaymentPeriod: string;
-  guaranteeRequired: boolean;
+  loanPeriod: string;
   collateralRequired: boolean;
-  loanPurpose: string[];
+  hostOrganization: string;
+  eligibilityCriteria: string[];
 }
 
 // 입찰 특화 속성
 export interface BiddingEvent extends BaseEvent {
   category: 'bidding';
-  biddingOrganization: string;
-  projectValue: string;
-  projectPeriod: string;
-  technicalRequirements: string[];
-  evaluationMethod: string;
+  projectName: string;
+  budget: string;
+  bidType: string;
   qualificationRequirements: string[];
+  technicalRequirements: string[];
+  hostOrganization: string;
 }
 
 // 배치프로그램 특화 속성
 export interface BatchProgramEvent extends BaseEvent {
   category: 'batch_program';
   programName: string;
-  batchNumber: number;
+  batchNumber: string;
   programDuration: string;
-  participantCount: number;
   curriculum: string[];
-  certification?: string;
+  mentors: string[];
+  graduationBenefits: string[];
 }
 
 // 컨퍼런스 특화 속성
 export interface ConferenceEvent extends BaseEvent {
   category: 'conference';
+  eventName: string;
   venue: string;
-  eventDate: Date;
-  duration: string;
   speakers: string[];
   agenda: string[];
-  participationFee?: string;
-  networkingOpportunities: string[];
+  ticketPrice: string;
+  expectedAttendees: number;
 }
 
 // 세미나 특화 속성
 export interface SeminarEvent extends BaseEvent {
   category: 'seminar';
-  venue: string;
-  eventDate: Date;
-  duration: string;
+  topic: string;
   instructor: string;
-  topics: string[];
-  targetAudience: string;
-  participationFee?: string;
+  duration: string;
+  targetAudience: string[];
+  learningObjectives: string[];
+  certificateProvided: boolean;
 }
 
-// 통합 이벤트 타입
+// 유니온 타입
 export type SmartMatchingEvent =
   | GovernmentSupportEvent
   | OpenInnovationEvent
@@ -169,39 +181,69 @@ export interface MatchingResult {
   event: SmartMatchingEvent;
   score: number;
   matchingReasons: string[];
-  urgencyLevel: 'high' | 'medium' | 'low';
+  urgencyLevel: 'low' | 'medium' | 'high';
   daysUntilDeadline: number;
   recommendedActions: string[];
 }
 
-// 오버레이 구성
-export interface OverlayConfig {
-  category: EventCategory;
-  title: string;
-  primaryFields: string[];      // 오버레이에서 보여줄 주요 필드
-  secondaryFields: string[];    // 더보기에서 보여줄 필드
-  actionButtonText: string;     // CTA 버튼 텍스트
-  iconColor: string;           // 카테고리별 아이콘 색상
-}
-
-// 스마트 매칭 컨텍스트
-export interface SmartMatchingContext {
-  userStage: Stage;
-  userSector: Sector;
-  currentRecommendations: MatchingResult[];
-  activeOverlay: SmartMatchingEvent | null;
-  filters: {
-    categories: EventCategory[];
-    urgencyLevel: ('high' | 'medium' | 'low')[];
-    stages: Stage[];
-    sectors: Sector[];
+// 필터 옵션 (기존과 통합)
+export interface FilterOptions {
+  categories: EventCategory[];
+  stages: Stage[];
+  sectors: Sector[];
+  dateRange: {
+    start: Date | null;
+    end: Date | null;
   };
+  minScore?: number;
+  urgencyLevel?: 'all' | 'low' | 'medium' | 'high';
 }
 
-// 매칭 엔진 인터페이스
-export interface MatchingEngine {
-  recommend: (userProfile: { stage: Stage; sector: Sector; kpiScores?: Record<string, number> }) => MatchingResult[];
-  calculateScore: (event: SmartMatchingEvent, userProfile: any) => number;
-  getUrgencyLevel: (daysUntilDeadline: number) => 'high' | 'medium' | 'low';
-  filterByCategory: (events: SmartMatchingEvent[], category: EventCategory) => SmartMatchingEvent[];
+// 스마트매칭 상태
+export interface SmartMatchingState {
+  selectedEventId: string | null;
+  filters: FilterOptions;
+  sortBy: 'matchingScore' | 'deadline' | 'category';
+  viewMode: 'grid' | 'list';
+  recommendations: MatchingResult[];
+}
+
+// 준비 태스크 (기존 유지)
+export interface PreparationTask {
+  id: string;
+  title: string;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
+  estimatedTime: string;
+  completed: boolean;
+  relatedArea: keyof Core5Scores | null;
+}
+
+// THE ONE 추천 (기존 구조 활용)
+export interface TheOneRecommendation {
+  event: SmartMatchingEvent;
+  matchingScore: number;
+  matchingAnalysis: {
+    matchingScore: number;
+    gaps: Record<keyof Core5Scores, number>;
+    strengths: string[];
+    weaknesses: string[];
+    recommendation: string;
+  };
+  preparationTasks: PreparationTask[];
+  alternativeRecommendations: SmartMatchingEvent[];
+  userScores: Core5Scores;
+  requiredScores: Core5Scores;
+  averageScores: Core5Scores;
+}
+
+// 이벤트 상태 타입
+export type EventStatus = 'recommended' | 'preparing' | 'insufficient';
+
+// 호환성 검증 결과
+export interface CompatibilityResult {
+  isCompatible: boolean;
+  meetCount: number;
+  totalCount: number;
+  details: Record<keyof Core5Scores, boolean>;
 }

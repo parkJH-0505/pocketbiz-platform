@@ -248,20 +248,7 @@ export default function ServiceDetailModal({ service, onClose, onAddToCart }: Se
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">고객 리뷰</h3>
                 <div className="flex items-center gap-2">
-                  <div className="flex">
-                    {[1, 2, 3, 4, 5].map(i => (
-                      <Star
-                        key={i}
-                        className={`w-5 h-5 ${
-                          i <= Math.floor(service.reviews?.avg_rating || 0)
-                            ? 'text-yellow-400 fill-current'
-                            : 'text-gray-300'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="font-semibold">{service.reviews?.avg_rating || 0}</span>
-                  <span className="text-gray-500">({service.reviews?.total_count || 0}개)</span>
+                  <span className="text-gray-500">총 {service.reviews?.total_count || 0}개 리뷰</span>
                 </div>
               </div>
 
@@ -273,18 +260,6 @@ export default function ServiceDetailModal({ service, onClose, onAddToCart }: Se
                         <div>
                           <p className="font-medium text-gray-900">{review.client_name}</p>
                           <p className="text-sm text-gray-500">{review.company} · {review.date}</p>
-                        </div>
-                        <div className="flex">
-                          {[1, 2, 3, 4, 5].map(j => (
-                            <Star
-                              key={j}
-                              className={`w-4 h-4 ${
-                                j <= Math.floor(review.rating)
-                                  ? 'text-yellow-400 fill-current'
-                                  : 'text-gray-300'
-                              }`}
-                            />
-                          ))}
                         </div>
                       </div>
                       <p className="text-gray-600">{review.content}</p>

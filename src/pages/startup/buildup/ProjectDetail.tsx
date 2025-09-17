@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useChatContext } from '../../../contexts/ChatContext';
+import ChatSideModal from '../../../components/chat/ChatSideModal';
+import { mockMeetingRecords } from '../../../data/mockMeetingData';
+import type { GuideMeetingRecord, GuideMeetingComment } from '../../../types/meeting.types';
 import {
   ArrowLeft,
   ArrowRight,
@@ -10,6 +14,7 @@ import {
   MessageSquare,
   Calendar,
   CheckCircle,
+  CheckCircle2,
   AlertCircle,
   PlusCircle,
   Download,
@@ -77,9 +82,87 @@ export default function ProjectDetail() {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const { projects, updateProject } = useBuildupContext();
+  const {
+    openChatForProject,
+    getUnreadCountByProject,
+    createChatRoomForProject
+  } = useChatContext();
   
   const project = projects.find(p => p.id === projectId);
   const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'meetings'>('overview');
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [selectedMeeting, setSelectedMeeting] = useState<GuideMeetingRecord | null>(null);
+  const [newComment, setNewComment] = useState('');
+
+  // 채팅방 생성 및 읽지 않은 메시지 수 확인
+  useEffect(() => {
+    if (project) {
+      // 프로젝트에 대한 채팅방이 없으면 생성
+      createChatRoomForProject(project);
+      // 읽지 않은 메시지 수 가져오기
+      const count = getUnreadCountByProject(project.id);
+      setUnreadCount(count);
+    }
+  }, [project, createChatRoomForProject, getUnreadCountByProject]);
+
+  // 미팅 기록 가져오기
+  const meetingRecords = project ? mockMeetingRecords[project.id] || [] : [];
+
+  // 첫 번째 미팅을 기본 선택
+  useEffect(() => {
+    if (meetingRecords.length > 0 && !selectedMeeting) {
+      setSelectedMeeting(meetingRecords[0]);
+    }
+  }, [meetingRecords, selectedMeeting]);
+
+  // 미팅 선택 핸들러
+  const handleMeetingSelect = (meeting: GuideMeetingRecord) => {
+    setSelectedMeeting(meeting);
+    setNewComment(''); // 댓글 입력 초기화
+  };
+
+  // 댓글 추가 핸들러
+  const handleAddComment = () => {
+    if (!newComment.trim() || !selectedMeeting) return;
+
+    const newCommentObj: GuideMeetingComment = {
+      id: `comment-${Date.now()}`,
+      meetingId: selectedMeeting.id,
+      content: newComment.trim(),
+      authorId: 'customer-001',
+      authorName: '김대표',
+      authorType: 'customer',
+      createdAt: new Date(),
+      isReadByPM: false
+    };
+
+    // 실제로는 API 호출 또는 Context 업데이트
+    selectedMeeting.comments.push(newCommentObj);
+    selectedMeeting.unreadCommentCount++;
+    setNewComment('');
+  };
+
+  // 상대 시간 포맷팅
+  const formatRelativeTime = (date: Date) => {
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+
+    if (diffInHours < 1) return '방금 전';
+    if (diffInHours < 24) return `${diffInHours}시간 전`;
+
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays}일 전`;
+
+    return date.toLocaleDateString('ko-KR');
+  };
+
+  // 채팅방 열기 핸들러 (모달로 변경)
+  const handleOpenChat = () => {
+    if (project) {
+      setShowChatModal(true);
+    }
+  };
 
   // 7단계 기반 진행률 계산
   const calculateProgress = () => {
@@ -379,6 +462,19 @@ export default function ProjectDetail() {
           </div>
           
           <div className="flex items-center gap-2">
+            {/* 채팅방 바로가기 버튼 */}
+            <button
+              onClick={handleOpenChat}
+              className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors group"
+              title="프로젝트 채팅방"
+            >
+              <MessageSquare className="w-5 h-5 text-gray-600 group-hover:text-blue-600" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
             <button className="p-2 hover:bg-gray-100 rounded-lg">
               <Bell className="w-5 h-5 text-gray-600" />
             </button>
@@ -762,9 +858,17 @@ export default function ProjectDetail() {
                       <Calendar className="w-4 h-4" />
                       가이드 미팅 요청
                     </button>
-                    <button className="w-full py-2 px-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm font-medium">
+                    <button
+                      onClick={handleOpenChat}
+                      className="w-full py-2 px-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm font-medium relative"
+                    >
                       <MessageSquare className="w-4 h-4" />
-                      팀 메시지
+                      <span>PM과 대화하기</span>
+                      {unreadCount > 0 && (
+                        <span className="ml-auto px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                          {unreadCount}
+                        </span>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -775,18 +879,354 @@ export default function ProjectDetail() {
 
         {/* 미팅 기록 Tab */}
         {activeTab === 'meetings' && (
-          <div className="p-6">
-            <div className="mb-6">
+          <div className="h-full flex flex-col">
+            {/* 헤더 */}
+            <div className="px-6 py-4 border-b border-gray-200 bg-white">
               <h2 className="text-xl font-bold text-gray-900 mb-2">가이드 미팅 기록</h2>
-              <p className="text-sm text-gray-600">프로젝트 진행 중 실시된 모든 가이드 미팅 내역</p>
+              <p className="text-sm text-gray-600">프로젝트 진행 중 실시된 모든 가이드 미팅 내역 및 PM 메모</p>
             </div>
 
-            {/* 미팅 기록 내용 */}
-            <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-              <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">미팅 기록 기능 준비 중</h3>
-              <p className="text-gray-500">가이드 미팅 기록 시스템을 준비하고 있습니다.</p>
-            </div>
+            {meetingRecords.length === 0 ? (
+              /* 미팅 기록이 없는 경우 */
+              <div className="flex-1 flex items-center justify-center bg-gray-50">
+                <div className="text-center">
+                  <Calendar className="w-16 w-16 mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">미팅 기록이 없습니다</h3>
+                  <p className="text-gray-500">아직 진행된 가이드 미팅이 없습니다</p>
+                </div>
+              </div>
+            ) : (
+              /* 3단 레이아웃 */
+              <div className="flex-1 flex bg-gray-50">
+                {/* 1. 미팅 목록 (왼쪽 20%) */}
+                <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+                  <div className="p-4 border-b border-gray-200">
+                    <h3 className="font-semibold text-gray-900">미팅 목록</h3>
+                    <p className="text-xs text-gray-500 mt-1">{meetingRecords.length}개 미팅</p>
+                  </div>
+                  <div className="flex-1 overflow-y-auto">
+                    {meetingRecords.map((meeting, index) => {
+                      const isSelected = selectedMeeting?.id === meeting.id;
+                      return (
+                        <button
+                          key={meeting.id}
+                          onClick={() => handleMeetingSelect(meeting)}
+                          className={`w-full p-4 text-left border-b border-gray-100 transition-all hover:bg-gray-50 ${
+                            isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                          }`}
+                        >
+                          {/* 미팅 타임라인 dot */}
+                          <div className="flex items-start space-x-3">
+                            <div className="flex-shrink-0 pt-1">
+                              <div className={`w-3 h-3 rounded-full ${
+                                meeting.status === 'completed'
+                                  ? 'bg-green-500'
+                                  : meeting.status === 'scheduled'
+                                  ? 'bg-blue-500'
+                                  : 'bg-gray-300'
+                              }`} />
+                              {/* 타임라인 연결선 */}
+                              {index < meetingRecords.length - 1 && (
+                                <div className="w-0.5 h-12 bg-gray-200 ml-1 mt-1" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-medium text-gray-900 text-sm truncate">
+                                  {meeting.title}
+                                </h4>
+                                {meeting.unreadCommentCount > 0 && (
+                                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
+                                    {meeting.unreadCommentCount}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {meeting.date.toLocaleDateString('ko-KR')}
+                              </p>
+                              <div className="flex items-center mt-1">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                  meeting.status === 'completed'
+                                    ? 'text-green-700 bg-green-100'
+                                    : meeting.status === 'scheduled'
+                                    ? 'text-blue-700 bg-blue-100'
+                                    : 'text-gray-700 bg-gray-100'
+                                }`}>
+                                  {meeting.status === 'completed' ? '완료' :
+                                   meeting.status === 'scheduled' ? '예정' : '취소'}
+                                </span>
+                                {meeting.comments.length > 0 && (
+                                  <span className="ml-2 text-xs text-gray-400">
+                                    댓글 {meeting.comments.length}개
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. PM 미팅 메모 (가운데 50%) */}
+                <div className="flex-1 bg-white border-r border-gray-200 flex flex-col">
+                  {selectedMeeting ? (
+                    <>
+                      {/* 메모 헤더 */}
+                      <div className="p-4 border-b border-gray-200">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="font-semibold text-gray-900">{selectedMeeting.title}</h3>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {selectedMeeting.date.toLocaleDateString('ko-KR')} •
+                              {selectedMeeting.duration ? `${selectedMeeting.duration}분` : '시간 미정'} •
+                              {selectedMeeting.location || '장소 미정'}
+                            </p>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Download className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-pointer" title="PDF 다운로드" />
+                            <Edit className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-pointer" title="인쇄" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 메모 내용 */}
+                      <div className="flex-1 overflow-y-auto p-4">
+                        {selectedMeeting.memo ? (
+                          <div className="prose prose-sm max-w-none">
+                            {/* 미팅 요약 */}
+                            <div className="mb-6">
+                              <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-2">
+                                <Target className="w-4 h-4 mr-2 text-blue-500" />
+                                미팅 요약
+                              </h4>
+                              <p className="text-sm text-gray-700 leading-relaxed bg-gray-50 p-3 rounded-lg">
+                                {selectedMeeting.memo.summary}
+                              </p>
+                            </div>
+
+                            {/* 주요 논의사항 */}
+                            {selectedMeeting.memo.discussions.length > 0 && (
+                              <div className="mb-6">
+                                <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-3">
+                                  <MessageSquare className="w-4 h-4 mr-2 text-green-500" />
+                                  주요 논의사항
+                                </h4>
+                                <ul className="space-y-2">
+                                  {selectedMeeting.memo.discussions.map((item, index) => (
+                                    <li key={index} className="flex items-start text-sm text-gray-700">
+                                      <span className="w-1.5 h-1.5 bg-green-400 rounded-full mt-2 mr-3 flex-shrink-0" />
+                                      {item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* 결정사항 */}
+                            {selectedMeeting.memo.decisions.length > 0 && (
+                              <div className="mb-6">
+                                <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-3">
+                                  <CheckCircle className="w-4 h-4 mr-2 text-purple-500" />
+                                  결정사항
+                                </h4>
+                                <ul className="space-y-2">
+                                  {selectedMeeting.memo.decisions.map((item, index) => (
+                                    <li key={index} className="flex items-start text-sm text-gray-700">
+                                      <CheckCircle className="w-4 h-4 text-purple-400 mt-0.5 mr-3 flex-shrink-0" />
+                                      {item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* 액션 아이템 */}
+                            {selectedMeeting.memo.actionItems.length > 0 && (
+                              <div className="mb-6">
+                                <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-3">
+                                  <Clock className="w-4 h-4 mr-2 text-orange-500" />
+                                  액션 아이템
+                                </h4>
+                                <ul className="space-y-2">
+                                  {selectedMeeting.memo.actionItems.map((item, index) => (
+                                    <li key={index} className="flex items-start text-sm text-gray-700 bg-orange-50 p-2 rounded">
+                                      <Clock className="w-4 h-4 text-orange-400 mt-0.5 mr-3 flex-shrink-0" />
+                                      {item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* 다음 단계 */}
+                            {selectedMeeting.memo.nextSteps && (
+                              <div className="mb-6">
+                                <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-2">
+                                  <ArrowRight className="w-4 h-4 mr-2 text-blue-500" />
+                                  다음 단계
+                                </h4>
+                                <p className="text-sm text-gray-700 bg-blue-50 p-3 rounded-lg">
+                                  {selectedMeeting.memo.nextSteps}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* 첨부파일 */}
+                            {selectedMeeting.memo.attachments.length > 0 && (
+                              <div className="mb-4">
+                                <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-3">
+                                  <Paperclip className="w-4 h-4 mr-2 text-gray-500" />
+                                  첨부파일
+                                </h4>
+                                <div className="space-y-2">
+                                  {selectedMeeting.memo.attachments.map((file) => (
+                                    <div key={file.id} className="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
+                                      <FileText className="w-4 h-4 text-blue-500 mr-3" />
+                                      <div className="flex-1">
+                                        <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                                        <p className="text-xs text-gray-500">
+                                          {(file.size / 1024 / 1024).toFixed(1)}MB • {file.uploadedAt.toLocaleDateString('ko-KR')}
+                                        </p>
+                                      </div>
+                                      <Download className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 메모 작성 정보 */}
+                            <div className="mt-8 pt-4 border-t border-gray-200 text-xs text-gray-500">
+                              <p>작성자: {selectedMeeting.participants.pm.name} PM</p>
+                              <p>작성일: {selectedMeeting.memo.createdAt.toLocaleDateString('ko-KR')} {selectedMeeting.memo.createdAt.toLocaleTimeString('ko-KR')}</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center h-full">
+                            <div className="text-center">
+                              <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                              <h4 className="text-lg font-semibold text-gray-700 mb-2">미팅 메모 없음</h4>
+                              <p className="text-gray-500">PM이 아직 미팅 메모를 작성하지 않았습니다</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-500">미팅을 선택해주세요</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. 댓글/피드백 (오른쪽 30%) */}
+                <div className="w-96 bg-white flex flex-col">
+                  {selectedMeeting ? (
+                    <>
+                      {/* 댓글 헤더 */}
+                      <div className="p-4 border-b border-gray-200">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold text-gray-900">댓글 & 피드백</h3>
+                          <div className="text-xs text-gray-500">
+                            {selectedMeeting.pmLastChecked ? (
+                              <span className="text-green-600">✓ PM 확인: {formatRelativeTime(selectedMeeting.pmLastChecked)}</span>
+                            ) : (
+                              <span className="text-gray-500">PM 미확인</span>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          댓글 {selectedMeeting.comments.length}개 • 미확인 {selectedMeeting.unreadCommentCount}개
+                        </p>
+                      </div>
+
+                      {/* 댓글 목록 */}
+                      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                        {selectedMeeting.comments.length === 0 ? (
+                          <div className="text-center py-8">
+                            <MessageSquare className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                            <p className="text-sm text-gray-500">아직 댓글이 없습니다</p>
+                          </div>
+                        ) : (
+                          selectedMeeting.comments.map((comment) => (
+                            <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-sm font-medium text-gray-900">
+                                    {comment.authorName}
+                                  </span>
+                                  <span className={`text-xs px-2 py-0.5 rounded ${
+                                    comment.authorType === 'pm'
+                                      ? 'bg-blue-100 text-blue-700'
+                                      : 'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {comment.authorType === 'pm' ? 'PM' : '고객'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <span className="text-xs text-gray-500">
+                                    {formatRelativeTime(comment.createdAt)}
+                                  </span>
+                                  {comment.isReadByPM && (
+                                    <CheckCircle2 className="w-3 h-3 text-green-500" title="PM 확인" />
+                                  )}
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-700 leading-relaxed">
+                                {comment.content}
+                              </p>
+                              {comment.attachments && comment.attachments.length > 0 && (
+                                <div className="mt-2 space-y-1">
+                                  {comment.attachments.map((file) => (
+                                    <div key={file.id} className="flex items-center space-x-2 text-xs text-blue-600 hover:text-blue-700 cursor-pointer">
+                                      <Paperclip className="w-3 h-3" />
+                                      <span>{file.name}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {/* 댓글 작성 */}
+                      <div className="p-4 border-t border-gray-200">
+                        <textarea
+                          value={newComment}
+                          onChange={(e) => setNewComment(e.target.value)}
+                          placeholder="미팅에 대한 피드백이나 질문을 남겨보세요..."
+                          className="w-full p-3 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          rows={3}
+                        />
+                        <div className="flex items-center justify-between mt-2">
+                          <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded">
+                            <Paperclip className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={handleAddComment}
+                            disabled={!newComment.trim()}
+                            className={`px-4 py-2 text-sm rounded-lg transition-all ${
+                              newComment.trim()
+                                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            }`}
+                          >
+                            댓글 작성
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-500">미팅을 선택해주세요</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1083,6 +1523,15 @@ export default function ProjectDetail() {
           </div>
         )}
       </div>
+
+      {/* 채팅 사이드 모달 */}
+      {showChatModal && project && (
+        <ChatSideModal
+          projectId={project.id}
+          projectTitle={project.title}
+          onClose={() => setShowChatModal(false)}
+        />
+      )}
     </div>
   );
 }

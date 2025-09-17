@@ -260,11 +260,11 @@ export function getRecommendedProjects(
     const gap = requirements[axis] - userScores[axis];
 
     if (gap > 0) {
-      // 해당 축에서 추천 서비스 선택
+      // 해당 축에서 추천 서비스 선택 (1개만)
       const services = axisServiceMapping[axis]
         .filter(s => s.improvement_score >= gap * 0.5) // 갭의 50% 이상 개선 가능한 서비스
         .sort((a, b) => b.priority - a.priority)
-        .slice(0, 2); // 축당 최대 2개 서비스
+        .slice(0, 1); // 축당 최대 1개 서비스
 
       if (services.length > 0) {
         recommendations.push({
