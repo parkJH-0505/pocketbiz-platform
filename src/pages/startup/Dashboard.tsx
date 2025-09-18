@@ -7,16 +7,20 @@
  * - 사이드바: 성장 레벨 + 숨은 기회
  */
 
-import React, { Suspense } from 'react';
-import { motion } from 'framer-motion';
+import React, { Suspense, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { BarChart3, X } from 'lucide-react';
 import { DashboardProvider } from '../../contexts/DashboardContext';
+import { NotificationBell } from '../../components/notifications/NotificationBell';
 
 // 컴포넌트 지연 로딩
 const TodaysActionCompact = React.lazy(() => import('../../components/dashboard/TodaysActionCompact'));
 const GrowthCalendarPremium = React.lazy(() => import('../../components/dashboard/GrowthCalendarPremium'));
 const GrowthInsights = React.lazy(() => import('../../components/dashboard/GrowthInsights'));
-const KPIRadarMini = React.lazy(() => import('../../components/dashboard/KPIRadarMini'));
+const KPIRadarPremium = React.lazy(() => import('../../components/dashboard/KPIRadarPremium'));
 const ActionErrorBoundary = React.lazy(() => import('../../components/dashboard/ActionErrorBoundary'));
+const ProfileCard = React.lazy(() => import('../../components/dashboard/ProfileCard'));
+const WeeklyVCRecommendation = React.lazy(() => import('../../components/dashboard/WeeklyVCRecommendation'));
 
 // 로딩 컴포넌트
 const LoadingSkeleton: React.FC<{ className?: string }> = ({ className }) => (
@@ -24,6 +28,8 @@ const LoadingSkeleton: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const Dashboard: React.FC = () => {
+  const [showKPIPanel, setShowKPIPanel] = useState(false);
+
   return (
     <DashboardProvider>
       <div className="min-h-screen bg-gray-50">
@@ -39,45 +45,110 @@ const Dashboard: React.FC = () => {
         </div>
 
         <div className="max-w-7xl mx-auto p-6">
-          {/* 상단 위젯 그리드 */}
-          <div className="grid grid-cols-12 gap-6 mb-6">
-            {/* 메인 캘린더 - 9/12 컬럼 */}
-            <motion.section
-              className="col-span-12 lg:col-span-9"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
-              <Suspense fallback={<LoadingSkeleton className="h-[700px]" />}>
-                <GrowthCalendarPremium />
-              </Suspense>
-            </motion.section>
+          {/* 프로필 카드 */}
+          <motion.section
+            className="mb-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <Suspense fallback={<LoadingSkeleton className="h-24" />}>
+              <ProfileCard />
+            </Suspense>
+          </motion.section>
 
-            {/* 사이드 위젯 - 3/12 컬럼 */}
-            <motion.aside
-              className="col-span-12 lg:col-span-3 space-y-6"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <Suspense fallback={<LoadingSkeleton className="h-80" />}>
-                <KPIRadarMini />
-              </Suspense>
-            </motion.aside>
-          </div>
+          {/* 메인 캘린더 - 전체 폭 */}
+          <motion.section
+            className="mb-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <Suspense fallback={<LoadingSkeleton className="h-[700px]" />}>
+              <GrowthCalendarPremium />
+            </Suspense>
+          </motion.section>
 
           {/* 숨은 기회 발견 - 전체 폭 */}
           <motion.section
             className="mb-6"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
           >
             <Suspense fallback={<LoadingSkeleton className="h-48" />}>
               <GrowthInsights />
             </Suspense>
           </motion.section>
+
+          {/* 주간 VC 추천 - 하단 배치 */}
+          <motion.section
+            className="mb-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+          >
+            <Suspense fallback={<LoadingSkeleton className="h-64" />}>
+              <WeeklyVCRecommendation />
+            </Suspense>
+          </motion.section>
         </div>
+
+        {/* 알림 벨 - 우상단 고정 */}
+        <NotificationBell className="fixed top-4 right-4 z-50" />
+
+        {/* KPI 레이더 플로팅 버튼 */}
+        <motion.button
+          className="fixed bottom-6 right-6 w-16 h-16 bg-primary-main hover:bg-primary-dark text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center z-50"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setShowKPIPanel(true)}
+        >
+          <BarChart3 className="w-6 h-6" />
+        </motion.button>
+
+        {/* KPI 레이더 사이드 패널 */}
+        <AnimatePresence>
+          {showKPIPanel && (
+            <>
+              {/* 배경 오버레이 */}
+              <motion.div
+                className="fixed inset-0 bg-black/50 z-40"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowKPIPanel(false)}
+              />
+
+              {/* 사이드 패널 */}
+              <motion.div
+                className="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl z-50 overflow-y-auto"
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+              >
+                <div className="p-6">
+                  {/* 패널 헤더 */}
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold text-gray-900">KPI 대시보드</h2>
+                    <button
+                      onClick={() => setShowKPIPanel(false)}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <X className="w-5 h-5 text-gray-500" />
+                    </button>
+                  </div>
+
+                  {/* KPI 레이더 컴포넌트 */}
+                  <Suspense fallback={<LoadingSkeleton className="h-80" />}>
+                    <KPIRadarPremium />
+                  </Suspense>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
     </DashboardProvider>
   );

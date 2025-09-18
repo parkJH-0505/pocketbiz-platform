@@ -81,8 +81,16 @@ const StartupLayout = () => {
         { path: '/startup/buildup/calendar', label: '빌드업 캘린더' }
       ]
     },
-    { path: '/startup/vdr', label: 'VDR', icon: FolderLock },
-    { path: '/startup/profile', label: '마이프로필', icon: User },
+    {
+      path: '/startup/vdr',
+      label: 'VDR/마이프로필',
+      icon: FolderLock,
+      subItems: [
+        { path: '/startup/vdr', label: '문서 관리' },
+        { path: '/startup/vdr?tab=investor', label: '투자자 & NDA 관리' },
+        { path: '/startup/vdr?tab=profile', label: '마이프로필' }
+      ]
+    },
   ];
 
   return (

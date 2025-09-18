@@ -55,7 +55,7 @@ const KPIRadarMini: React.FC<KPIRadarMiniProps> = ({ className = '' }) => {
   };
 
   const handleClick = () => {
-    navigate('/startup/kpi-diagnosis/results');
+    navigate('/startup/kpi?tab=insights');
   };
 
   return (

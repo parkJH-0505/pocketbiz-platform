@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   FileText,
   Download,
   Share2,
   Eye,
-  Shield,
   Search,
   Filter,
   FolderOpen,
@@ -32,9 +32,8 @@ import type { VDRDocument, RepresentativeDoc, SharedSession } from '../../contex
 import ShareSessionModal from '../../components/vdr/ShareSessionModal';
 import FileDropZone from '../../components/vdr/FileDropZone';
 import UploadProgress, { type UploadItem } from '../../components/vdr/UploadProgress';
-import AccessLogViewer from '../../components/vdr/AccessLogViewer';
+import InvestorManagement from '../../components/vdr/InvestorManagement';
 import DocumentDetailModal from '../../components/vdr/DocumentDetailModal';
-import NDATracker from '../../components/vdr/NDATracker';
 import MyProfileTab from '../../components/profile/MyProfileTab';
 import SessionManagementTab from '../../components/vdr/SessionManagementTab';
 
@@ -677,7 +676,18 @@ const VDR: React.FC = () => {
   const { projects } = useBuildupContext();
 
   // 탭 상태 추가
-  const [activeTab, setActiveTab] = useState<'documents' | 'logs' | 'nda' | 'profile'>('documents');
+  // URL 파라미터를 통한 탭 관리 (KPI 진단과 동일한 방식)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = (searchParams.get('tab') as 'documents' | 'investor' | 'profile') || 'documents';
+
+  // 탭 전환 함수
+  const handleTabChange = (tab: 'documents' | 'investor' | 'profile') => {
+    if (tab === 'documents') {
+      setSearchParams({});  // 기본 탭은 파라미터 없이
+    } else {
+      setSearchParams({ tab });
+    }
+  };
 
   // 문서 관리 탭 내 뷰 모드 상태
   const [documentsViewMode, setDocumentsViewMode] = useState<'documents' | 'sessions'>('documents');
@@ -903,118 +913,75 @@ const VDR: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Header with File Drop Zone */}
+        {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Virtual Data Room</h1>
+              <h1 className="text-2xl font-bold text-gray-900">VDR/마이프로필</h1>
               <p className="text-sm text-gray-500 mt-1">모든 문서를 한 곳에서 관리하고 안전하게 공유하세요</p>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowDropZone(!showDropZone)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  showDropZone
-                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <Upload className="w-4 h-4" />
-                {showDropZone ? '드롭존 닫기' : '드롭존 열기'}
-              </button>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                <Upload className="w-4 h-4" />
-                파일 선택
-              </button>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              onChange={handleFileUpload}
-              className="hidden"
-            />
           </div>
 
-          {/* File Drop Zone - Collapsible */}
-          {showDropZone && (
-            <div className="mb-6 animate-in fade-in slide-in-from-top-2 duration-300">
-              <FileDropZone
-                onFilesSelected={async (files) => {
-                  console.log('[VDR] Files dropped:', files);
-
-                  // 진행률 추적 업로드
-                  await handleFilesUpload(files);
-
-                  // 드롭존 닫기
-                  setShowDropZone(false);
-                }}
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.json,.xml,.zip,.png,.jpg,.jpeg"
-                maxSize={100 * 1024 * 1024} // 100MB
-                maxFiles={10}
-              />
-            </div>
-          )}
-
-          {/* Tab Navigation */}
+          {/* Tab Navigation - KPI 진단 스타일 적용 */}
           <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
+            <div className="flex space-x-8">
               <button
-                onClick={() => setActiveTab('documents')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'documents'
-                    ? 'border-blue-500 text-blue-600'
+                onClick={() => handleTabChange('documents')}
+                className={`
+                  relative py-4 px-1 flex items-center gap-2 border-b-2 transition-all duration-200
+                  ${activeTab === 'documents'
+                    ? 'border-blue-600 text-blue-600 font-semibold'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                  }
+                `}
               >
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  문서 관리
-                </div>
+                <FileText size={18} />
+                <span className="text-sm">문서 관리</span>
+
+                {/* Active indicator animation */}
+                {activeTab === 'documents' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 animate-pulse" />
+                )}
               </button>
+
               <button
-                onClick={() => setActiveTab('logs')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'logs'
-                    ? 'border-blue-500 text-blue-600'
+                onClick={() => handleTabChange('investor')}
+                className={`
+                  relative py-4 px-1 flex items-center gap-2 border-b-2 transition-all duration-200
+                  ${activeTab === 'investor'
+                    ? 'border-blue-600 text-blue-600 font-semibold'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                  }
+                `}
               >
-                <div className="flex items-center gap-2">
-                  <Eye className="w-4 h-4" />
-                  접근 로그
-                </div>
+                <Users size={18} />
+                <span className="text-sm">투자자 & NDA 관리</span>
+
+                {/* Active indicator animation */}
+                {activeTab === 'investor' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 animate-pulse" />
+                )}
               </button>
+
               <button
-                onClick={() => setActiveTab('nda')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'nda'
-                    ? 'border-blue-500 text-blue-600'
+                onClick={() => handleTabChange('profile')}
+                className={`
+                  relative py-4 px-1 flex items-center gap-2 border-b-2 transition-all duration-200
+                  ${activeTab === 'profile'
+                    ? 'border-blue-600 text-blue-600 font-semibold'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                  }
+                `}
               >
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4" />
-                  NDA 관리
-                </div>
+                <Building size={18} />
+                <span className="text-sm">마이프로필</span>
+
+                {/* Active indicator animation */}
+                {activeTab === 'profile' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 animate-pulse" />
+                )}
               </button>
-              <button
-                onClick={() => setActiveTab('profile')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'profile'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Building className="w-4 h-4" />
-                  마이프로필
-                </div>
-              </button>
-            </nav>
+            </div>
           </div>
         </div>
 
@@ -1061,63 +1028,8 @@ const VDR: React.FC = () => {
         )}
 
 
-        {activeTab === 'logs' && (
-          <AccessLogViewer />
-        )}
-        {/* NDA Tab Content */}
-        {activeTab === 'nda' && (
-          <NDATracker
-            signatures={[
-              // 샘플 데이터 - 실제로는 VDRContext에서 가져옴
-              {
-                id: '1',
-                sessionId: 'session1',
-                sessionName: '2024 IR 자료',
-                signerName: '김철수',
-                signerEmail: 'kim@example.com',
-                signerCompany: 'ABC 벤처캐피탈',
-                signerTitle: '투자심사역',
-                templateId: 'standard',
-                templateName: '표준 NDA (한국어)',
-                status: 'signed',
-                requestedAt: new Date('2024-01-15'),
-                signedAt: new Date('2024-01-16'),
-                deadline: new Date('2024-01-22'),
-                ipAddress: '123.456.789.0',
-                documentUrl: '/nda/signed/1.pdf'
-              },
-              {
-                id: '2',
-                sessionId: 'session2',
-                sessionName: '재무제표 2023',
-                signerName: '이영희',
-                signerEmail: 'lee@example.com',
-                signerCompany: 'XYZ 캐피탈',
-                templateId: 'standard',
-                templateName: '표준 NDA (한국어)',
-                status: 'pending',
-                requestedAt: new Date('2024-01-18'),
-                deadline: new Date('2024-01-25')
-              },
-              {
-                id: '3',
-                sessionId: 'session3',
-                sessionName: '기술 특허 문서',
-                signerName: 'John Smith',
-                signerEmail: 'john@global.com',
-                signerCompany: 'Global Ventures',
-                templateId: 'standard-en',
-                templateName: 'Standard NDA (English)',
-                status: 'expired',
-                requestedAt: new Date('2024-01-10'),
-                deadline: new Date('2024-01-17')
-              }
-            ]}
-            onRefresh={() => console.log('Refresh NDA signatures')}
-            onViewDocument={(id) => console.log('View NDA document:', id)}
-            onDownloadDocument={(id) => console.log('Download NDA document:', id)}
-            onResendRequest={(id) => console.log('Resend NDA request:', id)}
-          />
+        {activeTab === 'investor' && (
+          <InvestorManagement />
         )}
 
         {/* Profile Tab Content */}
@@ -1128,159 +1040,183 @@ const VDR: React.FC = () => {
         {/* Documents Tab Content - Continue from search/filter */}
         {activeTab === 'documents' && (
           <>
-            {/* View Mode Toggle */}
-            <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {documentsViewMode === 'documents' ? '문서 중심 관리' : '세션 중심 관리'}
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {documentsViewMode === 'documents'
-                      ? '문서별로 업로드, 공유 상태를 관리합니다'
-                      : '공유 세션별로 문서를 그룹화하여 관리합니다'
-                    }
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-                  <button
-                    onClick={() => setDocumentsViewMode('documents')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                      documentsViewMode === 'documents'
-                        ? 'bg-white text-blue-600 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      문서 중심
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => setDocumentsViewMode('sessions')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                      documentsViewMode === 'sessions'
-                        ? 'bg-white text-blue-600 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Share2 className="w-4 h-4" />
-                      세션 중심
-                    </div>
-                  </button>
-                </div>
-              </div>
-            </div>
 
             {documentsViewMode === 'documents' ? (
               <>
-                {/* 기존 문서 중심 뷰 */}
-        {/* Search and Filter */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Filter className="w-5 h-5 text-gray-600" />
-            <h3 className="font-medium text-gray-900">필터 및 검색</h3>
-          </div>
+                {/* 통합된 문서 관리 컴포넌트 */}
+        <div className="bg-white rounded-lg shadow-sm">
+          {/* 헤더 섹션 - 업로드, 필터, 검색을 하나로 통합 */}
+          <div className="p-6 border-b">
+            {/* 상단: 뷰 모드 토글과 업로드 버튼 */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setDocumentsViewMode('documents')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    documentsViewMode === 'documents'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    문서 중심
+                  </div>
+                </button>
+                <button
+                  onClick={() => setDocumentsViewMode('sessions')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    documentsViewMode === 'sessions'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Share2 className="w-4 h-4" />
+                    세션 중심
+                  </div>
+                </button>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* 검색 */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowDropZone(!showDropZone)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                    showDropZone
+                      ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <Upload className="w-4 h-4" />
+                  {showDropZone ? '드롭존 닫기' : '드롭존 열기'}
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  <Upload className="w-4 h-4" />
+                  파일 선택
+                </button>
+              </div>
               <input
-                type="text"
-                placeholder="문서 검색..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileUpload}
+                className="hidden"
               />
             </div>
 
-            {/* 프로젝트 필터 */}
-            <div className="relative">
-              <select
-                value={selectedProjectId}
-                onChange={(e) => setSelectedProjectId(e.target.value)}
-                className="w-full appearance-none px-4 py-2 pr-8 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-              >
-                <option value="all">모든 프로젝트</option>
-                {projects?.map(project => (
-                  <option key={project.id} value={project.id}>
-                    {project.title}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            {/* 드롭존 (조건부 표시) */}
+            {showDropZone && (
+              <div className="mb-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                <FileDropZone
+                  onFilesSelected={async (files) => {
+                    console.log('[VDR] Files dropped:', files);
+                    await handleFilesUpload(files);
+                    setShowDropZone(false);
+                  }}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.json,.xml,.zip,.png,.jpg,.jpeg"
+                  maxSize={100 * 1024 * 1024} // 100MB
+                  maxFiles={10}
+                />
+              </div>
+            )}
+
+            {/* 검색 및 필터 섹션 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* 검색 */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="문서 검색..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* 프로젝트 필터 */}
+              <div className="relative">
+                <select
+                  value={selectedProjectId}
+                  onChange={(e) => setSelectedProjectId(e.target.value)}
+                  className="w-full appearance-none px-4 py-2 pr-8 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                >
+                  <option value="all">모든 프로젝트</option>
+                  {projects?.map(project => (
+                    <option key={project.id} value={project.id}>
+                      {project.title}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+
+              {/* 카테고리 필터 */}
+              <div className="relative">
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="w-full appearance-none px-4 py-2 pr-8 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                >
+                  <option value="all">모든 카테고리</option>
+                  <option value="buildup_deliverable">빌드업 산출물</option>
+                  <option value="kpi_report">KPI 보고서</option>
+                  <option value="ir_deck">IR Deck</option>
+                  <option value="business_plan">사업계획서</option>
+                  <option value="financial">재무제표</option>
+                  <option value="marketing">마케팅 지표</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
             </div>
 
-            {/* 카테고리 필터 */}
-            <div className="relative">
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="w-full appearance-none px-4 py-2 pr-8 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-              >
-                <option value="all">모든 카테고리</option>
-                <option value="buildup_deliverable">빌드업 산출물</option>
-                <option value="kpi_report">KPI 보고서</option>
-                <option value="ir_deck">IR Deck</option>
-                <option value="business_plan">사업계획서</option>
-                <option value="financial">재무제표</option>
-                <option value="marketing">마케팅 지표</option>
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            {/* 활성 필터 및 문서 수 정보 */}
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-900">
+                  {filteredDocs.length}개 문서 {selectedDocs.size > 0 && `(${selectedDocs.size}개 선택됨)`}
+                </span>
+                {(selectedProjectId !== 'all' || filterCategory !== 'all') && (
+                  <>
+                    <span className="text-gray-300">•</span>
+                    {selectedProjectId !== 'all' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        {projects?.find(p => p.id === selectedProjectId)?.title}
+                        <button
+                          onClick={() => setSelectedProjectId('all')}
+                          className="hover:bg-blue-200 rounded-full p-0.5"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    )}
+                    {filterCategory !== 'all' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                        {getCategoryLabel(filterCategory as any)}
+                        <button
+                          onClick={() => setFilterCategory('all')}
+                          className="hover:bg-green-200 rounded-full p-0.5"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* 키보드 단축키 안내 */}
+              <div className="text-xs text-gray-500">
+                단축키: Ctrl+A (전체 선택), Ctrl+D (선택 해제), Del (삭제)
+              </div>
             </div>
           </div>
 
-          {/* 활성 필터 및 키보드 단축키 안내 */}
-          <div className="flex items-center justify-between mt-3 pt-3 border-t">
-            <div className="flex items-center gap-2">
-              {(selectedProjectId !== 'all' || filterCategory !== 'all') && (
-                <>
-                  <span className="text-sm text-gray-600">활성 필터:</span>
-                  {selectedProjectId !== 'all' && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                      프로젝트: {projects?.find(p => p.id === selectedProjectId)?.title}
-                      <button
-                        onClick={() => setSelectedProjectId('all')}
-                        className="hover:bg-blue-200 rounded-full p-0.5"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {filterCategory !== 'all' && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                      카테고리: {getCategoryLabel(filterCategory as any)}
-                      <button
-                        onClick={() => setFilterCategory('all')}
-                        className="hover:bg-green-200 rounded-full p-0.5"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* 키보드 단축키 안내 */}
-            <div className="text-xs text-gray-500">
-              단축키: Ctrl+A (전체 선택), Ctrl+D (선택 해제), Del (삭제)
-            </div>
-          </div>
-        </div>
-
-        {/* Document List */}
-        <div className="bg-white rounded-lg shadow-sm">
-          <div className="p-4 border-b flex justify-between items-center">
-            <span className="text-sm text-gray-600">
-              {filteredDocs.length}개 문서 {selectedDocs.size > 0 && `(${selectedDocs.size}개 선택됨)`}
-            </span>
-          </div>
-
-          {/* Table Header */}
-          <div className="border-b bg-gray-50 px-4 py-3">
+          {/* 문서 테이블 */}
+          <div className="bg-gray-50 px-4 py-3 border-b">
             <div className="grid grid-cols-9 gap-4 text-xs font-medium text-gray-600 uppercase tracking-wider">
               <div className="col-span-1 flex items-center">
                 <input
@@ -1304,7 +1240,7 @@ const VDR: React.FC = () => {
             </div>
           </div>
 
-          {/* Table Body */}
+          {/* 문서 목록 */}
           <div className="divide-y">
             {filteredDocs.map(doc => (
               <DraggableTableRow
@@ -1332,14 +1268,225 @@ const VDR: React.FC = () => {
               </>
             ) : (
               <>
-                {/* 세션 중심 뷰 - 기존 SessionManagementTab 내용 통합 */}
-                <SessionManagementTab
-                  onCreateNewSession={() => setShowShareModal(true)}
-                  onEditSession={(sessionId) => {
-                    console.log('Edit session:', sessionId);
-                    // TODO: 세션 상세 편집 모달 구현
-                  }}
-                />
+                {/* 통합된 세션 관리 컴포넌트 */}
+        <div className="bg-white rounded-lg shadow-sm">
+          {/* 헤더 섹션 - 세션 중심 */}
+          <div className="p-6 border-b">
+            {/* 상단: 뷰 모드 토글과 새 세션 만들기 버튼 */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setDocumentsViewMode('documents')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    documentsViewMode === 'documents'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    문서 중심
+                  </div>
+                </button>
+                <button
+                  onClick={() => setDocumentsViewMode('sessions')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    documentsViewMode === 'sessions'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Share2 className="w-4 h-4" />
+                    세션 중심
+                  </div>
+                </button>
+              </div>
+
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Share2 className="w-4 h-4" />
+                새 세션 만들기
+              </button>
+            </div>
+
+            {/* 통계 정보 */}
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">전체 세션</p>
+                    <p className="text-2xl font-bold text-gray-900">{sharedSessions.length}</p>
+                  </div>
+                  <Share2 className="w-8 h-8 text-gray-400" />
+                </div>
+              </div>
+              <div className="bg-green-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-green-600">활성 세션</p>
+                    <p className="text-2xl font-bold text-green-900">
+                      {sharedSessions.filter(s => !s.expiresAt || new Date(s.expiresAt) > new Date()).length}
+                    </p>
+                  </div>
+                  <Check className="w-8 h-8 text-green-400" />
+                </div>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-blue-600">공유 문서</p>
+                    <p className="text-2xl font-bold text-blue-900">{sharedDocs.length}</p>
+                  </div>
+                  <FileText className="w-8 h-8 text-blue-400" />
+                </div>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-purple-600">총 접근</p>
+                    <p className="text-2xl font-bold text-purple-900">
+                      {sharedSessions.reduce((sum, s) => sum + s.accessCount, 0)}
+                    </p>
+                  </div>
+                  <Eye className="w-8 h-8 text-purple-400" />
+                </div>
+              </div>
+            </div>
+
+            {/* 세션 검색 */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="세션명으로 검색..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* 세션 수 정보 */}
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <div>
+                <span className="text-sm font-medium text-gray-900">
+                  {sharedSessions.length}개 세션
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 세션 목록 */}
+          <div className="divide-y">
+            {sharedSessions.length === 0 ? (
+              <div className="p-12 text-center">
+                <Share2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">세션이 없습니다</h3>
+                <p className="text-gray-600 mb-4">첫 번째 공유 세션을 만들어보세요</p>
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  <Share2 className="w-4 h-4" />
+                  새 세션 만들기
+                </button>
+              </div>
+            ) : (
+              sharedSessions
+                .filter(session =>
+                  !searchQuery || session.name.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+                .map(session => {
+                  const sessionDocs = documents.filter(doc => session.documentIds.includes(doc.id));
+                  const isExpired = session.expiresAt && new Date(session.expiresAt) < new Date();
+
+                  return (
+                    <div key={session.id} className="p-6 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <Share2 className="w-5 h-5 text-gray-400" />
+                            <h3 className="font-medium text-gray-900">{session.name}</h3>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              isExpired
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-green-100 text-green-700'
+                            }`}>
+                              {isExpired ? '만료됨' : '활성'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-4 h-4" />
+                              생성: {new Date(session.createdAt).toLocaleDateString('ko-KR')}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              {session.expiresAt ? `만료: ${new Date(session.expiresAt).toLocaleDateString('ko-KR')}` : '무제한'}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <FileText className="w-4 h-4" />
+                              {sessionDocs.length}개 문서
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Eye className="w-4 h-4" />
+                              {session.accessCount}회 접근
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(session.link);
+                              // 토스트 알림
+                              const toast = document.createElement('div');
+                              toast.textContent = '링크가 복사되었습니다';
+                              toast.className = 'fixed bottom-20 right-6 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+                              document.body.appendChild(toast);
+                              setTimeout(() => document.body.removeChild(toast), 2000);
+                            }}
+                            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="링크 복사"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => window.open(session.link, '_blank')}
+                            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="새 탭에서 열기"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 포함된 문서 목록 */}
+                      {sessionDocs.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-gray-100">
+                          <p className="text-sm font-medium text-gray-700 mb-2">포함된 문서:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {sessionDocs.map(doc => (
+                              <span
+                                key={doc.id}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
+                              >
+                                <FileText className="w-3 h-3" />
+                                {doc.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+            )}
+          </div>
+        </div>
               </>
             )}
           </>

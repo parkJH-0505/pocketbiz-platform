@@ -7,7 +7,12 @@ import {
   Shield,
   Edit3,
   CheckCircle,
-  Building2
+  Building2,
+  FileText,
+  Pen,
+  X,
+  AlertCircle,
+  Check
 } from 'lucide-react';
 import { useMyProfile } from '../../contexts/MyProfileContext';
 import { useVDRContext } from '../../contexts/VDRContext';
@@ -27,9 +32,11 @@ type ViewMode = 'public' | 'investors' | 'team' | 'private';
 
 const MyProfileTab: React.FC = () => {
   const { profile, loading, calculateCompleteness } = useMyProfile();
-  const { representativeDocs } = useVDRContext();
+  const { getRepresentativeDocumentsForProfile } = useVDRContext();
   const [viewMode, setViewMode] = useState<ViewMode>('public');
   const [isGlobalEditing, setIsGlobalEditing] = useState(false);
+  const [showNDAModal, setShowNDAModal] = useState(false);
+  const [ndaStatus, setNDAStatus] = useState<'not_signed' | 'signed'>('not_signed');
 
   // 프로필 완성도
   const completeness = calculateCompleteness();
@@ -44,23 +51,23 @@ const MyProfileTab: React.FC = () => {
 
   // 보기 모드별 문서 필터링
   const getVisibleDocuments = () => {
-    if (!representativeDocs) return [];
-
-    switch(viewMode) {
-      case 'public':
-        return Object.values(representativeDocs).filter(doc => doc?.visibility === 'public');
-      case 'investors':
-        return Object.values(representativeDocs).filter(doc =>
-          doc && (doc.visibility === 'public' || doc.visibility === 'investors')
-        );
-      case 'team':
-        return Object.values(representativeDocs).filter(doc =>
-          doc && doc.visibility !== 'private'
-        );
-      case 'private':
-        return Object.values(representativeDocs).filter(doc => doc);
-      default:
-        return [];
+    try {
+      switch(viewMode) {
+        case 'public':
+          return getRepresentativeDocumentsForProfile('public');
+        case 'investors':
+          return getRepresentativeDocumentsForProfile('investors');
+        case 'team':
+          return getRepresentativeDocumentsForProfile('team');
+        case 'private':
+          // private 모드에서는 모든 대표 문서를 표시
+          return getRepresentativeDocumentsForProfile('investors'); // 가장 많은 문서를 보여주는 모드
+        default:
+          return [];
+      }
+    } catch (error) {
+      console.error('Error getting visible documents:', error);
+      return [];
     }
   };
 
@@ -101,6 +108,42 @@ const MyProfileTab: React.FC = () => {
   };
 
   const viewStyle = getViewModeStyle();
+
+  // 카테고리 라벨
+  const getCategoryLabel = (category: string) => {
+    const labels: Record<string, string> = {
+      'ir_deck': 'IR 덱',
+      'business_plan': '사업계획서',
+      'financial': '재무제표',
+      'marketing': '마케팅',
+      'technical': '기술문서',
+      'legal': '법무문서',
+      'other': '기타'
+    };
+    return labels[category] || category;
+  };
+
+  // 공개 범위 라벨
+  const getVisibilityLabel = (visibility: string) => {
+    const labels: Record<string, string> = {
+      'public': '전체 공개',
+      'investors': '투자자 공개',
+      'team': '팀 공개',
+      'private': '비공개'
+    };
+    return labels[visibility] || visibility;
+  };
+
+  // 공개 범위 스타일
+  const getVisibilityStyle = (visibility: string) => {
+    const styles: Record<string, string> = {
+      'public': 'bg-green-100 text-green-700',
+      'investors': 'bg-purple-100 text-purple-700',
+      'team': 'bg-blue-100 text-blue-700',
+      'private': 'bg-gray-100 text-gray-700'
+    };
+    return styles[visibility] || 'bg-gray-100 text-gray-700';
+  };
 
   // 보기 모드별 아이콘
   const getViewModeIcon = () => {
@@ -345,13 +388,35 @@ const MyProfileTab: React.FC = () => {
                             </div>
                             <div>
                               <p className="font-medium text-gray-900 text-sm">{doc.name}</p>
-                              <p className="text-xs text-gray-500">
-                                {doc.category} · {doc.visibility}
-                              </p>
                             </div>
                           </div>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* NDA 버튼 섹션 */}
+                  {visibleDocs.length > 0 && ndaStatus === 'not_signed' && (
+                    <div className="mt-6 pt-6 border-t border-gray-100">
+                      <button
+                        onClick={() => setShowNDAModal(true)}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <Pen className="w-4 h-4" />
+                        간편 NDA 작성하고 확인하기
+                      </button>
+                      <p className="text-xs text-gray-500 text-center mt-2">
+                        NDA 체결 후 모든 문서에 접근하실 수 있습니다
+                      </p>
+                    </div>
+                  )}
+
+                  {ndaStatus === 'signed' && (
+                    <div className="mt-6 pt-6 border-t border-gray-100">
+                      <div className="flex items-center justify-center gap-2 px-4 py-3 bg-green-50 text-green-700 rounded-lg">
+                        <CheckCircle className="w-4 h-4" />
+                        열람 가능 - NDA 체결 완료
+                      </div>
                     </div>
                   )}
                 </div>
@@ -440,6 +505,216 @@ const MyProfileTab: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* 간편 NDA 모달 */}
+      {showNDAModal && (
+        <SimpleNDAModal
+          onClose={() => setShowNDAModal(false)}
+          onComplete={() => {
+            setNDAStatus('signed');
+            setShowNDAModal(false);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+// 간편 NDA 모달 컴포넌트
+interface SimpleNDAModalProps {
+  onClose: () => void;
+  onComplete: () => void;
+}
+
+const SimpleNDAModal: React.FC<SimpleNDAModalProps> = ({ onClose, onComplete }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    company: '',
+    position: '',
+    purpose: '',
+    agreed: false
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.name || !formData.email || !formData.company || !formData.agreed) {
+      alert('필수 항목을 모두 입력해주세요.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    // 2초 후 완료 처리 (실제로는 API 호출)
+    setTimeout(() => {
+      console.log('NDA 체결 완료:', formData);
+      setIsSubmitting(false);
+      onComplete();
+    }, 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* 헤더 */}
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">간편 NDA 체결</h3>
+                <p className="text-sm text-gray-600">정보 보호를 위한 비밀유지약정서</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
+        </div>
+
+        {/* 내용 */}
+        <div className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* 기본 정보 */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-900">기본 정보</h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    이름 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="성명을 입력해주세요"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    이메일 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="이메일 주소"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    소속 기관/회사 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.company}
+                    onChange={(e) => setFormData({...formData, company: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="소속을 입력해주세요"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">직책</label>
+                  <input
+                    type="text"
+                    value={formData.position}
+                    onChange={(e) => setFormData({...formData, position: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="직책 (선택사항)"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">열람 목적</label>
+                <textarea
+                  value={formData.purpose}
+                  onChange={(e) => setFormData({...formData, purpose: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="문서 열람 목적을 간략히 설명해주세요 (선택사항)"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            {/* NDA 조항 */}
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+              <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-orange-500" />
+                비밀유지약정 주요 조항
+              </h4>
+              <div className="text-sm text-gray-600 space-y-2">
+                <p>• 제공받은 모든 정보는 기밀로 취급하며 제3자에게 공개하지 않습니다.</p>
+                <p>• 정보는 오직 검토 목적으로만 사용하며 다른 용도로 활용하지 않습니다.</p>
+                <p>• 문서의 복사, 배포, 저장을 금지합니다.</p>
+                <p>• 본 약정은 문서 열람 종료 후에도 유효합니다.</p>
+              </div>
+            </div>
+
+            {/* 동의 체크박스 */}
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="nda-agreement"
+                checked={formData.agreed}
+                onChange={(e) => setFormData({...formData, agreed: e.target.checked})}
+                className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                required
+              />
+              <label htmlFor="nda-agreement" className="text-sm text-gray-700">
+                <span className="text-red-500">*</span> 위 비밀유지약정 조항에 동의하며,
+                제공받은 정보의 기밀성을 보장할 것을 서약합니다.
+              </label>
+            </div>
+
+            {/* 버튼 */}
+            <div className="flex items-center gap-3 pt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || !formData.agreed}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    처리 중...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    NDA 체결하고 문서 열람하기
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
 };

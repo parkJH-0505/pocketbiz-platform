@@ -198,6 +198,164 @@ export interface RepresentativeDoc {
   profileVisibility?: VDRDocument['visibility']; // 프로필에서의 공개 범위
 }
 
+// 🎯 투자자 관리 시스템 인터페이스들
+export interface InvestorLead {
+  id: string;
+  name: string;
+  company: string;
+  email: string;
+  phone?: string;
+  role: 'vc' | 'angel' | 'pe' | 'advisor' | 'accelerator' | 'family_office' | 'corporate_vc';
+  source: 'profile_view' | 'nda_request' | 'manual_add' | 'referral' | 'event';
+  firstContact: Date;
+  lastActivity: Date;
+  status: 'cold' | 'warm' | 'hot' | 'engaged' | 'passed' | 'invested';
+  tags: string[];
+  notes: string;
+  profileViews: ProfileView[];
+  contactHistory: ContactRecord[];
+
+  // 투자자 상세 정보
+  fundName?: string;
+  fundSize?: string;
+  investmentStage?: string[];
+  sectors?: string[];
+  checkSize?: string;
+  website?: string;
+  linkedinUrl?: string;
+
+  // 관심도 점수 (0-100)
+  interestScore: number;
+
+  // 프로필 조회 요약
+  totalProfileViews: number;
+  lastProfileView?: Date;
+  mostViewedSections: string[];
+}
+
+export interface NDARequest {
+  id: string;
+  leadId: string;
+  requesterInfo: {
+    name: string;
+    email: string;
+    company: string;
+    role?: string;
+    phone?: string;
+  };
+  requestedDocuments: string[];
+  status: 'pending' | 'approved' | 'rejected' | 'expired';
+  requestDate: Date;
+  responseDate?: Date;
+  approvedBy?: string;
+  rejectionReason?: string;
+  notes?: string;
+
+  // 승인 후 접근 권한
+  accessExpiresAt?: Date;
+  downloadAllowed: boolean;
+
+  // 자동 승인 조건
+  autoApprovalRules?: {
+    emailDomains?: string[];
+    companies?: string[];
+    minimumFollowupDays?: number;
+  };
+}
+
+export interface ProfileView {
+  id: string;
+  timestamp: Date;
+  leadId?: string;
+  sections: string[];
+  duration: number; // 초 단위
+  source: string;
+
+  // 상세 추적 정보
+  timePerSection: Record<string, number>;
+  scrollDepth: Record<string, number>;
+  interactions: {
+    clicks: number;
+    downloads: number;
+    shares: number;
+  };
+
+  // 기술적 정보
+  ipAddress?: string;
+  userAgent?: string;
+  deviceType?: 'desktop' | 'mobile' | 'tablet';
+  location?: string;
+}
+
+export interface ContactRecord {
+  id: string;
+  leadId: string;
+  type: 'email' | 'call' | 'meeting' | 'message' | 'event';
+  date: Date;
+  subject: string;
+  content?: string;
+  outcome?: 'positive' | 'neutral' | 'negative';
+  nextAction?: {
+    type: 'follow_up' | 'send_documents' | 'schedule_meeting' | 'none';
+    dueDate?: Date;
+    description?: string;
+  };
+
+  // 미팅 관련 (type이 'meeting'인 경우)
+  meetingDetails?: {
+    duration: number;
+    attendees: string[];
+    location?: string;
+    meetingType: 'pitch' | 'due_diligence' | 'term_discussion' | 'other';
+  };
+
+  createdBy: string;
+  updatedAt: Date;
+}
+
+// 투자자 관리 통계
+export interface InvestorAnalytics {
+  totalLeads: number;
+  leadsByStatus: Record<InvestorLead['status'], number>;
+  leadsBySource: Record<InvestorLead['source'], number>;
+  leadsByRole: Record<InvestorLead['role'], number>;
+
+  profileViewStats: {
+    totalViews: number;
+    uniqueViewers: number;
+    averageViewTime: number;
+    popularSections: Array<{
+      section: string;
+      viewCount: number;
+      averageTime: number;
+    }>;
+    viewsOverTime: Array<{
+      date: string;
+      views: number;
+      uniqueViewers: number;
+    }>;
+  };
+
+  ndaRequestStats: {
+    totalRequests: number;
+    pendingRequests: number;
+    approvalRate: number;
+    averageResponseTime: number; // 시간 단위
+    requestsByMonth: Array<{
+      month: string;
+      requests: number;
+      approvals: number;
+    }>;
+  };
+
+  engagementMetrics: {
+    averageInterestScore: number;
+    hotLeads: number;
+    activeConversations: number;
+    nextActionsToday: number;
+  };
+}
+
 interface VDRContextType {
   documents: VDRDocument[];
   sharedSessions: SharedSession[];
@@ -265,6 +423,44 @@ interface VDRContextType {
     signatureData: string;
   }) => Promise<NDASignature>;
 
+  // 🎯 투자자 관리 시스템
+  investorLeads: InvestorLead[];
+  ndaRequests: NDARequest[];
+
+  // 투자자 리드 관리
+  createInvestorLead: (leadData: Omit<InvestorLead, 'id' | 'firstContact' | 'lastActivity'>) => Promise<InvestorLead>;
+  updateInvestorLead: (leadId: string, updates: Partial<InvestorLead>) => Promise<void>;
+  deleteInvestorLead: (leadId: string) => Promise<void>;
+  getInvestorLead: (leadId: string) => InvestorLead | undefined;
+  searchInvestorLeads: (query: string) => InvestorLead[];
+  updateLeadStatus: (leadId: string, status: InvestorLead['status']) => Promise<void>;
+  updateInterestScore: (leadId: string, score: number) => Promise<void>;
+
+  // 프로필 조회 추적
+  trackProfileView: (leadId: string | undefined, sections: string[], duration: number, source: string) => Promise<void>;
+  getProfileViewsForLead: (leadId: string) => ProfileView[];
+  getProfileViewStatistics: () => InvestorAnalytics['profileViewStats'];
+
+  // NDA 요청 관리
+  createNDARequest: (requestData: Omit<NDARequest, 'id' | 'requestDate'>) => Promise<NDARequest>;
+  updateNDARequestStatus: (requestId: string, status: NDARequest['status'], notes?: string) => Promise<void>;
+  approveNDARequest: (requestId: string, approvedBy: string, accessExpiresAt?: Date) => Promise<void>;
+  rejectNDARequest: (requestId: string, rejectionReason: string, approvedBy: string) => Promise<void>;
+  getNDARequestsForLead: (leadId: string) => NDARequest[];
+
+  // 연락 이력 관리
+  addContactRecord: (contactData: Omit<ContactRecord, 'id' | 'updatedAt'>) => Promise<ContactRecord>;
+  updateContactRecord: (contactId: string, updates: Partial<ContactRecord>) => Promise<void>;
+  deleteContactRecord: (contactId: string) => Promise<void>;
+  getContactHistoryForLead: (leadId: string) => ContactRecord[];
+
+  // 투자자 분석
+  getInvestorAnalytics: () => InvestorAnalytics;
+  getLeadsByStatus: (status: InvestorLead['status']) => InvestorLead[];
+  getLeadsBySource: (source: InvestorLead['source']) => InvestorLead[];
+  getHotLeads: () => InvestorLead[];
+  getUpcomingActions: () => ContactRecord[];
+
   loading: boolean;
 }
 
@@ -317,6 +513,12 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [docsendSessions, setDocsendSessions] = useState<DocsendSession[]>([]);
   const [ndaTemplates, setNdaTemplates] = useState<NDATemplate[]>([]);
   const [ndaSignatures, setNdaSignatures] = useState<NDASignature[]>([]);
+
+  // 🎯 투자자 관리 관련 state들
+  const [investorLeads, setInvestorLeads] = useState<InvestorLead[]>([]);
+  const [ndaRequests, setNDARequests] = useState<NDARequest[]>([]);
+  const [profileViews, setProfileViews] = useState<ProfileView[]>([]);
+  const [contactRecords, setContactRecords] = useState<ContactRecord[]>([]);
   const { projects } = useBuildupContext();
   const { savedAssessments } = useKPIDiagnosis();
   const { currentUser } = useCurrentUser();
@@ -344,6 +546,339 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch (error) {
         console.error('[VDR] Failed to load access logs:', error);
       }
+    }
+  }, []);
+
+  // 🎯 투자자 관리 더미 데이터 초기화
+  useEffect(() => {
+    // 더미 투자자 리드 데이터
+    const dummyLeads: InvestorLead[] = [
+      {
+        id: 'lead-1',
+        name: '김민수',
+        company: 'BlueLake Partners',
+        email: 'minsu.kim@bluelake.vc',
+        phone: '+82-10-1234-5678',
+        role: 'vc',
+        source: 'profile_view',
+        firstContact: new Date('2024-01-15'),
+        lastActivity: new Date('2024-09-18'),
+        status: 'hot',
+        tags: ['Early Stage', 'B2B SaaS', 'Korea'],
+        notes: 'Series A 펀드 운용중. B2B SaaS에 특화된 투자자. 최근 우리 프로필을 여러 번 조회함.',
+        profileViews: [],
+        contactHistory: [],
+        fundName: 'BlueLake Fund III',
+        fundSize: '500억원',
+        investmentStage: ['Series A', 'Series B'],
+        sectors: ['B2B SaaS', 'Fintech', 'E-commerce'],
+        checkSize: '10-50억원',
+        website: 'https://bluelake.vc',
+        linkedinUrl: 'https://linkedin.com/in/minsu-kim',
+        interestScore: 92,
+        totalProfileViews: 8,
+        lastProfileView: new Date('2024-09-17'),
+        mostViewedSections: ['financial', 'team', 'business_plan']
+      },
+      {
+        id: 'lead-2',
+        name: '박지혜',
+        company: 'Spark Ventures',
+        email: 'jihye.park@spark.ventures',
+        phone: '+82-10-2345-6789',
+        role: 'angel',
+        source: 'nda_request',
+        firstContact: new Date('2024-02-10'),
+        lastActivity: new Date('2024-09-16'),
+        status: 'engaged',
+        tags: ['Angel Investor', 'Female Founder', 'Sustainability'],
+        notes: '지속가능한 비즈니스 모델에 관심이 많음. NDA 요청 후 지속적인 소통 중.',
+        profileViews: [],
+        contactHistory: [],
+        fundName: 'Personal Investment',
+        investmentStage: ['Pre-Seed', 'Seed'],
+        sectors: ['CleanTech', 'ESG', 'Impact'],
+        checkSize: '1-10억원',
+        linkedinUrl: 'https://linkedin.com/in/jihye-park',
+        interestScore: 78,
+        totalProfileViews: 5,
+        lastProfileView: new Date('2024-09-15'),
+        mostViewedSections: ['business_plan', 'esg', 'team']
+      },
+      {
+        id: 'lead-3',
+        name: 'David Chen',
+        company: 'Global Tech Capital',
+        email: 'david.chen@globaltech.capital',
+        role: 'vc',
+        source: 'referral',
+        firstContact: new Date('2024-03-05'),
+        lastActivity: new Date('2024-09-12'),
+        status: 'warm',
+        tags: ['Global', 'Series A', 'Cross-border'],
+        notes: '싱가포르 기반 글로벌 VC. 아시아 시장 진출에 관심. 추천을 통해 연결됨.',
+        profileViews: [],
+        contactHistory: [],
+        fundName: 'GTC Asia Fund II',
+        fundSize: '$200M',
+        investmentStage: ['Series A', 'Series B', 'Series C'],
+        sectors: ['B2B', 'AI/ML', 'Cross-border'],
+        checkSize: '$2-10M',
+        website: 'https://globaltech.capital',
+        interestScore: 65,
+        totalProfileViews: 3,
+        lastProfileView: new Date('2024-09-10'),
+        mostViewedSections: ['market', 'financials', 'expansion']
+      },
+      {
+        id: 'lead-4',
+        name: '이성호',
+        company: 'NextGen Partners',
+        email: 'sungho.lee@nextgen.partners',
+        phone: '+82-10-3456-7890',
+        role: 'pe',
+        source: 'manual_add',
+        firstContact: new Date('2024-04-20'),
+        lastActivity: new Date('2024-08-30'),
+        status: 'cold',
+        tags: ['PE', 'Growth Stage', 'Traditional Industries'],
+        notes: '성장 단계 기업에 특화. 아직 초기 접촉 단계.',
+        profileViews: [],
+        contactHistory: [],
+        fundName: 'NextGen Growth Fund',
+        fundSize: '1,000억원',
+        investmentStage: ['Series B', 'Series C', 'Pre-IPO'],
+        sectors: ['Traditional Tech', 'Healthcare', 'Manufacturing'],
+        checkSize: '50-200억원',
+        interestScore: 35,
+        totalProfileViews: 1,
+        lastProfileView: new Date('2024-08-25'),
+        mostViewedSections: ['overview']
+      },
+      {
+        id: 'lead-5',
+        name: 'Sarah Johnson',
+        company: 'Innovation Labs',
+        email: 'sarah.johnson@innovationlabs.com',
+        role: 'corporate_vc',
+        source: 'event',
+        firstContact: new Date('2024-06-15'),
+        lastActivity: new Date('2024-09-14'),
+        status: 'hot',
+        tags: ['Corporate VC', 'Strategic Partnership', 'US Market'],
+        notes: 'Startup Conference에서 만남. 전략적 파트너십에 관심이 높음.',
+        profileViews: [],
+        contactHistory: [],
+        fundName: 'Innovation Corporate Ventures',
+        fundSize: '$500M',
+        investmentStage: ['Series A', 'Series B'],
+        sectors: ['Enterprise Software', 'AI', 'Automation'],
+        checkSize: '$5-25M',
+        website: 'https://innovationlabs.com/ventures',
+        interestScore: 88,
+        totalProfileViews: 12,
+        lastProfileView: new Date('2024-09-14'),
+        mostViewedSections: ['technology', 'partnership', 'team']
+      }
+    ];
+
+    // 더미 NDA 요청 데이터
+    const dummyNDARequests: NDARequest[] = [
+      {
+        id: 'nda-1',
+        leadId: 'lead-1',
+        requesterInfo: {
+          name: '김민수',
+          email: 'minsu.kim@bluelake.vc',
+          company: 'BlueLake Partners',
+          role: 'Investment Director',
+          phone: '+82-10-1234-5678'
+        },
+        requestedDocuments: ['financial', 'business_plan', 'market_analysis'],
+        status: 'pending',
+        requestDate: new Date('2024-09-17'),
+        downloadAllowed: true,
+        notes: '투자 검토를 위한 상세 자료 요청'
+      },
+      {
+        id: 'nda-2',
+        leadId: 'lead-2',
+        requesterInfo: {
+          name: '박지혜',
+          email: 'jihye.park@spark.ventures',
+          company: 'Spark Ventures',
+          role: 'Angel Investor'
+        },
+        requestedDocuments: ['ir_deck', 'financial'],
+        status: 'approved',
+        requestDate: new Date('2024-09-10'),
+        responseDate: new Date('2024-09-11'),
+        approvedBy: 'Admin',
+        downloadAllowed: true,
+        accessExpiresAt: new Date('2024-10-11')
+      },
+      {
+        id: 'nda-3',
+        leadId: 'external-1',
+        requesterInfo: {
+          name: '최현우',
+          email: 'hyunwoo.choi@techventures.kr',
+          company: 'Tech Ventures Korea',
+          role: 'Principal'
+        },
+        requestedDocuments: ['ir_deck'],
+        status: 'pending',
+        requestDate: new Date('2024-09-16'),
+        downloadAllowed: false,
+        notes: '초기 투자 검토용'
+      }
+    ];
+
+    // 더미 프로필 조회 데이터
+    const dummyProfileViews: ProfileView[] = [
+      {
+        id: 'view-1',
+        timestamp: new Date('2024-09-17'),
+        leadId: 'lead-1',
+        sections: ['hero', 'about', 'financial', 'team'],
+        duration: 420, // 7분
+        source: 'direct_link',
+        timePerSection: {
+          'hero': 60,
+          'about': 120,
+          'financial': 180,
+          'team': 60
+        },
+        scrollDepth: {
+          'hero': 100,
+          'about': 85,
+          'financial': 95,
+          'team': 70
+        },
+        interactions: { clicks: 8, downloads: 2, shares: 0 },
+        deviceType: 'desktop',
+        ipAddress: '203.241.xxx.xxx',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        location: 'Seoul, KR'
+      },
+      {
+        id: 'view-2',
+        timestamp: new Date('2024-09-15'),
+        leadId: 'lead-2',
+        sections: ['hero', 'about', 'journey', 'team'],
+        duration: 280,
+        source: 'referral',
+        timePerSection: {
+          'hero': 45,
+          'about': 90,
+          'journey': 100,
+          'team': 45
+        },
+        scrollDepth: {
+          'hero': 100,
+          'about': 90,
+          'journey': 80,
+          'team': 65
+        },
+        interactions: { clicks: 5, downloads: 1, shares: 1 },
+        deviceType: 'desktop'
+      },
+      {
+        id: 'view-3',
+        timestamp: new Date('2024-09-14'),
+        leadId: 'lead-5',
+        sections: ['hero', 'about', 'technology', 'team', 'contact'],
+        duration: 510,
+        source: 'search',
+        timePerSection: {
+          'hero': 90,
+          'about': 150,
+          'technology': 180,
+          'team': 60,
+          'contact': 30
+        },
+        scrollDepth: {
+          'hero': 100,
+          'about': 95,
+          'technology': 100,
+          'team': 85,
+          'contact': 90
+        },
+        interactions: { clicks: 12, downloads: 3, shares: 2 },
+        deviceType: 'desktop'
+      }
+    ];
+
+    // 더미 연락 이력 데이터
+    const dummyContactRecords: ContactRecord[] = [
+      {
+        id: 'contact-1',
+        leadId: 'lead-1',
+        type: 'email',
+        date: new Date('2024-09-16'),
+        subject: 'IR 자료 공유 및 미팅 제안',
+        content: 'IR 덱과 사업계획서를 공유했습니다. 다음 주 화요일 오후 미팅이 가능한지 문의드립니다.',
+        outcome: 'positive',
+        nextAction: {
+          type: 'follow_up',
+          dueDate: new Date('2024-09-20'),
+          description: '미팅 일정 확정'
+        },
+        createdBy: 'admin',
+        updatedAt: new Date('2024-09-16')
+      },
+      {
+        id: 'contact-2',
+        leadId: 'lead-2',
+        type: 'meeting',
+        date: new Date('2024-09-12'),
+        subject: '투자 논의 미팅',
+        content: '1시간 온라인 미팅 진행. ESG 관련 질문이 많았음.',
+        outcome: 'positive',
+        meetingDetails: {
+          duration: 60,
+          attendees: ['박지혜', 'CEO', 'CTO'],
+          location: 'Zoom',
+          meetingType: 'pitch'
+        },
+        nextAction: {
+          type: 'send_documents',
+          dueDate: new Date('2024-09-19'),
+          description: 'ESG 관련 추가 자료 전달'
+        },
+        createdBy: 'admin',
+        updatedAt: new Date('2024-09-12')
+      },
+      {
+        id: 'contact-3',
+        leadId: 'lead-5',
+        type: 'call',
+        date: new Date('2024-09-14'),
+        subject: '전략적 파트너십 논의',
+        content: '30분 전화 통화. 기술 스택과 확장 계획에 대해 논의',
+        outcome: 'positive',
+        nextAction: {
+          type: 'schedule_meeting',
+          dueDate: new Date('2024-09-21'),
+          description: '본사 방문 미팅 일정 조율'
+        },
+        createdBy: 'admin',
+        updatedAt: new Date('2024-09-14')
+      }
+    ];
+
+    // 데이터 설정 (기존 데이터가 없을 때만)
+    if (investorLeads.length === 0) {
+      setInvestorLeads(dummyLeads);
+    }
+    if (ndaRequests.length === 0) {
+      setNDARequests(dummyNDARequests);
+    }
+    if (profileViews.length === 0) {
+      setProfileViews(dummyProfileViews);
+    }
+    if (contactRecords.length === 0) {
+      setContactRecords(dummyContactRecords);
     }
   }, []);
 
@@ -616,7 +1151,7 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           lastModified: new Date(),
           category: 'business_plan',
           source: 'manual',
-          visibility: 'private',
+          visibility: 'team',
           version: 'v1.0',
           uploadedBy: '김대표',
           downloadCount: 5,
@@ -625,7 +1160,9 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           approvalStatus: 'pending',
           fileType: '.pdf',
           hasPreview: true,
-          tags: ['사업계획', '기초자료']
+          tags: ['사업계획', '기초자료'],
+          isRepresentative: true,
+          representativeType: 'business_plan'
         },
         {
           id: 'dummy-2',
@@ -646,7 +1183,9 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           approvedBy: '김대표',
           fileType: '.xlsx',
           hasPreview: false,
-          tags: ['재무', '2024', '결산']
+          tags: ['재무', '2024', '결산'],
+          isRepresentative: true,
+          representativeType: 'financial'
         },
         {
           id: 'dummy-3',
@@ -667,7 +1206,9 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           approvedBy: '김대표',
           fileType: '.pptx',
           hasPreview: true,
-          tags: ['IR', 'YS캐피탈', '투자유치']
+          tags: ['IR', 'YS캐피탈', '투자유치'],
+          isRepresentative: true,
+          representativeType: 'ir_deck'
         },
         {
           id: 'dummy-4',
@@ -678,7 +1219,7 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           lastModified: new Date(Date.now() - 86400000),
           category: 'marketing',
           source: 'manual',
-          visibility: 'team',
+          visibility: 'public',
           version: 'v1.1',
           uploadedBy: '최마케팅',
           downloadCount: 3,
@@ -687,7 +1228,9 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           approvalStatus: 'approved',
           fileType: '.docx',
           hasPreview: true,
-          tags: ['마케팅', '전략', 'Q4']
+          tags: ['마케팅', '전략', 'Q4'],
+          isRepresentative: true,
+          representativeType: 'marketing'
         },
         {
           id: 'dummy-5',
@@ -1780,6 +2323,352 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return signature;
   };
 
+  // 🎯 투자자 관리 함수들
+
+  // 투자자 리드 관리
+  const createInvestorLead = async (leadData: Omit<InvestorLead, 'id' | 'firstContact' | 'lastActivity'>): Promise<InvestorLead> => {
+    const now = new Date();
+    const newLead: InvestorLead = {
+      ...leadData,
+      id: `lead-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      firstContact: now,
+      lastActivity: now,
+      profileViews: [],
+      contactHistory: [],
+      totalProfileViews: 0,
+      mostViewedSections: []
+    };
+
+    setInvestorLeads(prev => [...prev, newLead]);
+    return newLead;
+  };
+
+  const updateInvestorLead = async (leadId: string, updates: Partial<InvestorLead>): Promise<void> => {
+    setInvestorLeads(prev =>
+      prev.map(lead =>
+        lead.id === leadId
+          ? { ...lead, ...updates, lastActivity: new Date() }
+          : lead
+      )
+    );
+  };
+
+  const deleteInvestorLead = async (leadId: string): Promise<void> => {
+    setInvestorLeads(prev => prev.filter(lead => lead.id !== leadId));
+    setNDARequests(prev => prev.filter(request => request.leadId !== leadId));
+    setContactRecords(prev => prev.filter(contact => contact.leadId !== leadId));
+  };
+
+  const getInvestorLead = (leadId: string): InvestorLead | undefined => {
+    return investorLeads.find(lead => lead.id === leadId);
+  };
+
+  const searchInvestorLeads = (query: string): InvestorLead[] => {
+    const lowercaseQuery = query.toLowerCase();
+    return investorLeads.filter(lead =>
+      lead.name.toLowerCase().includes(lowercaseQuery) ||
+      lead.company.toLowerCase().includes(lowercaseQuery) ||
+      lead.email.toLowerCase().includes(lowercaseQuery) ||
+      lead.tags.some(tag => tag.toLowerCase().includes(lowercaseQuery))
+    );
+  };
+
+  const updateLeadStatus = async (leadId: string, status: InvestorLead['status']): Promise<void> => {
+    await updateInvestorLead(leadId, { status });
+  };
+
+  const updateInterestScore = async (leadId: string, score: number): Promise<void> => {
+    await updateInvestorLead(leadId, { interestScore: Math.max(0, Math.min(100, score)) });
+  };
+
+  // 프로필 조회 추적
+  const trackProfileView = async (
+    leadId: string | undefined,
+    sections: string[],
+    duration: number,
+    source: string
+  ): Promise<void> => {
+    const view: ProfileView = {
+      id: `view-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date(),
+      leadId,
+      sections,
+      duration,
+      source,
+      timePerSection: {},
+      scrollDepth: {},
+      interactions: { clicks: 0, downloads: 0, shares: 0 },
+      deviceType: getDeviceType(),
+      ipAddress: 'unknown',
+      userAgent: navigator.userAgent
+    };
+
+    setProfileViews(prev => [...prev, view]);
+
+    // 리드가 있으면 업데이트
+    if (leadId) {
+      const lead = investorLeads.find(l => l.id === leadId);
+      if (lead) {
+        await updateInvestorLead(leadId, {
+          totalProfileViews: lead.totalProfileViews + 1,
+          lastProfileView: new Date(),
+          lastActivity: new Date()
+        });
+      }
+    }
+  };
+
+  const getProfileViewsForLead = (leadId: string): ProfileView[] => {
+    return profileViews.filter(view => view.leadId === leadId);
+  };
+
+  const getProfileViewStatistics = (): InvestorAnalytics['profileViewStats'] => {
+    const totalViews = profileViews.length;
+    const uniqueViewers = new Set(profileViews.map(v => v.leadId).filter(Boolean)).size;
+    const averageViewTime = profileViews.reduce((sum, view) => sum + view.duration, 0) / totalViews || 0;
+
+    // 섹션별 통계
+    const sectionStats: Record<string, { viewCount: number; totalTime: number }> = {};
+    profileViews.forEach(view => {
+      view.sections.forEach(section => {
+        if (!sectionStats[section]) {
+          sectionStats[section] = { viewCount: 0, totalTime: 0 };
+        }
+        sectionStats[section].viewCount++;
+        sectionStats[section].totalTime += view.timePerSection[section] || 0;
+      });
+    });
+
+    const popularSections = Object.entries(sectionStats)
+      .map(([section, stats]) => ({
+        section,
+        viewCount: stats.viewCount,
+        averageTime: stats.totalTime / stats.viewCount || 0
+      }))
+      .sort((a, b) => b.viewCount - a.viewCount);
+
+    // 일별 통계
+    const viewsByDate: Record<string, { views: number; uniqueViewers: Set<string> }> = {};
+    profileViews.forEach(view => {
+      const date = view.timestamp.toISOString().split('T')[0];
+      if (!viewsByDate[date]) {
+        viewsByDate[date] = { views: 0, uniqueViewers: new Set() };
+      }
+      viewsByDate[date].views++;
+      if (view.leadId) {
+        viewsByDate[date].uniqueViewers.add(view.leadId);
+      }
+    });
+
+    const viewsOverTime = Object.entries(viewsByDate)
+      .map(([date, data]) => ({
+        date,
+        views: data.views,
+        uniqueViewers: data.uniqueViewers.size
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return {
+      totalViews,
+      uniqueViewers,
+      averageViewTime,
+      popularSections,
+      viewsOverTime
+    };
+  };
+
+  // NDA 요청 관리
+  const createNDARequest = async (requestData: Omit<NDARequest, 'id' | 'requestDate'>): Promise<NDARequest> => {
+    const newRequest: NDARequest = {
+      ...requestData,
+      id: `nda-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      requestDate: new Date()
+    };
+
+    setNDARequests(prev => [...prev, newRequest]);
+
+    // 리드 정보 업데이트
+    if (requestData.leadId) {
+      await updateInvestorLead(requestData.leadId, { lastActivity: new Date() });
+    }
+
+    return newRequest;
+  };
+
+  const updateNDARequestStatus = async (
+    requestId: string,
+    status: NDARequest['status'],
+    notes?: string
+  ): Promise<void> => {
+    setNDARequests(prev =>
+      prev.map(request =>
+        request.id === requestId
+          ? { ...request, status, responseDate: new Date(), notes }
+          : request
+      )
+    );
+  };
+
+  const approveNDARequest = async (
+    requestId: string,
+    approvedBy: string,
+    accessExpiresAt?: Date
+  ): Promise<void> => {
+    setNDARequests(prev =>
+      prev.map(request =>
+        request.id === requestId
+          ? {
+              ...request,
+              status: 'approved' as const,
+              responseDate: new Date(),
+              approvedBy,
+              accessExpiresAt
+            }
+          : request
+      )
+    );
+  };
+
+  const rejectNDARequest = async (
+    requestId: string,
+    rejectionReason: string,
+    approvedBy: string
+  ): Promise<void> => {
+    setNDARequests(prev =>
+      prev.map(request =>
+        request.id === requestId
+          ? {
+              ...request,
+              status: 'rejected' as const,
+              responseDate: new Date(),
+              rejectionReason,
+              approvedBy
+            }
+          : request
+      )
+    );
+  };
+
+  const getNDARequestsForLead = (leadId: string): NDARequest[] => {
+    return ndaRequests.filter(request => request.leadId === leadId);
+  };
+
+  // 연락 이력 관리
+  const addContactRecord = async (contactData: Omit<ContactRecord, 'id' | 'updatedAt'>): Promise<ContactRecord> => {
+    const newContact: ContactRecord = {
+      ...contactData,
+      id: `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      updatedAt: new Date()
+    };
+
+    setContactRecords(prev => [...prev, newContact]);
+
+    // 리드 최종 활동 시간 업데이트
+    await updateInvestorLead(contactData.leadId, { lastActivity: new Date() });
+
+    return newContact;
+  };
+
+  const updateContactRecord = async (contactId: string, updates: Partial<ContactRecord>): Promise<void> => {
+    setContactRecords(prev =>
+      prev.map(contact =>
+        contact.id === contactId
+          ? { ...contact, ...updates, updatedAt: new Date() }
+          : contact
+      )
+    );
+  };
+
+  const deleteContactRecord = async (contactId: string): Promise<void> => {
+    setContactRecords(prev => prev.filter(contact => contact.id !== contactId));
+  };
+
+  const getContactHistoryForLead = (leadId: string): ContactRecord[] => {
+    return contactRecords
+      .filter(contact => contact.leadId === leadId)
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
+  };
+
+  // 투자자 분석
+  const getInvestorAnalytics = (): InvestorAnalytics => {
+    const leadsByStatus = investorLeads.reduce((acc, lead) => {
+      acc[lead.status] = (acc[lead.status] || 0) + 1;
+      return acc;
+    }, {} as Record<InvestorLead['status'], number>);
+
+    const leadsBySource = investorLeads.reduce((acc, lead) => {
+      acc[lead.source] = (acc[lead.source] || 0) + 1;
+      return acc;
+    }, {} as Record<InvestorLead['source'], number>);
+
+    const leadsByRole = investorLeads.reduce((acc, lead) => {
+      acc[lead.role] = (acc[lead.role] || 0) + 1;
+      return acc;
+    }, {} as Record<InvestorLead['role'], number>);
+
+    const profileViewStats = getProfileViewStatistics();
+
+    const ndaRequestStats = {
+      totalRequests: ndaRequests.length,
+      pendingRequests: ndaRequests.filter(r => r.status === 'pending').length,
+      approvalRate: ndaRequests.length > 0
+        ? ndaRequests.filter(r => r.status === 'approved').length / ndaRequests.length
+        : 0,
+      averageResponseTime: 0, // TODO: 계산 로직 추가
+      requestsByMonth: [] // TODO: 월별 통계 계산
+    };
+
+    const engagementMetrics = {
+      averageInterestScore: investorLeads.reduce((sum, lead) => sum + lead.interestScore, 0) / investorLeads.length || 0,
+      hotLeads: investorLeads.filter(lead => lead.status === 'hot').length,
+      activeConversations: investorLeads.filter(lead =>
+        lead.status === 'engaged' || lead.status === 'hot'
+      ).length,
+      nextActionsToday: contactRecords.filter(contact =>
+        contact.nextAction?.dueDate &&
+        contact.nextAction.dueDate <= new Date()
+      ).length
+    };
+
+    return {
+      totalLeads: investorLeads.length,
+      leadsByStatus,
+      leadsBySource,
+      leadsByRole,
+      profileViewStats,
+      ndaRequestStats,
+      engagementMetrics
+    };
+  };
+
+  const getLeadsByStatus = (status: InvestorLead['status']): InvestorLead[] => {
+    return investorLeads.filter(lead => lead.status === status);
+  };
+
+  const getLeadsBySource = (source: InvestorLead['source']): InvestorLead[] => {
+    return investorLeads.filter(lead => lead.source === source);
+  };
+
+  const getHotLeads = (): InvestorLead[] => {
+    return investorLeads.filter(lead =>
+      lead.status === 'hot' ||
+      (lead.status === 'warm' && lead.interestScore >= 80)
+    );
+  };
+
+  const getUpcomingActions = (): ContactRecord[] => {
+    const today = new Date();
+    const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    return contactRecords.filter(contact =>
+      contact.nextAction?.dueDate &&
+      contact.nextAction.dueDate >= today &&
+      contact.nextAction.dueDate <= nextWeek
+    ).sort((a, b) =>
+      (a.nextAction?.dueDate?.getTime() || 0) - (b.nextAction?.dueDate?.getTime() || 0)
+    );
+  };
+
   const value: VDRContextType = {
     documents,
     sharedSessions,
@@ -1820,6 +2709,34 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     updateNDATemplate,
     deleteNDATemplate,
     signNDA,
+
+    // 🎯 투자자 관리 시스템
+    investorLeads,
+    ndaRequests,
+    createInvestorLead,
+    updateInvestorLead,
+    deleteInvestorLead,
+    getInvestorLead,
+    searchInvestorLeads,
+    updateLeadStatus,
+    updateInterestScore,
+    trackProfileView,
+    getProfileViewsForLead,
+    getProfileViewStatistics,
+    createNDARequest,
+    updateNDARequestStatus,
+    approveNDARequest,
+    rejectNDARequest,
+    getNDARequestsForLead,
+    addContactRecord,
+    updateContactRecord,
+    deleteContactRecord,
+    getContactHistoryForLead,
+    getInvestorAnalytics,
+    getLeadsByStatus,
+    getLeadsBySource,
+    getHotLeads,
+    getUpcomingActions,
 
     loading
   };

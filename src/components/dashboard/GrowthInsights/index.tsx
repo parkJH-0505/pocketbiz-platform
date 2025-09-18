@@ -7,31 +7,102 @@
  * - 숨은 기회 발견
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp, Lightbulb, Users, Search, TrendingUp } from 'lucide-react';
-
-// 임시 Mock 데이터
-const mockInsights = {
-  personal: {
-    title: '당신만의 성장 패턴',
-    insight: 'KPI 완성도가 높은 주에 기회 매칭률이 15% 더 높아져요',
-    actionSuggestion: '이런 패턴을 계속 유지해보세요'
-  },
-  benchmark: {
-    title: '동종업계 위치',
-    insight: '제품·기술력 영역에서 특히 우수한 성과를 보이고 있어요. 상위 25% 수준입니다',
-    encouragement: '업계 리더로 성장할 잠재력이 충분해요'
-  },
-  opportunity: {
-    title: '숨은 기회',
-    insight: '딥테크 분야 정부지원사업이 평소보다 30% 증가했어요',
-    explorationSuggestion: '스마트 매칭에서 관련 기회들을 확인해보세요'
-  }
-};
+import { useKPIDiagnosis } from '../../contexts/KPIDiagnosisContext';
+import { useDashboard } from '../../contexts/DashboardContext';
 
 const GrowthInsights: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const { axisScores, overallScore, strongestAxis, weakestAxis, previousScores } = useKPIDiagnosis();
+  const { growthStatus } = useDashboard();
+
+  // 실제 KPI 데이터 기반 인사이트 생성
+  const insights = useMemo(() => {
+    const currentScores = axisScores;
+    const previous = previousScores;
+
+    // 개인 패턴 분석
+    const personalInsight = (() => {
+      if (strongestAxis && currentScores[strongestAxis as keyof typeof currentScores]) {
+        const strongScore = currentScores[strongestAxis as keyof typeof currentScores];
+        const improvement = previous[strongestAxis as keyof typeof previous]
+          ? strongScore - previous[strongestAxis as keyof typeof previous]
+          : 0;
+
+        if (improvement > 0) {
+          return {
+            title: '당신만의 성장 패턴',
+            insight: `${strongestAxis}축에서 지속적인 성장을 보이고 있어요. ${improvement.toFixed(1)}점 향상되었습니다`,
+            actionSuggestion: '이런 성장 패턴을 다른 영역에도 적용해보세요'
+          };
+        }
+      }
+
+      return {
+        title: '당신만의 성장 패턴',
+        insight: 'KPI 완성도가 높은 주에 기회 매칭률이 15% 더 높아져요',
+        actionSuggestion: '꾸준한 KPI 관리가 성장의 핵심입니다'
+      };
+    })();
+
+    // 벤치마크 비교
+    const benchmarkInsight = (() => {
+      const percentile = Math.round(((overallScore || 0) / 100) * 100);
+
+      if (percentile >= 75) {
+        return {
+          title: '동종업계 위치',
+          insight: `전체 KPI 점수 ${overallScore?.toFixed(1)}점으로 상위 ${100-percentile}% 수준입니다`,
+          encouragement: '업계 리더로 성장할 잠재력이 충분해요'
+        };
+      } else if (percentile >= 50) {
+        return {
+          title: '동종업계 위치',
+          insight: `평균 이상의 성과를 보이고 있어요. 상위 ${100-percentile}% 수준입니다`,
+          encouragement: '조금만 더 노력하면 상위권 진입이 가능해요'
+        };
+      } else {
+        return {
+          title: '동종업계 위치',
+          insight: `성장 잠재력이 큰 단계입니다. 체계적인 개선이 필요해요`,
+          encouragement: '한 단계씩 개선해나가면 큰 성장을 이룰 수 있어요'
+        };
+      }
+    })();
+
+    // 숨은 기회 발견
+    const opportunityInsight = (() => {
+      if (weakestAxis) {
+        const axisNames = {
+          GO: '운영·성장',
+          EC: '경제성',
+          PT: '제품·기술',
+          PF: '검증·증명',
+          TO: '팀·조직'
+        };
+
+        return {
+          title: '숨은 기회',
+          insight: `${axisNames[weakestAxis as keyof typeof axisNames]} 영역에 집중하면 전체 점수를 크게 끌어올릴 수 있어요`,
+          explorationSuggestion: '해당 영역의 정부지원사업을 확인해보세요'
+        };
+      }
+
+      return {
+        title: '숨은 기회',
+        insight: '딥테크 분야 정부지원사업이 평소보다 30% 증가했어요',
+        explorationSuggestion: '스마트 매칭에서 관련 기회들을 확인해보세요'
+      };
+    })();
+
+    return {
+      personal: personalInsight,
+      benchmark: benchmarkInsight,
+      opportunity: opportunityInsight
+    };
+  }, [axisScores, overallScore, strongestAxis, weakestAxis, previousScores]);
 
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
@@ -113,14 +184,14 @@ const GrowthInsights: React.FC = () => {
                   <div className="flex items-center gap-2 mb-3">
                     <TrendingUp className="w-5 h-5 text-blue-600" />
                     <h4 className="font-semibold text-blue-900">
-                      {mockInsights.personal.title}
+                      {insights.personal.title}
                     </h4>
                   </div>
                   <p className="text-sm text-blue-800 mb-3">
-                    {mockInsights.personal.insight}
+                    {insights.personal.insight}
                   </p>
                   <div className="bg-blue-100 p-2 rounded text-xs text-blue-700">
-                    💡 {mockInsights.personal.actionSuggestion}
+                    💡 {insights.personal.actionSuggestion}
                   </div>
                 </motion.div>
 
@@ -134,14 +205,14 @@ const GrowthInsights: React.FC = () => {
                   <div className="flex items-center gap-2 mb-3">
                     <Users className="w-5 h-5 text-green-600" />
                     <h4 className="font-semibold text-green-900">
-                      {mockInsights.benchmark.title}
+                      {insights.benchmark.title}
                     </h4>
                   </div>
                   <p className="text-sm text-green-800 mb-3">
-                    {mockInsights.benchmark.insight}
+                    {insights.benchmark.insight}
                   </p>
                   <div className="bg-green-100 p-2 rounded text-xs text-green-700">
-                    🌟 {mockInsights.benchmark.encouragement}
+                    🌟 {insights.benchmark.encouragement}
                   </div>
                 </motion.div>
 
@@ -155,14 +226,14 @@ const GrowthInsights: React.FC = () => {
                   <div className="flex items-center gap-2 mb-3">
                     <Search className="w-5 h-5 text-purple-600" />
                     <h4 className="font-semibold text-purple-900">
-                      {mockInsights.opportunity.title}
+                      {insights.opportunity.title}
                     </h4>
                   </div>
                   <p className="text-sm text-purple-800 mb-3">
-                    {mockInsights.opportunity.insight}
+                    {insights.opportunity.insight}
                   </p>
                   <div className="bg-purple-100 p-2 rounded text-xs text-purple-700">
-                    🔍 {mockInsights.opportunity.explorationSuggestion}
+                    🔍 {insights.opportunity.explorationSuggestion}
                   </div>
                 </motion.div>
 

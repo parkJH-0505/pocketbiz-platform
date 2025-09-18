@@ -20,13 +20,90 @@ import type {
 
 // 실제 컨텍스트 연동
 import { useKPIDiagnosis } from './KPIDiagnosisContext';
-import { useBuildupContext } from './BuildupContext';
+import { useScheduleContext } from './ScheduleContext';
+import { useNotifications } from './NotificationContext';
 
 // 액션 생성 로직
 import { generateTodaysAction, type KPIAnalysisData } from '../utils/dashboard/actionGenerator';
 
 // 인사이트 생성 로직
 import { generateOpportunityInsight } from '../services/dashboard/opportunityService';
+
+// 스케줄 데이터 변환 함수
+function convertSchedulesToCalendarEvents(schedules: any[]): CalendarEvent[] {
+  return schedules.map(schedule => ({
+    id: schedule.id,
+    date: new Date(schedule.scheduledAt),
+    type: convertScheduleTypeToEventType(schedule.type),
+    title: schedule.title,
+    description: schedule.description || generateEventDescription(schedule),
+    estimatedTime: schedule.duration ? `${schedule.duration}분` : '30분',
+    tone: generateEventTone(schedule),
+    priority: convertSchedulePriority(schedule),
+    isCompleted: schedule.status === 'completed',
+    actionUrl: generateActionUrl(schedule),
+    metadata: {
+      scheduleId: schedule.id,
+      originalType: schedule.type
+    }
+  }));
+}
+
+function convertScheduleTypeToEventType(scheduleType: string): CalendarEvent['type'] {
+  const typeMap: Record<string, CalendarEvent['type']> = {
+    'buildup_project_meeting': 'checkup',
+    'mentor_session': 'planning',
+    'webinar': 'exploration',
+    'pm_consultation': 'checkup',
+    'external_meeting': 'opportunity',
+    'general': 'reminder'
+  };
+  return typeMap[scheduleType] || 'reminder';
+}
+
+function generateEventDescription(schedule: any): string {
+  switch (schedule.type) {
+    case 'buildup_project_meeting':
+      return `프로젝트 ${schedule.projectPhase || '진행'} 단계 미팅`;
+    case 'mentor_session':
+      return `성장 멘토링 세션 - ${schedule.topic || '일반상담'}`;
+    case 'webinar':
+      return `웨비나 참여 - ${schedule.topic || '지식 습득'}`;
+    default:
+      return schedule.description || '일정 확인';
+  }
+}
+
+function generateEventTone(schedule: any): string {
+  const tones = [
+    '함께 성장하는 시간이에요',
+    '새로운 인사이트를 얻어보세요',
+    '차근차근 준비해보면 될 거예요',
+    '좋은 기회가 될 것 같아요',
+    '성장에 도움이 되는 시간입니다'
+  ];
+  return tones[Math.floor(Math.random() * tones.length)];
+}
+
+function convertSchedulePriority(schedule: any): CalendarEvent['priority'] {
+  if (schedule.priority === 'urgent') return 'high';
+  if (schedule.priority === 'high') return 'high';
+  if (schedule.priority === 'low') return 'low';
+  return 'medium';
+}
+
+function generateActionUrl(schedule: any): string {
+  switch (schedule.type) {
+    case 'buildup_project_meeting':
+      return '/startup/buildup';
+    case 'mentor_session':
+      return '/startup/kpi';
+    case 'webinar':
+      return '/startup/smart-matching';
+    default:
+      return '/startup/dashboard';
+  }
+}
 
 // 초기 상태
 const initialPreferences: DashboardPreferences = {
@@ -54,7 +131,8 @@ interface DashboardProviderProps {
 export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }) => {
   // 기존 컨텍스트 연동
   const kpiContext = useKPIDiagnosis();
-  const buildupContext = useBuildupContext();
+  const scheduleContext = useScheduleContext();
+  const notificationContext = useNotifications();
 
   // 상태 관리
   const [isLoading, setIsLoading] = useState(false); // KPI 데이터 로딩 상태 사용
@@ -112,8 +190,216 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
     kpiContext.kpiData
   ]);
 
-  // 캘린더 이벤트 생성 (실제 프로젝트에서는 API에서 가져옴)
-  const mockWeeklySchedule: CalendarEvent[] = useMemo(() => [
+  // KPI 변화 감지 및 자동 알림 생성
+  useEffect(() => {
+    if (!kpiContext.axisScores || !kpiContext.previousScores) return;
+
+    const axes = ['GO', 'EC', 'PT', 'PF', 'TO'] as const;
+
+    axes.forEach(axis => {
+      const currentScore = kpiContext.axisScores[axis];
+      const previousScore = kpiContext.previousScores[axis];
+      const improvement = currentScore - previousScore;
+
+      // 80점 이상 달성 알림
+      if (currentScore >= 80 && previousScore < 80) {
+        notificationContext.addNotification({
+          type: 'kpi_milestone',
+          title: 'KPI 마일스톤 달성! 🎉',
+          message: `${axis}축에서 80점을 달성했습니다. 정말 대단해요!`,
+          priority: 'high'
+        });
+      }
+
+      // 10점 이상 상승 알림
+      if (improvement >= 10) {
+        notificationContext.addNotification({
+          type: 'achievement',
+          title: '큰 성장 달성! 📈',
+          message: `${axis}축이 ${improvement.toFixed(1)}점 상승했습니다. 멋진 발전이에요!`,
+          priority: 'medium'
+        });
+      }
+
+      // 5점 이상 하락 경고
+      if (improvement <= -5) {
+        notificationContext.addNotification({
+          type: 'alert',
+          title: '주의가 필요해요 ⚠️',
+          message: `${axis}축 점수가 ${Math.abs(improvement).toFixed(1)}점 하락했습니다. 원인을 확인해보세요.`,
+          priority: 'medium'
+        });
+      }
+    });
+
+    // 전체 점수 90점 이상 달성
+    const overallScore = Object.values(kpiContext.axisScores).reduce((sum, score) => sum + score, 0) / 5;
+    const previousOverallScore = Object.values(kpiContext.previousScores).reduce((sum, score) => sum + score, 0) / 5;
+
+    if (overallScore >= 90 && previousOverallScore < 90) {
+      notificationContext.addNotification({
+        type: 'achievement',
+        title: '🏆 최고 등급 달성!',
+        message: `전체 KPI 점수가 90점을 넘었습니다! 놀라운 성과예요!`,
+        priority: 'high'
+      });
+    }
+  }, [kpiContext.axisScores, kpiContext.previousScores, notificationContext]);
+
+  // 실제 KPI 기반 성장 상태 계산
+  const realGrowthStatus: GrowthStatus = useMemo(() => {
+    if (!kpiContext.axisScores) {
+      // 기본 성장 상태 반환
+      return {
+        level: {
+          current: {
+            name: "새싹 단계",
+            icon: "🌱",
+            description: "성장의 첫 걸음을 시작해요",
+            color: "green",
+            range: [0, 40]
+          },
+          score: 0,
+          progress: { current: 0, total: 100, percentage: 0 },
+          next: {
+            name: "성장기",
+            icon: "🌿",
+            requiredScore: 40,
+            remainingPoints: 40
+          }
+        },
+        recentAchievements: [],
+        weeklyChange: 0,
+        strongestAreas: [],
+        improvementAreas: []
+      };
+    }
+
+    // 전체 평균 점수 계산
+    const overallScore = Object.values(kpiContext.axisScores).reduce((sum, score) => sum + score, 0) / 5;
+    const previousOverallScore = Object.values(kpiContext.previousScores).reduce((sum, score) => sum + score, 0) / 5;
+    const weeklyChange = overallScore - previousOverallScore;
+
+    // 레벨 결정 로직
+    const getLevelInfo = (score: number) => {
+      if (score >= 90) return {
+        name: "엘리트",
+        icon: "🏆",
+        description: "업계 최고 수준의 성과를 보이고 있어요",
+        color: "yellow",
+        range: [90, 100] as [number, number]
+      };
+      if (score >= 75) return {
+        name: "성숙기",
+        icon: "🚀",
+        description: "안정적이고 지속적인 성장을 이루고 있어요",
+        color: "purple",
+        range: [75, 90] as [number, number]
+      };
+      if (score >= 60) return {
+        name: "도약기",
+        icon: "📈",
+        description: "빠른 성장과 발전을 보여주고 있어요",
+        color: "blue",
+        range: [60, 75] as [number, number]
+      };
+      if (score >= 40) return {
+        name: "성장기",
+        icon: "🌿",
+        description: "기반을 단단히 다지며 성장하고 있어요",
+        color: "green",
+        range: [40, 60] as [number, number]
+      };
+      return {
+        name: "새싹 단계",
+        icon: "🌱",
+        description: "성장의 첫 걸음을 시작해요",
+        color: "green",
+        range: [0, 40] as [number, number]
+      };
+    };
+
+    const currentLevel = getLevelInfo(overallScore);
+    const nextThreshold = currentLevel.range[1];
+    const currentInRange = overallScore - currentLevel.range[0];
+    const rangeSize = currentLevel.range[1] - currentLevel.range[0];
+    const progressPercentage = Math.min(100, (currentInRange / rangeSize) * 100);
+
+    // 다음 레벨 정보
+    const getNextLevel = (currentScore: number) => {
+      if (currentScore >= 90) return null; // 최고 레벨
+      if (currentScore >= 75) return { name: "엘리트", icon: "🏆", requiredScore: 90 };
+      if (currentScore >= 60) return { name: "성숙기", icon: "🚀", requiredScore: 75 };
+      if (currentScore >= 40) return { name: "도약기", icon: "📈", requiredScore: 60 };
+      return { name: "성장기", icon: "🌿", requiredScore: 40 };
+    };
+
+    const nextLevel = getNextLevel(overallScore);
+
+    // 강점/개선 영역 분석
+    const axisNames = { GO: '성장전략', EC: '경제성', PT: '기술력', PF: '검증력', TO: '팀워크' };
+    const axisEntries = Object.entries(kpiContext.axisScores) as [keyof typeof kpiContext.axisScores, number][];
+
+    const strongestAreas = axisEntries
+      .filter(([_, score]) => score >= 70)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3)
+      .map(([axis, score]) => ({
+        area: axisNames[axis],
+        score,
+        trend: 'up' as const
+      }));
+
+    const improvementAreas = axisEntries
+      .filter(([_, score]) => score < 60)
+      .sort(([, a], [, b]) => a - b)
+      .slice(0, 3)
+      .map(([axis, score]) => ({
+        area: axisNames[axis],
+        score,
+        suggestion: `${axisNames[axis]} 영역의 개선이 필요해요`
+      }));
+
+    // 최근 성취 (KPI 상승 기반)
+    const recentAchievements = axisEntries
+      .map(([axis, current]) => {
+        const previous = kpiContext.previousScores[axis];
+        const improvement = current - previous;
+        if (improvement >= 5) {
+          return {
+            title: `${axisNames[axis]} 영역 개선`,
+            description: `${improvement.toFixed(1)}점 상승`,
+            date: new Date(),
+            type: 'kpi_improvement' as const
+          };
+        }
+        return null;
+      })
+      .filter((achievement): achievement is NonNullable<typeof achievement> => achievement !== null);
+
+    return {
+      level: {
+        current: currentLevel,
+        score: overallScore,
+        progress: {
+          current: Math.round(currentInRange),
+          total: rangeSize,
+          percentage: Math.round(progressPercentage)
+        },
+        next: nextLevel ? {
+          ...nextLevel,
+          remainingPoints: nextLevel.requiredScore - overallScore
+        } : undefined
+      },
+      recentAchievements,
+      weeklyChange: Math.round(weeklyChange * 10) / 10,
+      strongestAreas,
+      improvementAreas
+    };
+  }, [kpiContext.axisScores, kpiContext.previousScores]);
+
+  // 폴백용 Mock 데이터
+  const mockFallbackSchedule: CalendarEvent[] = useMemo(() => [
     // 오늘
     {
       id: 'event-001',
@@ -261,6 +547,25 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
       isCompleted: true
     }
   ], []);
+
+  // 실제 스케줄 데이터를 캘린더 이벤트로 변환
+  const weeklySchedule: CalendarEvent[] = useMemo(() => {
+    try {
+      // 실제 스케줄 데이터가 있으면 사용
+      if (scheduleContext?.schedules && scheduleContext.schedules.length > 0) {
+        const realEvents = convertSchedulesToCalendarEvents(scheduleContext.schedules);
+        console.log('실제 스케줄 데이터 사용:', realEvents.length, '개');
+        return realEvents;
+      }
+
+      // 폴백: Mock 데이터 사용
+      console.log('Mock 스케줄 데이터 사용');
+      return mockFallbackSchedule;
+    } catch (error) {
+      console.error('스케줄 데이터 변환 오류:', error);
+      return mockFallbackSchedule;
+    }
+  }, [scheduleContext?.schedules, mockFallbackSchedule]);
 
   const mockGrowthStatus: GrowthStatus = {
     level: {
@@ -504,8 +809,8 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
   const contextValue = useMemo<DashboardContextType>(() => ({
     // 상태
     todaysAction,
-    weeklySchedule: mockWeeklySchedule, // Phase 2에서 실제 데이터로 교체 예정
-    growthStatus: mockGrowthStatus, // Phase 2에서 실제 데이터로 교체 예정
+    weeklySchedule, // 실제 스케줄 데이터 연동 완료
+    growthStatus: realGrowthStatus, // 실제 KPI 기반 성장 상태 연동 완료
     growthInsights, // Phase 2 Day 12-13 구현 중
     currentWeek,
     isLoading: actualIsLoading,
@@ -524,12 +829,14 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
     updatePreferences
   }), [
     todaysAction,
+    weeklySchedule,
+    realGrowthStatus,
+    growthInsights,
     currentWeek,
     actualIsLoading,
     lastUpdated,
     error,
-    preferences,
-    growthInsights
+    preferences
   ]);
 
   return (

@@ -8,21 +8,18 @@
  * - 빠른 액션 버튼
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp,
-  Star,
   Phone,
   MessageCircle,
   Calendar,
   Award,
-  Target,
-  ChevronRight,
-  User,
-  Building2,
-  Zap
+  User
 } from 'lucide-react';
+import { useKPIDiagnosis } from '../../contexts/KPIDiagnosisContext';
+import { useDashboard } from '../../contexts/DashboardContext';
 
 // 성장 단계 정보
 const STAGE_INFO = {
@@ -46,16 +43,21 @@ interface ProfileCardProps {
 }
 
 const ProfileCard: React.FC<ProfileCardProps> = ({ className = '' }) => {
-  const [isFlipped, setIsFlipped] = useState(false);
-  const isLoading = false;
+  const { overallScore, strongestAxis, progress, loading: kpiLoading } = useKPIDiagnosis();
+  const { growthStatus, loading: dashboardLoading } = useDashboard();
 
-  // Mock 데이터 (실제로는 useDashboard나 사용자 컨텍스트에서 가져옴)
-  const mockUserData = {
-    stage: 'A-4' as keyof typeof STAGE_INFO,
-    sector: 'S-1' as keyof typeof SECTOR_INFO,
-    kpiScore: 73.2,
-    percentile: 25, // 상위 25%
-    strongestAxis: 'GO',
+  const isLoading = kpiLoading || dashboardLoading;
+
+  // 실제 데이터 (컨텍스트에서 가져옴)
+  const userData = {
+    stage: (growthStatus?.level?.current?.name === '예비창업자' ? 'A-1' :
+           growthStatus?.level?.current?.name === '창업 직전' ? 'A-2' :
+           growthStatus?.level?.current?.name === 'PMF 검증' ? 'A-3' :
+           growthStatus?.level?.current?.name === 'Pre-A 단계' ? 'A-4' : 'A-5') as keyof typeof STAGE_INFO,
+    sector: 'S-1' as keyof typeof SECTOR_INFO, // TODO: 사용자 섹터 정보 추가
+    kpiScore: overallScore || 0,
+    percentile: Math.round(((100 - (overallScore || 0)) / 100) * 100), // 간단한 백분위 계산
+    strongestAxis: strongestAxis || 'GO',
     builder: {
       name: '김성장',
       role: '성장전문가',
@@ -64,8 +66,8 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ className = '' }) => {
     }
   };
 
-  const stageInfo = STAGE_INFO[mockUserData.stage];
-  const sectorInfo = SECTOR_INFO[mockUserData.sector];
+  const stageInfo = STAGE_INFO[userData.stage];
+  const sectorInfo = SECTOR_INFO[userData.sector];
 
   if (isLoading) {
     return (
@@ -74,137 +76,95 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ className = '' }) => {
   }
 
   return (
-    <div className={`perspective-1000 ${className}`}>
-      <motion.div
-        className="relative w-full h-24 preserve-3d cursor-pointer group"
-        onClick={() => setIsFlipped(!isFlipped)}
-        animate={{ rotateY: isFlipped ? 180 : 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        {/* 앞면 - 메인 정보 */}
-        <div className="absolute inset-0 w-full h-full backface-hidden">
-          <div className="p-3 h-24 bg-gradient-to-br from-primary-main to-primary-dark rounded-lg shadow-md flex flex-col justify-between relative overflow-hidden">
-            {/* 배경 장식 */}
-            <div className="absolute top-1 right-1 w-8 h-8 bg-white/10 rounded-full blur-sm" />
-            <div className="absolute bottom-1 left-1 w-6 h-6 bg-white/10 rounded-full blur-sm" />
+    <motion.div
+      className={`w-full ${className}`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="px-4 py-3 bg-gradient-to-r from-primary-main to-primary-dark rounded-lg shadow-md relative overflow-hidden">
+        {/* 배경 장식 */}
+        <div className="absolute top-2 right-2 w-8 h-8 bg-white/8 rounded-full blur-sm" />
+        <div className="absolute bottom-2 left-2 w-6 h-6 bg-white/8 rounded-full blur-sm" />
 
-            {/* 상단 정보 */}
-            <div className="flex items-start justify-between relative z-10">
+        {/* 1열 레이아웃 */}
+        <div className="flex items-center justify-between relative z-10">
+          {/* 왼쪽: 프로필 정보 */}
+          <div className="flex items-center gap-3">
+            <span className="text-lg">{stageInfo.icon}</span>
+            <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm">{stageInfo.icon}</span>
-                <div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-white font-semibold text-sm">
-                      {mockUserData.stage}-{mockUserData.sector}
-                    </span>
-                    <span className="px-1 py-0.5 bg-white/20 text-white text-[10px] rounded-full">
-                      PRO
-                    </span>
-                  </div>
-                  <p className="text-white/80 text-[10px] leading-tight">{stageInfo.label}</p>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <div className="flex items-center gap-1">
-                  <TrendingUp className="w-3 h-3 text-green-300" />
-                  <span className="text-white font-semibold text-sm">
-                    {mockUserData.kpiScore}
+                <span className="text-white font-bold text-base">
+                  {userData.stage}-{userData.sector}
+                </span>
+                <span className="px-2 py-0.5 bg-white/20 text-white text-xs rounded-full font-medium">
+                  PRO
+                </span>
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-white/15 rounded-full">
+                  <Award className="w-3 h-3 text-yellow-300" />
+                  <span className="text-white text-xs font-medium">
+                    {userData.strongestAxis}축
                   </span>
                 </div>
-                <p className="text-white/80 text-[10px]">KPI 총점</p>
               </div>
+              <p className="text-white/80 text-xs">{stageInfo.label}</p>
             </div>
+          </div>
 
-            {/* 하단 정보 */}
-            <div className="flex items-end justify-between relative z-10">
-              <div className="flex items-center gap-1">
-                <User className="w-3 h-3 text-white/70" />
-                <span className="text-white font-medium text-xs">
-                  {mockUserData.builder.name}
+          {/* 중앙: KPI 점수 */}
+          <div className="text-center px-4">
+            <div className="flex items-center gap-1">
+              <TrendingUp className="w-4 h-4 text-green-300" />
+              <span className="text-white font-bold text-xl">
+                {userData.kpiScore.toFixed(1)}
+              </span>
+            </div>
+            <p className="text-white/70 text-xs">KPI</p>
+          </div>
+
+          {/* 오른쪽: 담당자와 액션 */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                <User className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <span className="text-white font-medium text-sm block">
+                  {userData.builder.name}
+                </span>
+                <span className="text-white/70 text-xs">
+                  {userData.builder.role}
                 </span>
               </div>
+            </div>
 
-              {/* 호버 시에만 나타나는 버튼들 */}
-              <div className="opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1">
-                <motion.button
-                  className="p-1 bg-white/20 rounded backdrop-blur-sm hover:bg-white/30 transition-colors"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.open(`tel:${mockUserData.builder.phone}`);
-                  }}
-                >
-                  <Phone className="w-3 h-3 text-white" />
-                </motion.button>
-                <motion.button
-                  className="p-1 bg-white/20 rounded backdrop-blur-sm hover:bg-white/30 transition-colors"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // 상담 예약 모달 열기
-                  }}
-                >
-                  <Calendar className="w-3 h-3 text-white" />
-                </motion.button>
-              </div>
+            {/* 액션 버튼들 */}
+            <div className="flex items-center gap-1">
+              <motion.button
+                className="p-2 bg-white/20 rounded-lg backdrop-blur-sm hover:bg-white/30 transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => window.open(`tel:${userData.builder.phone}`)}
+                title="전화걸기"
+              >
+                <Phone className="w-3.5 h-3.5 text-white" />
+              </motion.button>
+              <motion.button
+                className="p-2 bg-white/20 rounded-lg backdrop-blur-sm hover:bg-white/30 transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  // 상담 예약 모달 열기
+                }}
+                title="상담 예약"
+              >
+                <Calendar className="w-3.5 h-3.5 text-white" />
+              </motion.button>
             </div>
           </div>
         </div>
-
-        {/* 뒤면 - 상세 정보 */}
-        <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180">
-          <div className="p-3 h-24 bg-white border border-gray-200 rounded-lg shadow-md flex flex-col justify-between relative">
-            {/* 상세 KPI 정보 */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="font-semibold text-gray-900 text-xs">KPI 상세</h3>
-                <span className="text-[10px] text-gray-500">최근 진단</span>
-              </div>
-
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-gray-600">강점 축</span>
-                  <div className="flex items-center gap-1">
-                    <Award className="w-2.5 h-2.5 text-blue-600" />
-                    <span className="text-[10px] font-medium text-blue-600">
-                      {mockUserData.strongestAxis}축
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-gray-600">개선률</span>
-                  <span className="text-[10px] font-medium text-green-600">+12.3%</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 빠른 액션 */}
-            <div className="space-y-1">
-              <button className="w-full flex items-center justify-between p-1 text-left hover:bg-gray-50 rounded transition-colors">
-                <div className="flex items-center gap-1">
-                  <MessageCircle className="w-2.5 h-2.5 text-blue-600" />
-                  <span className="text-[10px] font-medium">상담 예약</span>
-                </div>
-                <ChevronRight className="w-2.5 h-2.5 text-gray-400" />
-              </button>
-
-              <button className="w-full flex items-center justify-between p-1 text-left hover:bg-gray-50 rounded transition-colors">
-                <div className="flex items-center gap-1">
-                  <Target className="w-2.5 h-2.5 text-green-600" />
-                  <span className="text-[10px] font-medium">KPI 상세보기</span>
-                </div>
-                <ChevronRight className="w-2.5 h-2.5 text-gray-400" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-    </div>
+      </div>
+    </motion.div>
   );
 };
 

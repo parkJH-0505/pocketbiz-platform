@@ -1,480 +1,515 @@
 /**
- * @fileoverview 데이터 검증 유틸리티
- * @description Meeting과 Schedule 데이터의 무결성 검증 및 복구
+ * @fileoverview 데이터 유효성 검증 및 비즈니스 로직 검증 시스템
+ * @description Sprint 4 Phase 4-3: 강력한 검증 로직 구현
  * @author PocketCompany
- * @since 2025-01-18
+ * @since 2025-01-19
  */
 
-import type {
-  UnifiedSchedule,
-  BuildupProjectMeeting,
-  ScheduleStatus,
-  MeetingSequence
-} from '../types/schedule.types';
-
-import type { Meeting, Project } from '../types/buildup.types';
+import type { Project, PhaseTransitionEvent, Meeting } from '../types/buildup.types';
+import type { UnifiedSchedule, BuildupProjectMeeting } from '../types/schedule.types';
+import type { ProjectPhase } from '../types/buildup.types';
+import { EdgeCaseLogger } from './edgeCaseScenarios';
 
 /**
- * 데이터 검증 결과
+ * 검증 결과 타입
  */
 export interface ValidationResult {
   isValid: boolean;
   errors: ValidationError[];
   warnings: ValidationWarning[];
-  suggestions?: ValidationSuggestion[];
+  severity: 'low' | 'medium' | 'high' | 'critical';
 }
 
 /**
  * 검증 에러
  */
 export interface ValidationError {
-  field: string;
+  code: string;
   message: string;
+  field?: string;
   value?: any;
-  severity: 'critical' | 'error';
+  context?: any;
 }
 
 /**
  * 검증 경고
  */
 export interface ValidationWarning {
-  field: string;
+  code: string;
   message: string;
-  value?: any;
+  field?: string;
+  suggestion?: string;
 }
 
 /**
- * 개선 제안
+ * 프로젝트 상태 검증기
  */
-export interface ValidationSuggestion {
-  field: string;
-  suggestion: string;
-  currentValue?: any;
-  suggestedValue?: any;
-}
+export class ProjectStateValidator {
 
-/**
- * 데이터 복구 옵션
- */
-export interface RecoveryOptions {
-  /** 누락된 ID 자동 생성 */
-  generateMissingIds?: boolean;
-
-  /** 잘못된 날짜 현재 시간으로 대체 */
-  fixInvalidDates?: boolean;
-
-  /** 빈 제목 기본값으로 대체 */
-  fillEmptyTitles?: boolean;
-
-  /** 잘못된 상태 기본값으로 대체 */
-  fixInvalidStatus?: boolean;
-
-  /** 중복 ID 새 ID로 변경 */
-  resolveDuplicateIds?: boolean;
-}
-
-/**
- * 데이터 검증 및 복구 클래스
- */
-export class DataValidator {
   /**
-   * Meeting 데이터 검증
+   * 프로젝트 기본 검증
    */
-  static validateMeeting(meeting: Meeting): ValidationResult {
+  static validateProject(project: Project): ValidationResult {
     const errors: ValidationError[] = [];
     const warnings: ValidationWarning[] = [];
-    const suggestions: ValidationSuggestion[] = [];
 
     // 필수 필드 검증
-    if (!meeting.id) {
+    if (!project.id) {
       errors.push({
-        field: 'id',
-        message: 'Meeting ID is required',
-        severity: 'critical'
+        code: 'VAL_001',
+        message: 'Project ID is required',
+        field: 'id'
       });
     }
 
-    if (!meeting.title || meeting.title.trim() === '') {
+    if (!project.title || project.title.trim().length === 0) {
       errors.push({
+        code: 'VAL_002',
+        message: 'Project title is required',
         field: 'title',
-        message: 'Meeting title is required',
-        value: meeting.title,
-        severity: 'error'
+        value: project.title
       });
     }
 
-    if (!meeting.date) {
+    if (!project.service_id) {
       errors.push({
-        field: 'date',
-        message: 'Meeting date is required',
-        severity: 'critical'
+        code: 'VAL_003',
+        message: 'Service ID is required',
+        field: 'service_id'
+      });
+    }
+
+    // 계약 정보 검증
+    if (!project.contract) {
+      errors.push({
+        code: 'VAL_004',
+        message: 'Contract information is required',
+        field: 'contract'
       });
     } else {
-      const dateObj = new Date(meeting.date);
-      if (isNaN(dateObj.getTime())) {
+      if (!project.contract.id) {
         errors.push({
-          field: 'date',
-          message: 'Invalid date format',
-          value: meeting.date,
-          severity: 'error'
+          code: 'VAL_005',
+          message: 'Contract ID is required',
+          field: 'contract.id'
         });
-      } else {
-        // 과거 날짜 경고
-        const now = new Date();
-        const oneYearAgo = new Date(now);
-        oneYearAgo.setFullYear(now.getFullYear() - 1);
-
-        if (dateObj < oneYearAgo) {
-          warnings.push({
-            field: 'date',
-            message: 'Meeting date is more than 1 year in the past',
-            value: meeting.date
-          });
-        }
       }
-    }
 
-    if (!meeting.type) {
-      errors.push({
-        field: 'type',
-        message: 'Meeting type is required',
-        severity: 'error'
-      });
-    } else if (!['kickoff', 'progress', 'review', 'closing', 'demo'].includes(meeting.type)) {
-      errors.push({
-        field: 'type',
-        message: 'Invalid meeting type',
-        value: meeting.type,
-        severity: 'error'
-      });
-    }
-
-    // Duration 검증
-    if (meeting.duration) {
-      if (meeting.duration <= 0) {
+      if (!project.contract.value || project.contract.value <= 0) {
         errors.push({
-          field: 'duration',
-          message: 'Duration must be positive',
-          value: meeting.duration,
-          severity: 'error'
+          code: 'VAL_006',
+          message: 'Contract value must be greater than 0',
+          field: 'contract.value',
+          value: project.contract.value
         });
-      } else if (meeting.duration > 480) { // 8시간 이상
+      }
+
+      // 날짜 검증
+      const signedDate = new Date(project.contract.signed_date);
+      const startDate = new Date(project.contract.start_date);
+      const endDate = new Date(project.contract.end_date);
+
+      if (startDate < signedDate) {
         warnings.push({
-          field: 'duration',
-          message: 'Duration is unusually long (>8 hours)',
-          value: meeting.duration
+          code: 'VAL_W001',
+          message: 'Start date is before signed date',
+          field: 'contract.start_date',
+          suggestion: 'Consider updating the start date'
         });
       }
-    } else {
-      suggestions.push({
-        field: 'duration',
-        suggestion: 'Consider setting duration to 60 minutes as default',
-        currentValue: meeting.duration,
-        suggestedValue: 60
-      });
+
+      if (endDate <= startDate) {
+        errors.push({
+          code: 'VAL_007',
+          message: 'End date must be after start date',
+          field: 'contract.end_date'
+        });
+      }
     }
 
-    // Attendees 검증
-    if (!meeting.attendees || meeting.attendees.length === 0) {
-      warnings.push({
-        field: 'attendees',
-        message: 'No attendees specified',
-        value: meeting.attendees
+    // 팀 정보 검증
+    if (!project.team) {
+      errors.push({
+        code: 'VAL_008',
+        message: 'Team information is required',
+        field: 'team'
       });
+    } else {
+      if (!project.team.pm) {
+        errors.push({
+          code: 'VAL_009',
+          message: 'Project Manager is required',
+          field: 'team.pm'
+        });
+      }
+
+      if (!project.team.client_contact) {
+        errors.push({
+          code: 'VAL_010',
+          message: 'Client contact is required',
+          field: 'team.client_contact'
+        });
+      }
     }
+
+    // Phase 검증
+    if (project.phase) {
+      const validPhases: ProjectPhase[] = [
+        'contract_pending',
+        'contract_signed',
+        'planning',
+        'design',
+        'execution',
+        'review',
+        'completed'
+      ];
+
+      if (!validPhases.includes(project.phase)) {
+        errors.push({
+          code: 'VAL_011',
+          message: 'Invalid project phase',
+          field: 'phase',
+          value: project.phase
+        });
+      }
+    }
+
+    const severity = errors.length > 0 ? 'high' : warnings.length > 0 ? 'medium' : 'low';
 
     return {
       isValid: errors.length === 0,
       errors,
       warnings,
-      suggestions
+      severity: severity as any
     };
   }
 
   /**
-   * UnifiedSchedule 데이터 검증
+   * Phase transition 검증
    */
-  static validateSchedule(schedule: UnifiedSchedule): ValidationResult {
+  static validatePhaseTransition(
+    project: Project,
+    fromPhase: ProjectPhase,
+    toPhase: ProjectPhase,
+    context?: any
+  ): ValidationResult {
     const errors: ValidationError[] = [];
     const warnings: ValidationWarning[] = [];
-    const suggestions: ValidationSuggestion[] = [];
 
-    // 필수 필드 검증
-    if (!schedule.id) {
-      errors.push({
-        field: 'id',
-        message: 'Schedule ID is required',
-        severity: 'critical'
+    // 기본 프로젝트 검증
+    const baseValidation = this.validateProject(project);
+    if (!baseValidation.isValid) {
+      return baseValidation;
+    }
+
+    // Phase transition 유효성 기본 검증
+    if (fromPhase === toPhase) {
+      warnings.push({
+        code: 'VAL_PT_W001',
+        message: 'Source and target phases are the same',
+        field: 'phase_transition',
+        suggestion: 'No transition needed'
       });
     }
 
-    if (!schedule.title || schedule.title.trim() === '') {
-      errors.push({
-        field: 'title',
-        message: 'Schedule title is required',
-        value: schedule.title,
-        severity: 'error'
+    const severity = errors.length > 0 ? 'critical' : warnings.length > 0 ? 'medium' : 'low';
+
+    if (errors.length > 0) {
+      EdgeCaseLogger.log('EC_DATA_004', {
+        projectId: project.id,
+        fromPhase,
+        toPhase,
+        validationErrors: errors.length,
+        errors: errors.map(e => e.code)
       });
-    }
-
-    if (!schedule.type) {
-      errors.push({
-        field: 'type',
-        message: 'Schedule type is required',
-        severity: 'critical'
-      });
-    }
-
-    if (!schedule.date) {
-      errors.push({
-        field: 'date',
-        message: 'Schedule date is required',
-        severity: 'critical'
-      });
-    } else {
-      const dateObj = new Date(schedule.date);
-      if (isNaN(dateObj.getTime())) {
-        errors.push({
-          field: 'date',
-          message: 'Invalid date format',
-          value: schedule.date,
-          severity: 'error'
-        });
-      }
-    }
-
-    // Status 검증
-    const validStatuses: ScheduleStatus[] = ['scheduled', 'in_progress', 'completed', 'cancelled'];
-    if (schedule.status && !validStatuses.includes(schedule.status)) {
-      errors.push({
-        field: 'status',
-        message: 'Invalid status value',
-        value: schedule.status,
-        severity: 'error'
-      });
-    }
-
-    // BuildupProjectMeeting 추가 검증
-    if (schedule.subType === 'buildup_project') {
-      const buildupMeeting = schedule as BuildupProjectMeeting;
-
-      if (!buildupMeeting.projectId) {
-        errors.push({
-          field: 'projectId',
-          message: 'Project ID is required for buildup meetings',
-          severity: 'critical'
-        });
-      }
-
-      if (!buildupMeeting.meetingSequence) {
-        errors.push({
-          field: 'meetingSequence',
-          message: 'Meeting sequence is required for buildup meetings',
-          severity: 'error'
-        });
-      }
-
-      if (!buildupMeeting.pmInfo) {
-        errors.push({
-          field: 'pmInfo',
-          message: 'PM information is required for buildup meetings',
-          severity: 'error'
-        });
-      }
     }
 
     return {
       isValid: errors.length === 0,
       errors,
       warnings,
-      suggestions
+      severity: severity as any
     };
-  }
-
-  /**
-   * Meeting 데이터 복구
-   */
-  static recoverMeeting(
-    meeting: Partial<Meeting>,
-    options: RecoveryOptions = {}
-  ): Meeting {
-    const recovered = { ...meeting } as Meeting;
-
-    // ID 복구
-    if (!recovered.id && options.generateMissingIds) {
-      recovered.id = `meeting-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    }
-
-    // 제목 복구
-    if ((!recovered.title || recovered.title.trim() === '') && options.fillEmptyTitles) {
-      recovered.title = recovered.type ? `${recovered.type} Meeting` : 'Untitled Meeting';
-    }
-
-    // 날짜 복구
-    if (!recovered.date && options.fixInvalidDates) {
-      recovered.date = new Date();
-    } else if (recovered.date) {
-      const dateObj = new Date(recovered.date);
-      if (isNaN(dateObj.getTime()) && options.fixInvalidDates) {
-        recovered.date = new Date();
-      }
-    }
-
-    // Type 기본값
-    if (!recovered.type) {
-      recovered.type = 'progress';
-    }
-
-    // Duration 기본값
-    if (!recovered.duration || recovered.duration <= 0) {
-      recovered.duration = 60;
-    }
-
-    // Attendees 기본값
-    if (!recovered.attendees) {
-      recovered.attendees = [];
-    }
-
-    return recovered;
-  }
-
-  /**
-   * Schedule 데이터 복구
-   */
-  static recoverSchedule(
-    schedule: Partial<UnifiedSchedule>,
-    options: RecoveryOptions = {}
-  ): UnifiedSchedule {
-    const recovered = { ...schedule } as UnifiedSchedule;
-
-    // ID 복구
-    if (!recovered.id && options.generateMissingIds) {
-      recovered.id = `schedule-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    }
-
-    // 제목 복구
-    if ((!recovered.title || recovered.title.trim() === '') && options.fillEmptyTitles) {
-      recovered.title = recovered.type ? `${recovered.type} Event` : 'Untitled Event';
-    }
-
-    // 날짜 복구
-    if (!recovered.date && options.fixInvalidDates) {
-      recovered.date = new Date();
-    }
-
-    // Type 기본값
-    if (!recovered.type) {
-      recovered.type = 'meeting';
-    }
-
-    // Status 복구
-    if (!recovered.status || options.fixInvalidStatus) {
-      const validStatuses: ScheduleStatus[] = ['scheduled', 'in_progress', 'completed', 'cancelled'];
-      if (!validStatuses.includes(recovered.status as ScheduleStatus)) {
-        recovered.status = 'scheduled';
-      }
-    }
-
-    // 기본값 설정
-    recovered.priority = recovered.priority || 'medium';
-    recovered.isRecurring = recovered.isRecurring || false;
-    recovered.participants = recovered.participants || [];
-
-    // 시간 정보 설정
-    if (!recovered.createdAt) {
-      recovered.createdAt = new Date();
-    }
-    if (!recovered.createdBy) {
-      recovered.createdBy = 'system';
-    }
-
-    return recovered;
-  }
-
-  /**
-   * 배치 검증
-   */
-  static validateBatch<T>(
-    items: T[],
-    validator: (item: T) => ValidationResult
-  ): {
-    valid: T[];
-    invalid: Array<{ item: T; result: ValidationResult }>;
-  } {
-    const valid: T[] = [];
-    const invalid: Array<{ item: T; result: ValidationResult }> = [];
-
-    items.forEach(item => {
-      const result = validator(item);
-      if (result.isValid) {
-        valid.push(item);
-      } else {
-        invalid.push({ item, result });
-      }
-    });
-
-    return { valid, invalid };
-  }
-
-  /**
-   * 중복 ID 검사
-   */
-  static checkDuplicateIds(items: Array<{ id: string }>): string[] {
-    const idMap = new Map<string, number>();
-    const duplicates: string[] = [];
-
-    items.forEach(item => {
-      const count = idMap.get(item.id) || 0;
-      idMap.set(item.id, count + 1);
-
-      if (count === 1) { // 두 번째 발견 시에만 추가
-        duplicates.push(item.id);
-      }
-    });
-
-    return duplicates;
-  }
-
-  /**
-   * 날짜 충돌 검사
-   */
-  static checkDateConflicts(
-    meetings: Meeting[],
-    threshold: number = 30 // 분
-  ): Array<{ meeting1: Meeting; meeting2: Meeting; overlap: number }> {
-    const conflicts: Array<{ meeting1: Meeting; meeting2: Meeting; overlap: number }> = [];
-
-    for (let i = 0; i < meetings.length; i++) {
-      for (let j = i + 1; j < meetings.length; j++) {
-        const meeting1 = meetings[i];
-        const meeting2 = meetings[j];
-
-        const start1 = new Date(meeting1.date);
-        const end1 = new Date(start1.getTime() + (meeting1.duration || 60) * 60000);
-
-        const start2 = new Date(meeting2.date);
-        const end2 = new Date(start2.getTime() + (meeting2.duration || 60) * 60000);
-
-        // 시간 중복 계산
-        const overlapStart = Math.max(start1.getTime(), start2.getTime());
-        const overlapEnd = Math.min(end1.getTime(), end2.getTime());
-        const overlapMinutes = Math.max(0, (overlapEnd - overlapStart) / 60000);
-
-        if (overlapMinutes >= threshold) {
-          conflicts.push({
-            meeting1,
-            meeting2,
-            overlap: overlapMinutes
-          });
-        }
-      }
-    }
-
-    return conflicts;
   }
 }
 
 /**
- * 싱글톤 인스턴스 export
+ * 미팅 스케줄링 검증기
  */
-export const dataValidator = new DataValidator();
+export class MeetingScheduleValidator {
+
+  /**
+   * 미팅 스케줄 검증
+   */
+  static validateMeetingSchedule(
+    meeting: BuildupProjectMeeting,
+    project: Project,
+    existingSchedules: UnifiedSchedule[]
+  ): ValidationResult {
+    const errors: ValidationError[] = [];
+    const warnings: ValidationWarning[] = [];
+
+    // 기본 미팅 정보 검증
+    if (!meeting.title || meeting.title.trim().length === 0) {
+      errors.push({
+        code: 'MTG_001',
+        message: 'Meeting title is required',
+        field: 'title'
+      });
+    }
+
+    if (!meeting.startDateTime) {
+      errors.push({
+        code: 'MTG_002',
+        message: 'Meeting start date/time is required',
+        field: 'startDateTime'
+      });
+    }
+
+    if (!meeting.endDateTime) {
+      errors.push({
+        code: 'MTG_003',
+        message: 'Meeting end date/time is required',
+        field: 'endDateTime'
+      });
+    }
+
+    // 날짜/시간 검증
+    if (meeting.startDateTime && meeting.endDateTime) {
+      const startTime = new Date(meeting.startDateTime);
+      const endTime = new Date(meeting.endDateTime);
+
+      if (startTime >= endTime) {
+        errors.push({
+          code: 'MTG_004',
+          message: 'Meeting end time must be after start time',
+          field: 'endDateTime'
+        });
+      }
+
+      // 비즈니스 시간 검증 (9 AM - 6 PM)
+      const startHour = startTime.getHours();
+      if (startHour < 9 || startHour > 18) {
+        warnings.push({
+          code: 'MTG_W002',
+          message: 'Meeting is scheduled outside business hours',
+          field: 'startDateTime',
+          suggestion: 'Consider scheduling during business hours (9 AM - 6 PM)'
+        });
+      }
+    }
+
+    // 프로젝트 연관성 검증
+    if (meeting.projectId !== project.id) {
+      errors.push({
+        code: 'MTG_005',
+        message: 'Meeting project ID does not match the project',
+        field: 'projectId'
+      });
+    }
+
+    // 중복 미팅 검증
+    const conflictingMeetings = existingSchedules.filter(schedule => {
+      if (schedule.type !== 'buildup_project' || schedule.id === meeting.id) return false;
+
+      const scheduleStart = new Date(schedule.startDateTime);
+      const scheduleEnd = new Date(schedule.endDateTime);
+      const meetingStart = new Date(meeting.startDateTime);
+      const meetingEnd = new Date(meeting.endDateTime);
+
+      // 시간 겹침 확인
+      return (meetingStart < scheduleEnd && meetingEnd > scheduleStart);
+    });
+
+    if (conflictingMeetings.length > 0) {
+      warnings.push({
+        code: 'MTG_W005',
+        message: `Meeting conflicts with ${conflictingMeetings.length} existing meeting(s)`,
+        field: 'startDateTime',
+        suggestion: 'Consider rescheduling to avoid conflicts'
+      });
+
+      EdgeCaseLogger.log('EC_USER_004', {
+        projectId: project.id,
+        meetingTitle: meeting.title,
+        conflictCount: conflictingMeetings.length,
+        conflictingMeetings: conflictingMeetings.map(m => m.title)
+      });
+    }
+
+    const severity = errors.length > 0 ? 'high' : warnings.length > 0 ? 'medium' : 'low';
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+      severity: severity as any
+    };
+  }
+}
+
+/**
+ * 데이터 무결성 검증기
+ */
+export class DataIntegrityValidator {
+
+  /**
+   * 프로젝트-스케줄 무결성 검증
+   */
+  static validateProjectScheduleIntegrity(
+    projects: Project[],
+    schedules: UnifiedSchedule[]
+  ): ValidationResult {
+    const errors: ValidationError[] = [];
+    const warnings: ValidationWarning[] = [];
+
+    // 고아 스케줄 확인 (연결된 프로젝트가 없는 스케줄)
+    const buildupSchedules = schedules.filter(s => s.type === 'buildup_project') as BuildupProjectMeeting[];
+    const projectIds = new Set(projects.map(p => p.id));
+
+    const orphanSchedules = buildupSchedules.filter(s => !projectIds.has(s.projectId));
+    if (orphanSchedules.length > 0) {
+      errors.push({
+        code: 'INT_001',
+        message: `Found ${orphanSchedules.length} orphan schedule(s) without matching projects`,
+        field: 'project_schedule_integrity',
+        context: { orphanSchedules: orphanSchedules.map(s => s.id) }
+      });
+
+      EdgeCaseLogger.log('EC_DATA_005', {
+        orphanScheduleCount: orphanSchedules.length,
+        orphanScheduleIds: orphanSchedules.map(s => s.id)
+      });
+    }
+
+    // 중복 미팅 확인
+    const meetingGroups = new Map<string, BuildupProjectMeeting[]>();
+    buildupSchedules.forEach(schedule => {
+      if (schedule.meetingSequence) {
+        const key = `${schedule.projectId}_${schedule.meetingSequence}`;
+        if (!meetingGroups.has(key)) {
+          meetingGroups.set(key, []);
+        }
+        meetingGroups.get(key)!.push(schedule);
+      }
+    });
+
+    meetingGroups.forEach((meetings, key) => {
+      if (meetings.length > 1) {
+        warnings.push({
+          code: 'INT_W001',
+          message: `Duplicate meetings found for ${key}`,
+          field: 'duplicate_meetings',
+          suggestion: 'Review and remove duplicate meetings'
+        });
+
+        EdgeCaseLogger.log('EC_DATA_006', {
+          duplicateKey: key,
+          meetingCount: meetings.length,
+          meetingIds: meetings.map(m => m.id)
+        });
+      }
+    });
+
+    const severity = errors.length > 0 ? 'high' : warnings.length > 0 ? 'medium' : 'low';
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+      severity: severity as any
+    };
+  }
+}
+
+/**
+ * 전역 검증 매니저
+ */
+export class ValidationManager {
+
+  /**
+   * 종합 검증 실행
+   */
+  static async runComprehensiveValidation(
+    projects: Project[],
+    schedules: UnifiedSchedule[]
+  ): Promise<ValidationResult> {
+    const allErrors: ValidationError[] = [];
+    const allWarnings: ValidationWarning[] = [];
+
+    // 1. 개별 프로젝트 검증
+    projects.forEach(project => {
+      const result = ProjectStateValidator.validateProject(project);
+      allErrors.push(...result.errors);
+      allWarnings.push(...result.warnings);
+    });
+
+    // 2. 데이터 무결성 검증
+    const integrityResult = DataIntegrityValidator.validateProjectScheduleIntegrity(projects, schedules);
+    allErrors.push(...integrityResult.errors);
+    allWarnings.push(...integrityResult.warnings);
+
+    // 3. 미팅 스케줄 검증
+    const buildupMeetings = schedules.filter(s => s.type === 'buildup_project') as BuildupProjectMeeting[];
+    buildupMeetings.forEach(meeting => {
+      const project = projects.find(p => p.id === meeting.projectId);
+      if (project) {
+        const result = MeetingScheduleValidator.validateMeetingSchedule(meeting, project, schedules);
+        allErrors.push(...result.errors);
+        allWarnings.push(...result.warnings);
+      }
+    });
+
+    const severity = allErrors.length > 0 ? 'critical' : allWarnings.length > 0 ? 'medium' : 'low';
+
+    const result: ValidationResult = {
+      isValid: allErrors.length === 0,
+      errors: allErrors,
+      warnings: allWarnings,
+      severity: severity as any
+    };
+
+    // 검증 결과 로깅
+    console.log('🔍 Comprehensive validation completed:', {
+      totalErrors: allErrors.length,
+      totalWarnings: allWarnings.length,
+      severity: result.severity,
+      projectsValidated: projects.length,
+      schedulesValidated: schedules.length
+    });
+
+    if (allErrors.length > 0) {
+      EdgeCaseLogger.log('EC_SYSTEM_002', {
+        validationType: 'comprehensive',
+        errorCount: allErrors.length,
+        warningCount: allWarnings.length,
+        severity: result.severity
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Phase transition 전용 검증
+   */
+  static validatePhaseTransitionRequest(
+    project: Project,
+    fromPhase: ProjectPhase,
+    toPhase: ProjectPhase,
+    context?: any
+  ): ValidationResult {
+    return ProjectStateValidator.validatePhaseTransition(project, fromPhase, toPhase, context);
+  }
+
+  /**
+   * 미팅 생성 전용 검증
+   */
+  static validateMeetingCreation(
+    meeting: BuildupProjectMeeting,
+    project: Project,
+    existingSchedules: UnifiedSchedule[]
+  ): ValidationResult {
+    return MeetingScheduleValidator.validateMeetingSchedule(meeting, project, existingSchedules);
+  }
+}

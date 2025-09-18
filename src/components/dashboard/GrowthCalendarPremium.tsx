@@ -55,6 +55,7 @@ import { format, addDays, startOfWeek, isToday, isSameDay, differenceInMinutes }
 import { ko } from 'date-fns/locale';
 import { useDashboard } from '../../contexts/DashboardContext';
 import { useKPIDiagnosis } from '../../contexts/KPIDiagnosisContext';
+import { useScheduleContext } from '../../contexts/ScheduleContext';
 
 // 이벤트 상태 타입
 type EventStatus = 'not-started' | 'in-progress' | 'completed' | 'cancelled';
@@ -249,33 +250,6 @@ const GrowthCalendarPremium: React.FC = () => {
         </div>
       </div>
 
-      {/* 실시간 메트릭 바 */}
-      <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
-        <div className="grid grid-cols-6 gap-4">
-          {Object.entries(realTimeMetrics).map(([key, metric]) => (
-            <div key={key} className="text-center">
-              <div className="flex items-center justify-center space-x-1">
-                {metric.trend === 'up' ? (
-                  <TrendingUp className="w-3 h-3 text-green-600" />
-                ) : metric.trend === 'down' ? (
-                  <TrendingDown className="w-3 h-3 text-red-600" />
-                ) : (
-                  <div className="w-3 h-3 rounded-full bg-gray-400" />
-                )}
-                <span className="text-lg font-bold text-gray-900">{metric.value}</span>
-              </div>
-              <span className="text-xs text-gray-600">{metric.label}</span>
-              {metric.change !== 0 && (
-                <div className={`text-xs mt-0.5 ${
-                  metric.change > 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {metric.change > 0 ? '+' : ''}{metric.change.toFixed(1)}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* 네비게이션 & 퀵 액션 */}
       <div className="px-6 py-4 border-b border-gray-100 bg-white">

@@ -2,10 +2,14 @@ import React from 'react';
 import {
   ExternalLink,
   Info,
-  MessageSquare
+  MessageSquare,
+  Calendar,
+  Plus
 } from 'lucide-react';
 import type { MatchingResult } from '../../types/smartMatching';
 import { calculateDday, getDdayColorClass } from '../../utils/dateUtils';
+import { useScheduleContext } from '../../contexts/ScheduleContext';
+import { useNotifications } from '../../contexts/NotificationContext';
 
 // 카테고리 라벨 매핑
 const categoryLabels: Record<string, string> = {
@@ -87,8 +91,48 @@ const EventCard: React.FC<EventCardProps> = ({
   const dday = calculateDday(event.applicationEndDate);
   const supportField = (event as any).supportField || '미분류';
 
+  // Schedule Context 연동
+  const { createSchedule } = useScheduleContext();
+  const { addNotification } = useNotifications();
+
   // D-Day 색상 결정 (유틸 함수 사용)
   const ddayColorClass = getDdayColorClass(dday);
+
+  // 일정 추가 핸들러
+  const handleAddToSchedule = (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    // SmartMatching 이벤트를 Schedule로 변환
+    const schedule = {
+      title: `📋 ${event.title}`,
+      type: 'general' as const,
+      scheduledAt: new Date(event.applicationEndDate),
+      description: `${categoryLabels[event.category]} | ${event.description}`,
+      tags: [
+        event.category,
+        'smartmatching',
+        '지원마감'
+      ],
+      metadata: {
+        smartMatchingEventId: event.id,
+        category: event.category,
+        originalUrl: (event as any).originalUrl,
+        organizer: getOrganizer(event),
+        supportAmount: getSupportAmount(event),
+        duration: getDuration(event)
+      }
+    };
+
+    createSchedule(schedule);
+
+    // 성공 알림
+    addNotification({
+      type: 'achievement',
+      title: '일정 추가 완료! 📅',
+      message: `"${event.title}"이 캘린더에 추가되었습니다. 대시보드에서 확인하세요.`,
+      priority: 'medium'
+    });
+  };
 
   // 상태 스타일
   const getStatusStyle = () => {
@@ -236,7 +280,17 @@ const EventCard: React.FC<EventCardProps> = ({
               className="px-3 py-1.5 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1.5"
               onClick={(e) => {
                 e.stopPropagation();
-                // 원문 보기 로직
+                const url = (event as any).originalUrl || (event as any).applicationUrl || '#';
+                if (url !== '#') {
+                  window.open(url, '_blank');
+                } else {
+                  addNotification({
+                    type: 'alert',
+                    title: '링크 정보 없음',
+                    message: '이 이벤트의 원문 링크가 없습니다.',
+                    priority: 'low'
+                  });
+                }
               }}
             >
               <ExternalLink className="w-3.5 h-3.5" />
@@ -251,6 +305,13 @@ const EventCard: React.FC<EventCardProps> = ({
             >
               <MessageSquare className="w-3.5 h-3.5" />
               빌더 상담
+            </button>
+            <button
+              className="px-3 py-1.5 text-sm bg-primary-main text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-1.5"
+              onClick={handleAddToSchedule}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              일정 추가
             </button>
           </div>
         </div>

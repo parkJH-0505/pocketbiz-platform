@@ -67,7 +67,7 @@ export default function BuildupLayout() {
 
       {/* Content */}
       <div className="flex-1 overflow-auto bg-gray-50">
-        <div className="p-6">
+        <div className="max-w-7xl mx-auto p-6">
           <Outlet />
         </div>
       </div>

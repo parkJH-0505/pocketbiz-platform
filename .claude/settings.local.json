@@ -22,7 +22,9 @@
       "Bash(git rm:*)",
       "Bash(git reset:*)",
       "Bash(find:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(timeout 10 npx tsc --noEmit)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []
