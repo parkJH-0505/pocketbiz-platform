@@ -30,8 +30,10 @@ import {
 } from 'lucide-react';
 import { useBuildupContext } from '../../../contexts/BuildupContext';
 import { useKPIDiagnosis } from '../../../contexts/KPIDiagnosisContext';
+import { useLoading } from '../../../contexts/LoadingContext';
 import ContractFlowModal from '../../../components/buildup/ContractFlowModal';
 import ServiceDetailModal from '../../../components/buildup/ServiceDetailModal';
+import { ServiceCardSkeleton } from '../../../components/ui/SkeletonLoader';
 import type { BuildupService } from '../../../types/buildup.types';
 import { PHASE_INFO, ALL_PHASES } from '../../../utils/projectPhaseUtils';
 
@@ -97,7 +99,8 @@ export default function ServiceCatalog() {
     addToCart: contextAddToCart,
     removeFromCart: contextRemoveFromCart,
     updateCartItem,
-    clearCart
+    clearCart,
+    projects // 🔥 Sprint 3 Phase 2: 프로젝트 정보 가져오기
   } = useBuildupContext();
   const { currentStage, axisScores } = useKPIDiagnosis();
   
@@ -117,7 +120,7 @@ export default function ServiceCatalog() {
   const [selectedService, setSelectedService] = useState<BuildupService | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
-  const [recommendationType, setRecommendationType] = useState<'kpi' | 'similar' | 'trending'>('kpi');
+  const [recommendationType, setRecommendationType] = useState<'kpi' | 'similar' | 'trending' | 'phase'>('phase'); // 🔥 Sprint 3 Phase 2: phase 추천 추가
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [favoriteServices, setFavoriteServices] = useState<string[]>([]);
   const [quickViewService, setQuickViewService] = useState<BuildupService | null>(null);
@@ -227,6 +230,31 @@ export default function ServiceCatalog() {
 
   // Get recommended services based on KPI gaps (local wrapper)
   const getLocalRecommendedServices = () => {
+    // 🔥 Sprint 3 Phase 2: 단계별 추천 로직 추가
+    if (recommendationType === 'phase') {
+      // 현재 활성 프로젝트의 단계 가져오기
+      const activeProject = projects.find(p => p.status === 'active');
+      if (!activeProject) return services.slice(0, 3);
+
+      const currentPhase = activeProject.phase || 'planning';
+
+      // 단계별 추천 서비스 매핑
+      const phaseRecommendations: Record<string, string[]> = {
+        'contract_pending': ['consulting', 'support'], // 계약 대기: 컨설팅, 지원
+        'contract_signed': ['planning', 'consulting'], // 계약 체결: 기획, 컨설팅
+        'planning': ['branding', 'development', 'support'], // 기획: 브랜딩, 개발, 지원
+        'design': ['branding', 'development'], // 디자인: 브랜딩, 개발
+        'execution': ['marketing', 'support', 'investment'], // 실행: 마케팅, 지원, 투자
+        'review': ['marketing', 'investment'], // 검토: 마케팅, 투자
+        'completed': ['marketing', 'investment'] // 완료: 마케팅, 투자
+      };
+
+      const recommendedCategories = phaseRecommendations[currentPhase] || [];
+      return services.filter(service =>
+        recommendedCategories.includes(service.category)
+      ).slice(0, 3);
+    }
+
     if (!axisScores) return services;
 
     // Find lowest scoring axes
@@ -646,17 +674,33 @@ export default function ServiceCatalog() {
                   <div>
                     <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                       <Sparkles className="w-5 h-5 text-blue-600" />
+                      {recommendationType === 'phase' && '현재 단계 맞춤 추천'}
                       {recommendationType === 'kpi' && 'KPI 기반 맞춤 추천'}
                       {recommendationType === 'similar' && '유사 기업이 선택한 서비스'}
                       {recommendationType === 'trending' && '이번 주 인기 서비스'}
                     </h2>
                     <p className="text-sm text-gray-600 mt-1">
-                      {recommendationType === 'kpi' && `낮은 KPI 영역: ${axisScores.GO < 3 ? '목표설정 ' : ''}${axisScores.EC < 3 ? '고객관리 ' : ''}${axisScores.PT < 3 ? '제품개발' : ''}`}
+                      {recommendationType === 'phase' && (() => {
+                        const activeProject = projects.find(p => p.status === 'active');
+                        const phaseLabel = activeProject ? PHASE_INFO[activeProject.phase]?.label : '기획';
+                        return `${phaseLabel} 단계에 필요한 서비스를 추천해드려요`;
+                      })()}
+                      {recommendationType === 'kpi' && `낮은 KPI 영역: ${axisScores?.GO < 3 ? '목표설정 ' : ''}${axisScores?.EC < 3 ? '고객관리 ' : ''}${axisScores?.PT < 3 ? '제품개발' : ''}`}
                       {recommendationType === 'similar' && '같은 업종의 스타트업이 많이 선택했어요'}
                       {recommendationType === 'trending' && '최근 7일간 가장 많이 선택된 서비스'}
                     </p>
                   </div>
                   <div className="flex gap-2">
+                    <button
+                      onClick={() => setRecommendationType('phase')}
+                      className={`px-3 py-1 rounded-lg text-xs font-medium ${
+                        recommendationType === 'phase'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-gray-600'
+                      }`}
+                    >
+                      현재 단계
+                    </button>
                     <button
                       onClick={() => setRecommendationType('kpi')}
                       className={`px-3 py-1 rounded-lg text-xs font-medium ${
@@ -756,7 +800,12 @@ export default function ServiceCatalog() {
 
             {/* Service Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
-              {filteredServices.map(service => (
+              {servicesLoading ? (
+                Array.from({ length: 6 }, (_, index) => (
+                  <ServiceCardSkeleton key={index} />
+                ))
+              ) : (
+                filteredServices.map(service => (
                 <div
                   key={service.id}
                   className={`relative bg-white rounded-xl shadow-md ${getCategoryTheme(service.category).border} border hover:shadow-2xl transition-all duration-300 cursor-pointer group flex flex-col h-[380px] hover:-translate-y-1`}
@@ -920,7 +969,8 @@ export default function ServiceCatalog() {
                     </div>
                   </div>
                 </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -946,26 +996,6 @@ export default function ServiceCatalog() {
               </button>
             </div>
 
-            {/* 구매 프로세스 7단계 표시 */}
-            {cart.length > 0 && (
-              <div className="mt-2">
-                <p className="text-xs text-gray-500 mb-2">구매 프로세스</p>
-                <div className="flex items-center gap-1">
-                  {ALL_PHASES.map((phase, idx) => (
-                    <div key={phase} className="flex-1 relative">
-                      <div className={`h-1 rounded-full ${
-                        idx === 0 ? 'bg-blue-500' : 'bg-gray-200'
-                      }`} />
-                      {idx === 0 && (
-                        <div className="absolute -bottom-4 left-0 right-0">
-                          <p className="text-xs text-blue-600 text-center">장바구니</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Cart Items */}

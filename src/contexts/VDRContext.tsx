@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useBuildupContext } from './BuildupContext';
 import { useKPIDiagnosis } from './KPIDiagnosisContext';
+import { useCurrentUser } from './CurrentUserContext';
+import JSZip from 'jszip';
 
 export interface VDRDocument {
   id: string;
@@ -10,14 +12,34 @@ export interface VDRDocument {
   uploadDate: Date;
   lastModified: Date;
   category: 'buildup_deliverable' | 'kpi_report' | 'vdr_upload' | 'contract' | 'ir_deck' | 'business_plan' | 'financial' | 'marketing';
-  source: 'buildup' | 'kpi' | 'manual' | 'dataroom';
+  source: 'buildup' | 'kpi' | 'manual' | 'dataroom' | 'buildup_deliverable' | 'kpi_diagnosis';
   projectId?: string;
   projectName?: string;
   visibility: 'private' | 'team' | 'investors' | 'public';
   isRepresentative?: boolean;
+  representativeType?: RepresentativeDoc['type']; // 어떤 대표 문서 타입으로 지정되었는지
   sharedSessions?: SharedSession[];
   tags?: string[];
   description?: string;
+
+  // 추가 속성들 (실제 CRM 시스템 기반)
+  version?: string;                    // 파일 버전 (v1.0, v2.1 등)
+  uploadedBy?: string;                // 업로더 이름
+  uploadedById?: string;              // 업로더 ID
+  downloadCount?: number;             // 다운로드 횟수
+  viewCount?: number;                 // 조회 횟수
+  lastAccessDate?: Date;              // 마지막 접근 일시
+  isFavorite?: boolean;               // 즐겨찾기 여부
+  approvalStatus?: 'pending' | 'approved' | 'rejected'; // 승인 상태
+  approvedBy?: string;                // 승인자
+  approvedAt?: Date;                  // 승인 일시
+  fileType?: string;                  // 파일 확장자 (.pdf, .docx 등)
+  mimeType?: string;                  // MIME 타입
+  thumbnail?: string;                 // 썸네일 이미지 URL
+  hasPreview?: boolean;               // 미리보기 지원 여부
+  checksum?: string;                  // 파일 무결성 체크
+  linkedDocuments?: string[];         // 연관 문서 ID들
+  customFields?: Record<string, any>; // 커스텀 필드들
 }
 
 export interface SharedSession {
@@ -37,26 +59,242 @@ interface AccessLog {
   userAgent?: string;
 }
 
+// 강화된 접근 로그 인터페이스
+export interface EnhancedAccessLog {
+  id: string;
+  timestamp: Date;
+  sessionId?: string;        // 공유 세션 ID (세션을 통한 접근인 경우)
+  documentId: string;        // 접근한 문서 ID
+  action: 'view' | 'download' | 'share' | 'upload' | 'delete'; // 수행한 액션
+  userInfo: {
+    userId?: string;         // 인증된 사용자 ID
+    userName?: string;       // 사용자 이름
+    userRole?: string;       // 사용자 역할
+    ipAddress?: string;      // IP 주소
+    userAgent?: string;      // 브라우저 정보
+    location?: string;       // 지역 정보 (선택적)
+    isAnonymous: boolean;    // 익명 접근 여부
+  };
+  details: {
+    documentName: string;    // 문서명
+    documentCategory: VDRDocument['category']; // 문서 카테고리
+    fileSize?: number;       // 파일 크기 (다운로드시)
+    duration?: number;       // 조회 시간 (초)
+    referrer?: string;       // 이전 페이지
+    success: boolean;        // 작업 성공 여부
+    errorMessage?: string;   // 에러 메시지 (실패시)
+  };
+  metadata?: {
+    browserVersion?: string;
+    deviceType?: 'desktop' | 'mobile' | 'tablet';
+    sessionDuration?: number;
+    downloadSpeed?: number;  // 다운로드 속도 (KB/s)
+  };
+}
+
+// 📧 Docsend 기능을 위한 고급 인터페이스들
+export interface EmailInvite {
+  id: string;
+  email: string;
+  accessToken: string;        // 개별 접근 토큰
+  expiresAt: Date;
+  viewCount: number;
+  lastViewed?: Date;
+  invitedAt: Date;
+  invitedBy: string;
+  status: 'pending' | 'viewed' | 'expired';
+  emailSentAt?: Date;
+  remindersSent: number;
+  lastReminderAt?: Date;
+  viewerName?: string;        // 뷰어가 입력한 이름
+  viewerCompany?: string;     // 뷰어가 입력한 회사명
+}
+
+// 📊 페이지별 상세 추적
+export interface PageView {
+  id: string;
+  pageNumber: number;
+  timeSpent: number;          // 초 단위
+  timestamp: Date;
+  sessionId?: string;
+  inviteId?: string;
+  userAgent?: string;
+  scrollDepth?: number;       // 스크롤 깊이 (%)
+  zoomLevel?: number;         // 확대 비율
+  interactions: {
+    clicks: number;
+    scrolls: number;
+    downloads: number;
+  };
+}
+
+// 🚀 고급 공유 세션 (기존 SharedSession 확장)
+export interface DocsendSession extends SharedSession {
+  // 이메일 초대 관련
+  emailInvites: EmailInvite[];
+  requireEmailAuth: boolean;   // 이메일 인증 필수 여부
+
+  // 보안 설정
+  downloadBlocked: boolean;    // 다운로드 차단
+  watermarkEnabled: boolean;   // 워터마크 표시
+  watermarkText?: string;      // 워터마크 텍스트
+
+  // NDA 관련
+  requireNDA: boolean;         // NDA 서명 필수
+  ndaTemplateId?: string;      // 사용할 NDA 템플릿
+
+  // 고급 추적
+  pageViews: PageView[];       // 페이지별 상세 추적
+  analytics: {
+    totalViews: number;
+    uniqueViewers: number;
+    averageViewTime: number;   // 평균 조회 시간
+    completionRate: number;    // 완독률
+    topPages: number[];        // 가장 오래 본 페이지들
+    bounceRate: number;        // 이탈률
+  };
+
+  // 기한 및 제한
+  viewLimit?: number;          // 조회 횟수 제한
+  ipRestrictions?: string[];   // IP 제한
+
+  // 브랜딩
+  customBranding?: {
+    logoUrl?: string;
+    primaryColor?: string;
+    companyName?: string;
+  };
+}
+
+// 📋 NDA 관련 인터페이스
+export interface NDATemplate {
+  id: string;
+  name: string;
+  content: string;             // HTML 형태의 NDA 내용
+  createdAt: Date;
+  updatedAt: Date;
+  isDefault: boolean;
+  variables: string[];         // 템플릿 변수들 ({{company_name}} 등)
+}
+
+export interface NDASignature {
+  id: string;
+  ndaTemplateId: string;
+  sessionId: string;
+  signerEmail: string;
+  signerName: string;
+  signerCompany?: string;
+  signedAt: Date;
+  ipAddress?: string;
+  signatureData: string;       // 전자서명 데이터
+  status: 'signed' | 'expired' | 'revoked';
+  documentHash: string;        // 서명된 문서의 해시
+}
+
 export interface RepresentativeDoc {
   type: 'ir_deck' | 'business_plan' | 'financial' | 'marketing';
   label: string;
   documentId?: string;
+  profileVisibility?: VDRDocument['visibility']; // 프로필에서의 공개 범위
 }
 
 interface VDRContextType {
   documents: VDRDocument[];
   sharedSessions: SharedSession[];
   representativeDocs: RepresentativeDoc[];
+  accessLogs: EnhancedAccessLog[];
   aggregateDocuments: () => Promise<void>;
   uploadDocument: (file: File, category: VDRDocument['category']) => Promise<void>;
   updateDocumentVisibility: (docId: string, visibility: VDRDocument['visibility']) => void;
-  setRepresentativeDocument: (docId: string, type: RepresentativeDoc['type']) => void;
+  setRepresentativeDocument: (type: RepresentativeDoc['type'], docId: string | null) => void;
   createShareSession: (name: string, documentIds: string[], expiresAt?: Date) => Promise<string>;
   getShareSession: (sessionId: string) => SharedSession | undefined;
   deleteDocument: (docId: string) => Promise<void>;
   searchDocuments: (query: string) => VDRDocument[];
   getDocumentsByCategory: (category: VDRDocument['category']) => VDRDocument[];
+  downloadDocument: (docId: string) => Promise<void>;
+  downloadMultipleDocuments: (docIds: string[]) => Promise<void>;
+  viewDocument: (docId: string) => void;
+  getRepresentativeDocumentsForProfile: (userType: 'public' | 'team' | 'investors') => VDRDocument[];
+  updateRepresentativeDocumentVisibility: (type: RepresentativeDoc['type'], visibility: VDRDocument['visibility']) => void;
+
+  // 접근 로그 관련 함수들
+  getAccessLogs: (filter?: AccessLogFilter) => EnhancedAccessLog[];
+  clearAccessLogs: (documentId?: string) => void;
+  exportAccessLogs: (format: 'csv' | 'json') => void;
+  getAccessStatistics: () => AccessStatistics;
+
+  // 🚀 Docsend 고급 기능들
+  docsendSessions: DocsendSession[];
+  ndaTemplates: NDATemplate[];
+  ndaSignatures: NDASignature[];
+
+  // 이메일 초대 관련
+  createEmailInvite: (sessionId: string, email: string, expiresAt?: Date) => Promise<EmailInvite>;
+  sendEmailInvitation: (inviteId: string) => Promise<void>;
+  sendReminder: (inviteId: string) => Promise<void>;
+  verifyEmailToken: (token: string) => Promise<EmailInvite | null>;
+
+  // 고급 세션 관리
+  createDocsendSession: (
+    name: string,
+    documentIds: string[],
+    options: {
+      requireEmailAuth?: boolean;
+      downloadBlocked?: boolean;
+      watermarkEnabled?: boolean;
+      requireNDA?: boolean;
+      viewLimit?: number;
+      expiresAt?: Date;
+    }
+  ) => Promise<DocsendSession>;
+  updateSessionSettings: (sessionId: string, settings: Partial<DocsendSession>) => Promise<void>;
+
+  // 페이지 추적
+  trackPageView: (sessionId: string, pageNumber: number, timeSpent: number) => void;
+  getSessionAnalytics: (sessionId: string) => DocsendSession['analytics'];
+
+  // NDA 관리
+  createNDATemplate: (name: string, content: string, variables: string[]) => Promise<NDATemplate>;
+  updateNDATemplate: (templateId: string, updates: Partial<NDATemplate>) => Promise<void>;
+  deleteNDATemplate: (templateId: string) => Promise<void>;
+  signNDA: (sessionId: string, signerInfo: {
+    email: string;
+    name: string;
+    company?: string;
+    signatureData: string;
+  }) => Promise<NDASignature>;
+
   loading: boolean;
+}
+
+// 접근 로그 필터 인터페이스
+export interface AccessLogFilter {
+  startDate?: Date;
+  endDate?: Date;
+  documentId?: string;
+  sessionId?: string;
+  action?: EnhancedAccessLog['action'];
+  userId?: string;
+  isAnonymous?: boolean;
+}
+
+// 접근 통계 인터페이스
+export interface AccessStatistics {
+  totalAccess: number;
+  uniqueUsers: number;
+  topDocuments: Array<{
+    documentId: string;
+    documentName: string;
+    accessCount: number;
+  }>;
+  actionBreakdown: Record<EnhancedAccessLog['action'], number>;
+  dailyStats: Array<{
+    date: string;
+    accessCount: number;
+    uniqueUsers: number;
+  }>;
+  deviceBreakdown: Record<string, number>;
 }
 
 const VDRContext = createContext<VDRContextType | undefined>(undefined);
@@ -72,16 +310,118 @@ export const useVDRContext = () => {
 export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [documents, setDocuments] = useState<VDRDocument[]>([]);
   const [sharedSessions, setSharedSessions] = useState<SharedSession[]>([]);
+  const [accessLogs, setAccessLogs] = useState<EnhancedAccessLog[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // 🚀 Docsend 관련 state들
+  const [docsendSessions, setDocsendSessions] = useState<DocsendSession[]>([]);
+  const [ndaTemplates, setNdaTemplates] = useState<NDATemplate[]>([]);
+  const [ndaSignatures, setNdaSignatures] = useState<NDASignature[]>([]);
   const { projects } = useBuildupContext();
   const { savedAssessments } = useKPIDiagnosis();
+  const { currentUser } = useCurrentUser();
 
   const representativeDocs: RepresentativeDoc[] = [
-    { type: 'ir_deck', label: 'IR Deck' },
-    { type: 'business_plan', label: '사업계획서' },
-    { type: 'financial', label: '재무제표' },
-    { type: 'marketing', label: '마케팅 지표' }
+    { type: 'ir_deck', label: 'IR Deck', profileVisibility: 'investors' },
+    { type: 'business_plan', label: '사업계획서', profileVisibility: 'team' },
+    { type: 'financial', label: '재무제표', profileVisibility: 'team' },
+    { type: 'marketing', label: '마케팅 지표', profileVisibility: 'public' }
   ];
+
+  // 접근 로그 로컬 스토리지 키
+  const ACCESS_LOGS_KEY = 'vdr_access_logs';
+
+  // 접근 로그 초기화 (localStorage에서 로드)
+  useEffect(() => {
+    const savedLogs = localStorage.getItem(ACCESS_LOGS_KEY);
+    if (savedLogs) {
+      try {
+        const parsedLogs = JSON.parse(savedLogs).map((log: any) => ({
+          ...log,
+          timestamp: new Date(log.timestamp)
+        }));
+        setAccessLogs(parsedLogs);
+      } catch (error) {
+        console.error('[VDR] Failed to load access logs:', error);
+      }
+    }
+  }, []);
+
+  // 디바이스 타입 감지 헬퍼
+  const getDeviceType = (): 'desktop' | 'mobile' | 'tablet' => {
+    const userAgent = navigator.userAgent;
+    if (/tablet|ipad|playbook|silk/i.test(userAgent)) {
+      return 'tablet';
+    }
+    if (/mobile|iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(userAgent)) {
+      return 'mobile';
+    }
+    return 'desktop';
+  };
+
+  // 접근 로그 기록 헬퍼 함수
+  const recordAccessLog = (
+    documentId: string,
+    action: EnhancedAccessLog['action'],
+    success: boolean = true,
+    additionalData?: Partial<EnhancedAccessLog>
+  ) => {
+    const document = documents.find(doc => doc.id === documentId);
+    if (!document) {
+      console.warn('[VDR] Document not found for logging:', documentId);
+      return;
+    }
+
+    const logEntry: EnhancedAccessLog = {
+      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date(),
+      documentId,
+      action,
+      sessionId: additionalData?.sessionId,
+      userInfo: {
+        userId: currentUser?.id,
+        userName: currentUser?.name,
+        userRole: currentUser?.role,
+        ipAddress: 'localhost', // Mock IP - 실제 구현시 서버에서 가져와야 함
+        userAgent: navigator.userAgent,
+        isAnonymous: !currentUser?.id,
+        ...additionalData?.userInfo
+      },
+      details: {
+        documentName: document.name,
+        documentCategory: document.category,
+        fileSize: document.size,
+        success,
+        referrer: document.location?.href,
+        ...additionalData?.details
+      },
+      metadata: {
+        browserVersion: navigator.userAgent.match(/Chrome\/([0-9.]+)/)?.[1] || 'unknown',
+        deviceType: getDeviceType(),
+        ...additionalData?.metadata
+      },
+      ...additionalData
+    };
+
+    // 로그를 상태에 추가
+    setAccessLogs(prev => {
+      const newLogs = [logEntry, ...prev];
+      // 최대 1000개 로그만 유지 (성능 고려)
+      const limitedLogs = newLogs.slice(0, 1000);
+
+      // localStorage에 저장
+      localStorage.setItem(ACCESS_LOGS_KEY, JSON.stringify(limitedLogs));
+
+      return limitedLogs;
+    });
+
+    console.log(`[VDR] Access logged:`, {
+      action,
+      document: document.name,
+      user: currentUser?.name || 'anonymous',
+      timestamp: logEntry.timestamp.toISOString()
+    });
+  };
 
   // 모든 소스에서 문서 자동 집계
   const aggregateDocuments = async () => {
@@ -91,12 +431,13 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // 빌드업 프로젝트 문서
       projects?.forEach(project => {
+        // 1. 프로젝트 산출물 (deliverables)
         if (project.deliverables) {
           project.deliverables?.forEach(deliverable => {
             aggregatedDocs.push({
-              id: `buildup-${project.id}-${deliverable.id}`,
+              id: `buildup-deliverable-${project.id}-${deliverable.id}`,
               name: deliverable.name,
-              path: `/companies/buildup/projects/${project.id}/${deliverable.name}`,
+              path: `/companies/buildup/projects/${project.id}/deliverables/${deliverable.name}`,
               size: 1048576, // Mock size
               uploadDate: new Date(deliverable.uploadDate || Date.now()),
               lastModified: new Date(deliverable.uploadDate || Date.now()),
@@ -105,7 +446,50 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               projectId: project.id,
               projectName: project.title,
               visibility: 'team',
-              tags: project.tags
+              tags: project.tags,
+              description: `산출물 - ${deliverable.status || 'pending'}`
+            });
+
+            // 산출물에 첨부된 파일들
+            if (deliverable.files && deliverable.files.length > 0) {
+              deliverable.files.forEach((file: any) => {
+                aggregatedDocs.push({
+                  id: `buildup-file-${project.id}-${deliverable.id}-${file.id || Date.now()}`,
+                  name: file.name || file.filename || 'Unknown File',
+                  path: `/companies/buildup/projects/${project.id}/files/${file.name || file.filename}`,
+                  size: file.size || 524288,
+                  uploadDate: new Date(file.uploadDate || Date.now()),
+                  lastModified: new Date(file.lastModified || Date.now()),
+                  category: 'buildup_deliverable',
+                  source: 'buildup',
+                  projectId: project.id,
+                  projectName: project.title,
+                  visibility: 'team',
+                  tags: [...(project.tags || []), 'attachment'],
+                  description: `${deliverable.name} 첨부파일`
+                });
+              });
+            }
+          });
+        }
+
+        // 2. 프로젝트 파일함 (files)
+        if (project.files && project.files.length > 0) {
+          project.files.forEach((file: any) => {
+            aggregatedDocs.push({
+              id: `buildup-projectfile-${project.id}-${file.id || Date.now()}`,
+              name: file.name || file.filename || 'Unknown File',
+              path: `/companies/buildup/projects/${project.id}/library/${file.name || file.filename}`,
+              size: file.size || 524288,
+              uploadDate: new Date(file.uploadDate || Date.now()),
+              lastModified: new Date(file.lastModified || Date.now()),
+              category: file.category || 'buildup_deliverable',
+              source: 'buildup',
+              projectId: project.id,
+              projectName: project.title,
+              visibility: 'team',
+              tags: [...(project.tags || []), 'project-file'],
+              description: `프로젝트 자료실 파일`
             });
           });
         }
@@ -146,31 +530,434 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // 문서와 세션 간 연결 업데이트
+  const updateDocumentSessionLinks = () => {
+    setDocuments(docs =>
+      docs.map(doc => ({
+        ...doc,
+        sharedSessions: sharedSessions.filter(session =>
+          session.documentIds.includes(doc.id)
+        )
+      }))
+    );
+  };
+
   // 초기 로드 시 문서 집계
   useEffect(() => {
     aggregateDocuments();
+
+    // 개발용 더미 세션 추가
+    if (sharedSessions.length === 0) {
+      const dummySessions: SharedSession[] = [
+        {
+          id: 'session-1',
+          name: '포켓전자 IR - YS캐피탈',
+          createdAt: new Date(Date.now() - 86400000 * 5), // 5일 전
+          expiresAt: new Date(Date.now() + 86400000 * 2), // 2일 후
+          accessCount: 23,
+          link: 'https://pocketbiz.com/share/session-1',
+          documentIds: ['dummy-1', 'dummy-2', 'dummy-3'],
+          accessLog: []
+        },
+        {
+          id: 'session-2',
+          name: 'KB인베스트먼트 실사자료',
+          createdAt: new Date(Date.now() - 86400000 * 3), // 3일 전
+          expiresAt: new Date(Date.now() + 3600000 * 5), // 5시간 후 (만료 임박)
+          accessCount: 15,
+          link: 'https://pocketbiz.com/share/session-2',
+          documentIds: ['dummy-2', 'dummy-3'],
+          accessLog: []
+        },
+        {
+          id: 'session-3',
+          name: '내부 검토용 자료',
+          createdAt: new Date(Date.now() - 86400000 * 10), // 10일 전
+          expiresAt: undefined, // 무제한
+          accessCount: 42,
+          link: 'https://pocketbiz.com/share/session-3',
+          documentIds: ['dummy-1', 'dummy-4', 'dummy-5'],
+          accessLog: []
+        },
+        {
+          id: 'session-4',
+          name: '파트너사 협업 문서',
+          createdAt: new Date(Date.now() - 86400000 * 7), // 7일 전
+          expiresAt: new Date(Date.now() - 86400000), // 1일 전 (만료됨)
+          accessCount: 8,
+          link: 'https://pocketbiz.com/share/session-4',
+          documentIds: ['dummy-4'],
+          accessLog: []
+        },
+        {
+          id: 'session-5',
+          name: '2024 하반기 전략 발표자료',
+          createdAt: new Date(Date.now() - 3600000 * 2), // 2시간 전
+          expiresAt: new Date(Date.now() + 86400000 * 7), // 7일 후
+          accessCount: 2,
+          link: 'https://pocketbiz.com/share/session-5',
+          documentIds: ['dummy-3', 'dummy-5'],
+          accessLog: []
+        }
+      ];
+      setSharedSessions(dummySessions);
+      console.log('[VDR] Added dummy sessions for testing');
+    }
+
+    // 개발용 더미 문서 추가 (기존 문서가 10개 미만일 때)
+    if (documents.length < 10) {
+      const dummyDocs: VDRDocument[] = [
+        {
+          id: 'dummy-1',
+          name: '포켓전자 사업계획서.pdf',
+          path: '/dummy/business-plan.pdf',
+          size: 2048000,
+          uploadDate: new Date(),
+          lastModified: new Date(),
+          category: 'business_plan',
+          source: 'manual',
+          visibility: 'private',
+          version: 'v1.0',
+          uploadedBy: '김대표',
+          downloadCount: 5,
+          viewCount: 12,
+          isFavorite: false,
+          approvalStatus: 'pending',
+          fileType: '.pdf',
+          hasPreview: true,
+          tags: ['사업계획', '기초자료']
+        },
+        {
+          id: 'dummy-2',
+          name: '2024년 재무제표.xlsx',
+          path: '/dummy/financial.xlsx',
+          size: 1024000,
+          uploadDate: new Date(),
+          lastModified: new Date(),
+          category: 'financial',
+          source: 'manual',
+          visibility: 'team',
+          version: 'v1.0',
+          uploadedBy: '박회계',
+          downloadCount: 8,
+          viewCount: 20,
+          isFavorite: true,
+          approvalStatus: 'approved',
+          approvedBy: '김대표',
+          fileType: '.xlsx',
+          hasPreview: false,
+          tags: ['재무', '2024', '결산']
+        },
+        {
+          id: 'dummy-3',
+          name: 'IR Deck - YS캐피탈.pptx',
+          path: '/dummy/ir-deck.pptx',
+          size: 5120000,
+          uploadDate: new Date(),
+          lastModified: new Date(),
+          category: 'ir_deck',
+          source: 'manual',
+          visibility: 'investors',
+          version: 'v1.2',
+          uploadedBy: '이기획',
+          downloadCount: 25,
+          viewCount: 50,
+          isFavorite: true,
+          approvalStatus: 'approved',
+          approvedBy: '김대표',
+          fileType: '.pptx',
+          hasPreview: true,
+          tags: ['IR', 'YS캐피탈', '투자유치']
+        },
+        {
+          id: 'dummy-4',
+          name: '마케팅 전략 보고서.docx',
+          path: '/dummy/marketing-strategy.docx',
+          size: 1536000,
+          uploadDate: new Date(Date.now() - 86400000), // 하루 전
+          lastModified: new Date(Date.now() - 86400000),
+          category: 'marketing',
+          source: 'manual',
+          visibility: 'team',
+          version: 'v1.1',
+          uploadedBy: '최마케팅',
+          downloadCount: 3,
+          viewCount: 15,
+          isFavorite: false,
+          approvalStatus: 'approved',
+          fileType: '.docx',
+          hasPreview: true,
+          tags: ['마케팅', '전략', 'Q4']
+        },
+        {
+          id: 'dummy-5',
+          name: '기술 개발 계획서.pdf',
+          path: '/dummy/tech-plan.pdf',
+          size: 3072000,
+          uploadDate: new Date(Date.now() - 172800000), // 이틀 전
+          lastModified: new Date(Date.now() - 172800000),
+          category: 'business_plan',
+          source: 'buildup_deliverable',
+          visibility: 'private',
+          projectName: '포켓전자 기술혁신 프로젝트'
+        },
+        {
+          id: 'dummy-6',
+          name: '투자제안서_v2.pptx',
+          path: '/dummy/investment-proposal.pptx',
+          size: 7680000,
+          uploadDate: new Date(Date.now() - 259200000), // 사흘 전
+          lastModified: new Date(Date.now() - 259200000),
+          category: 'ir_deck',
+          source: 'manual',
+          visibility: 'investors',
+          isRepresentative: true,
+          version: 'v2.0',
+          uploadedBy: '김대표',
+          downloadCount: 15,
+          viewCount: 42,
+          lastAccessDate: new Date(Date.now() - 86400000),
+          isFavorite: true,
+          approvalStatus: 'approved',
+          approvedBy: '이투자',
+          approvedAt: new Date(Date.now() - 172800000),
+          fileType: '.pptx',
+          hasPreview: true,
+          tags: ['투자', 'IR', '중요']
+        },
+        {
+          id: 'dummy-7',
+          name: '법무 검토 의견서.pdf',
+          path: '/dummy/legal-review.pdf',
+          size: 512000,
+          uploadDate: new Date(Date.now() - 345600000), // 나흘 전
+          lastModified: new Date(Date.now() - 345600000),
+          category: 'contract',
+          source: 'manual',
+          visibility: 'private'
+        },
+        {
+          id: 'dummy-8',
+          name: 'KPI 월간 보고서.xlsx',
+          path: '/dummy/kpi-monthly.xlsx',
+          size: 768000,
+          uploadDate: new Date(Date.now() - 432000000), // 닷새 전
+          lastModified: new Date(Date.now() - 432000000),
+          category: 'kpi_report',
+          source: 'kpi_diagnosis',
+          visibility: 'team'
+        },
+        {
+          id: 'dummy-9',
+          name: '사업자등록증.pdf',
+          path: '/dummy/business-license.pdf',
+          size: 256000,
+          uploadDate: new Date(Date.now() - 604800000), // 일주일 전
+          lastModified: new Date(Date.now() - 604800000),
+          category: 'contract',
+          source: 'manual',
+          visibility: 'public'
+        },
+        {
+          id: 'dummy-10',
+          name: '팀 조직도.png',
+          path: '/dummy/org-chart.png',
+          size: 1024000,
+          uploadDate: new Date(Date.now() - 691200000), // 8일 전
+          lastModified: new Date(Date.now() - 691200000),
+          category: 'marketing',
+          source: 'manual',
+          visibility: 'team'
+        }
+      ];
+      setDocuments(dummyDocs);
+      console.log('[VDR] Added dummy documents for testing');
+    }
   }, [projects, savedAssessments]);
 
-  // 문서 업로드
+  // 세션이 변경될 때마다 문서-세션 연결 업데이트
+  useEffect(() => {
+    if (sharedSessions.length > 0) {
+      updateDocumentSessionLinks();
+      console.log('[VDR] Updated document-session links');
+    }
+  }, [sharedSessions]);
+
+  // 파일 검증 설정
+  const FILE_VALIDATION = {
+    maxSize: 100 * 1024 * 1024, // 100MB
+    allowedTypes: {
+      // 문서 파일
+      '.pdf': 'application/pdf',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.xls': 'application/vnd.ms-excel',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.ppt': 'application/vnd.ms-powerpoint',
+      '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      '.txt': 'text/plain',
+      '.csv': 'text/csv',
+      // 이미지 파일
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.svg': 'image/svg+xml',
+      // 압축 파일
+      '.zip': 'application/zip',
+      '.rar': 'application/x-rar-compressed',
+      '.7z': 'application/x-7z-compressed'
+    },
+    // 카테고리별 허용 타입
+    categoryTypes: {
+      'ir_deck': ['.pdf', '.pptx', '.ppt'],
+      'business_plan': ['.pdf', '.docx', '.doc'],
+      'financial': ['.xlsx', '.xls', '.csv', '.pdf'],
+      'contract': ['.pdf', '.docx', '.doc'],
+      'marketing': ['.pdf', '.pptx', '.png', '.jpg', '.jpeg']
+    }
+  };
+
+  // 파일 검증 함수
+  const validateFile = (file: File, category: VDRDocument['category']): { valid: boolean; error?: string } => {
+    // 파일 크기 검증
+    if (file.size > FILE_VALIDATION.maxSize) {
+      return {
+        valid: false,
+        error: `파일 크기가 ${(FILE_VALIDATION.maxSize / 1048576).toFixed(0)}MB를 초과합니다. (현재: ${(file.size / 1048576).toFixed(2)}MB)`
+      };
+    }
+
+    // 파일 타입 검증
+    const fileExtension = `.${file.name.split('.').pop()?.toLowerCase()}`;
+    const allowedExtensions = Object.keys(FILE_VALIDATION.allowedTypes);
+
+    if (!allowedExtensions.includes(fileExtension)) {
+      return {
+        valid: false,
+        error: `지원하지 않는 파일 형식입니다. 허용된 형식: ${allowedExtensions.join(', ')}`
+      };
+    }
+
+    // 카테고리별 타입 검증 (카테고리별 제한이 있는 경우)
+    const categoryRestrictions = FILE_VALIDATION.categoryTypes[category as keyof typeof FILE_VALIDATION.categoryTypes];
+    if (categoryRestrictions && !categoryRestrictions.includes(fileExtension)) {
+      return {
+        valid: false,
+        error: `${getCategoryLabel(category)} 카테고리에는 ${categoryRestrictions.join(', ')} 파일만 업로드 가능합니다.`
+      };
+    }
+
+    // 파일명 검증 (특수문자 체크)
+    const invalidChars = /[<>:"/\\|?*\x00-\x1F]/g;
+    if (invalidChars.test(file.name)) {
+      return {
+        valid: false,
+        error: '파일명에 사용할 수 없는 특수문자가 포함되어 있습니다.'
+      };
+    }
+
+    // 중복 파일 검증
+    const isDuplicate = documents.some(doc =>
+      doc.name === file.name && doc.category === category
+    );
+    if (isDuplicate) {
+      return {
+        valid: false,
+        error: '동일한 이름의 파일이 이미 존재합니다.'
+      };
+    }
+
+    return { valid: true };
+  };
+
+  // 카테고리 라벨 헬퍼
+  const getCategoryLabel = (category: VDRDocument['category']): string => {
+    const labels: Record<VDRDocument['category'], string> = {
+      'buildup_deliverable': '빌드업 산출물',
+      'kpi_report': 'KPI 리포트',
+      'vdr_upload': 'VDR 업로드',
+      'contract': '계약서',
+      'ir_deck': 'IR Deck',
+      'business_plan': '사업계획서',
+      'financial': '재무제표',
+      'marketing': '마케팅'
+    };
+    return labels[category] || category;
+  };
+
+  // 문서 업로드 (강화된 검증 포함)
   const uploadDocument = async (file: File, category: VDRDocument['category']) => {
+    // 파일 검증
+    const validation = validateFile(file, category);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+
+    const fileExtension = `.${file.name.split('.').pop()?.toLowerCase()}`;
+    const hasPreview = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.svg'].includes(fileExtension);
+
     const newDoc: VDRDocument = {
-      id: `upload-${Date.now()}`,
+      id: `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: file.name,
-      path: `/companies/vdr/uploads/${file.name}`,
+      path: `/companies/vdr/uploads/${encodeURIComponent(file.name)}`,
       size: file.size,
       uploadDate: new Date(),
       lastModified: new Date(),
       category,
       source: 'manual',
-      visibility: 'private'
+      visibility: 'private',
+      // 업로더 정보 자동 추가
+      uploadedBy: currentUser?.name || 'Unknown',
+      uploadedById: currentUser?.id,
+      downloadCount: 0,
+      viewCount: 0,
+      version: 'v1.0',
+      fileType: fileExtension,
+      mimeType: file.type || FILE_VALIDATION.allowedTypes[fileExtension as keyof typeof FILE_VALIDATION.allowedTypes] || 'application/octet-stream',
+      hasPreview,
+      isFavorite: false,
+      approvalStatus: 'pending',
+      checksum: await generateChecksum(file),
+      tags: []
     };
 
     const updatedDocs = [...documents, newDoc];
     setDocuments(updatedDocs);
-    
+
+    // 업로드 로그 기록
+    recordAccessLog(newDoc.id, 'upload', true, {
+      details: {
+        fileSize: file.size,
+        success: true
+      }
+    });
+
+    // VDR 네임스페이스 이벤트 발생
+    window.dispatchEvent(new CustomEvent('vdr:document_uploaded', {
+      detail: newDoc
+    }));
+
     // localStorage에 저장
     const manualDocs = updatedDocs.filter(d => d.source === 'manual');
     localStorage.setItem('vdr_documents', JSON.stringify(manualDocs));
+
+    console.log('[VDR] Document uploaded successfully:', {
+      id: newDoc.id,
+      name: newDoc.name,
+      size: `${(newDoc.size / 1048576).toFixed(2)}MB`,
+      type: newDoc.fileType,
+      category: newDoc.category
+    });
+  };
+
+  // 체크섬 생성 함수 (파일 무결성 체크)
+  const generateChecksum = async (file: File): Promise<string> => {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex.substring(0, 16); // 처음 16자만 사용
   };
 
   // 문서 공개 범위 업데이트
@@ -181,57 +968,97 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // 대표 문서 설정
-  const setRepresentativeDocument = (docId: string, type: RepresentativeDoc['type']) => {
-    setDocuments(docs => 
-      docs.map(doc => {
-        if (doc.id === docId) {
-          return { ...doc, isRepresentative: !doc.isRepresentative, category: type };
+  const setRepresentativeDocument = (type: RepresentativeDoc['type'], docId: string | null) => {
+    console.log('[VDR] setRepresentativeDocument called:', { type, docId });
+
+    setDocuments(docs => {
+      const updatedDocs = docs.map(doc => {
+        // 같은 타입의 기존 대표 문서 해제 (representativeType 기준)
+        if (doc.isRepresentative && doc.representativeType === type) {
+          console.log('[VDR] 기존 대표 문서 해제:', doc.name);
+          return { ...doc, isRepresentative: false, representativeType: undefined };
         }
-        // 같은 타입의 다른 대표 문서 해제
-        if (doc.category === type && doc.isRepresentative && doc.id !== docId) {
-          return { ...doc, isRepresentative: false };
+        // 새로운 대표 문서 지정 (docId가 null이면 해제만)
+        if (docId && doc.id === docId) {
+          console.log('[VDR] 새로운 대표 문서 지정:', doc.name, 'as', type);
+          return { ...doc, isRepresentative: true, representativeType: type };
         }
         return doc;
-      })
-    );
+      });
+
+      console.log('[VDR] 업데이트된 문서들:', updatedDocs.filter(d => d.isRepresentative));
+      return updatedDocs;
+    });
+
+    // VDR 네임스페이스 이벤트 발생
+    window.dispatchEvent(new CustomEvent('vdr:representative_document_updated', {
+      detail: { type, docId }
+    }));
   };
 
   // 공유 세션 생성
   const createShareSession = async (name: string, documentIds: string[], expiresAt?: Date): Promise<string> => {
-    const sessionId = Math.random().toString(36).substr(2, 9);
-    const shareLink = `https://pocketbiz.com/share/${sessionId}`;
-    
-    const newSession: SharedSession = {
-      id: sessionId,
-      name,
-      createdAt: new Date(),
-      expiresAt,
-      accessCount: 0,
-      link: shareLink,
-      documentIds,
-      accessLog: []
-    };
+    try {
+      console.log('[VDR] Creating share session:', { name, documentIds, expiresAt });
 
-    setSharedSessions(prev => [...prev, newSession]);
-    
-    // 공유된 문서에 세션 정보 추가
-    setDocuments(docs => 
-      docs.map(doc => {
-        if (documentIds.includes(doc.id)) {
-          const sessions = doc.sharedSessions || [];
-          return {
-            ...doc,
-            sharedSessions: [...sessions, newSession]
-          };
-        }
-        return doc;
-      })
-    );
+      const sessionId = Math.random().toString(36).substr(2, 9);
+      const shareLink = `https://pocketbiz.com/share/${sessionId}`;
 
-    // 클립보드에 링크 복사
-    await navigator.clipboard.writeText(shareLink);
-    
-    return shareLink;
+      const newSession: SharedSession = {
+        id: sessionId,
+        name,
+        createdAt: new Date(),
+        expiresAt,
+        accessCount: 0,
+        link: shareLink,
+        documentIds,
+        accessLog: []
+      };
+
+      console.log('[VDR] Session object created:', newSession);
+
+      // 동기적으로 상태 업데이트
+      setSharedSessions(prev => {
+        console.log('[VDR] Updating shared sessions:', [...prev, newSession]);
+        return [...prev, newSession];
+      });
+
+      // VDR 네임스페이스 이벤트 발생
+      try {
+        window.dispatchEvent(new CustomEvent('vdr:share_session_created', {
+          detail: newSession
+        }));
+        console.log('[VDR] Event dispatched successfully');
+      } catch (eventError) {
+        console.warn('[VDR] Failed to dispatch event:', eventError);
+      }
+
+      // 공유된 문서에 세션 정보 추가
+      try {
+        setDocuments(docs => {
+          const updatedDocs = docs.map(doc => {
+            if (documentIds.includes(doc.id)) {
+              const sessions = doc.sharedSessions || [];
+              return {
+                ...doc,
+                sharedSessions: [...sessions, newSession]
+              };
+            }
+            return doc;
+          });
+          console.log('[VDR] Documents updated with session info');
+          return updatedDocs;
+        });
+      } catch (docUpdateError) {
+        console.warn('[VDR] Failed to update documents:', docUpdateError);
+      }
+
+      console.log('[VDR] Share session created successfully:', shareLink);
+      return shareLink;
+    } catch (error) {
+      console.error('[VDR] Failed to create share session:', error);
+      throw new Error(`공유 세션 생성 실패: ${error.message || '알 수 없는 오류'}`);
+    }
   };
 
   // 공유 세션 조회
@@ -259,10 +1086,705 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return documents.filter(doc => doc.category === category);
   };
 
+  // 문서 조회 (조회수 증가)
+  const viewDocument = (docId: string) => {
+    const startTime = Date.now();
+
+    setDocuments(docs =>
+      docs.map(doc => {
+        if (doc.id === docId) {
+          const newViewCount = (doc.viewCount || 0) + 1;
+
+          // 강화된 접근 로그 기록
+          recordAccessLog(docId, 'view', true, {
+            details: {
+              duration: Math.round((Date.now() - startTime) / 1000), // 조회 시간 (초)
+              success: true
+            }
+          });
+
+          return {
+            ...doc,
+            viewCount: newViewCount,
+            lastAccessDate: new Date()
+          };
+        }
+        return doc;
+      })
+    );
+  };
+
+  // 단일 파일 다운로드
+  const downloadDocument = async (docId: string) => {
+    const downloadStartTime = Date.now();
+
+    try {
+      const document = documents.find(doc => doc.id === docId);
+      if (!document) {
+        // 실패 로그 기록
+        recordAccessLog(docId, 'download', false, {
+          details: {
+            errorMessage: '문서를 찾을 수 없습니다.',
+            success: false
+          }
+        });
+        throw new Error('문서를 찾을 수 없습니다.');
+      }
+
+      // Mock 파일 콘텐츠 생성 (실제로는 서버에서 파일을 가져와야 함)
+      const mockContent = `
+========================================
+문서명: ${document.name}
+카테고리: ${document.category}
+업로드일: ${new Date(document.uploadDate).toLocaleString('ko-KR')}
+크기: ${(document.size / 1048576).toFixed(2)}MB
+버전: ${document.version || 'v1.0'}
+========================================
+
+[문서 내용]
+
+이것은 ${document.name}의 샘플 내용입니다.
+
+본 문서는 VDR 시스템을 통해 안전하게 관리되고 있습니다.
+
+- 문서 ID: ${document.id}
+- 보안 등급: ${document.visibility}
+- 업로더: ${document.uploadedBy || '시스템'}
+
+========================================
+© 2025 PocketBiz VDR System
+========================================
+      `;
+
+      // Blob 생성
+      const blob = new Blob([mockContent], {
+        type: document.fileType === '.pdf' ? 'application/pdf' : 'text/plain'
+      });
+
+      // 다운로드 링크 생성
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = document.name;
+
+      // 클릭 이벤트 트리거
+      document.body.appendChild(link);
+      link.click();
+
+      // 정리
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+
+      // 다운로드 성공 - 카운트 증가 및 로그 기록
+      const downloadDuration = Date.now() - downloadStartTime;
+      const downloadSpeed = Math.round((document.size / 1024) / (downloadDuration / 1000)); // KB/s
+
+      setDocuments(docs => docs.map(doc => {
+        if (doc.id === docId) {
+          return {
+            ...doc,
+            downloadCount: (doc.downloadCount || 0) + 1,
+            viewCount: (doc.viewCount || 0) + 1,
+            lastAccessDate: new Date()
+          };
+        }
+        return doc;
+      }));
+
+      // 강화된 다운로드 로그 기록
+      recordAccessLog(docId, 'download', true, {
+        details: {
+          duration: Math.round(downloadDuration / 1000), // 다운로드 시간 (초)
+          success: true
+        },
+        metadata: {
+          downloadSpeed: downloadSpeed
+        }
+      });
+
+      // 최근 100개 로그만 유지
+      if (existingLogs.length > 100) {
+        existingLogs.splice(0, existingLogs.length - 100);
+      }
+
+      localStorage.setItem('vdr_download_logs', JSON.stringify(existingLogs));
+
+      // 콘솔 로그
+      console.log(`[VDR] Document downloaded:`, {
+        name: document.name,
+        downloadCount: (document.downloadCount || 0) + 1,
+        timestamp: now.toISOString()
+      });
+
+    } catch (error) {
+      console.error('[VDR] Download failed:', error);
+      throw error;
+    }
+  };
+
+  // 다중 파일 다운로드 (ZIP으로 압축)
+  const downloadMultipleDocuments = async (docIds: string[]) => {
+    try {
+      console.log(`[VDR] Creating ZIP with ${docIds.length} documents`);
+
+      // JSZip 인스턴스 생성
+      const zip = new JSZip();
+
+      // 각 문서를 ZIP에 추가
+      for (const docId of docIds) {
+        const document = documents.find(doc => doc.id === docId);
+        if (!document) continue;
+
+        // Mock 파일 콘텐츠 생성
+        const mockContent = `
+========================================
+문서명: ${document.name}
+카테고리: ${document.category}
+업로드일: ${new Date(document.uploadDate).toLocaleString('ko-KR')}
+크기: ${(document.size / 1048576).toFixed(2)}MB
+버전: ${document.version || 'v1.0'}
+========================================
+
+[문서 내용]
+
+이것은 ${document.name}의 샘플 내용입니다.
+
+본 문서는 VDR 시스템을 통해 안전하게 관리되고 있습니다.
+
+- 문서 ID: ${document.id}
+- 보안 등급: ${document.visibility}
+- 업로더: ${document.uploadedBy || '시스템'}
+
+========================================
+© 2025 PocketBiz VDR System
+========================================
+        `;
+
+        // 파일을 ZIP에 추가 (폴더 구조 유지)
+        const folder = document.category.replace(/_/g, '-');
+        zip.folder(folder)?.file(document.name, mockContent);
+
+        // 다운로드 카운트 증가
+        setDocuments(docs => docs.map(doc => {
+          if (doc.id === docId) {
+            return {
+              ...doc,
+              downloadCount: (doc.downloadCount || 0) + 1,
+              viewCount: (doc.viewCount || 0) + 1,
+              lastAccessDate: new Date()
+            };
+          }
+          return doc;
+        }));
+      }
+
+      // 메타데이터 파일 추가
+      const metadata = {
+        exportDate: new Date().toISOString(),
+        documentCount: docIds.length,
+        documents: docIds.map(id => {
+          const doc = documents.find(d => d.id === id);
+          return doc ? {
+            name: doc.name,
+            category: doc.category,
+            size: doc.size,
+            uploadDate: doc.uploadDate
+          } : null;
+        }).filter(Boolean)
+      };
+
+      zip.file('metadata.json', JSON.stringify(metadata, null, 2));
+
+      // ZIP 파일 생성
+      const content = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      });
+
+      // 다운로드 링크 생성
+      const url = window.URL.createObjectURL(content);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `VDR_Documents_${new Date().getTime()}.zip`;
+
+      // 클릭 이벤트 트리거
+      document.body.appendChild(link);
+      link.click();
+
+      // 정리
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+
+      // 다운로드 로그 기록
+      const downloadLog = {
+        action: 'bulk_download',
+        documentIds: docIds,
+        documentCount: docIds.length,
+        timestamp: new Date().toISOString(),
+        userId: 'current-user',
+        fileSize: content.size,
+        userAgent: navigator.userAgent
+      };
+
+      const existingLogs = JSON.parse(localStorage.getItem('vdr_download_logs') || '[]');
+      existingLogs.push(downloadLog);
+      localStorage.setItem('vdr_download_logs', JSON.stringify(existingLogs));
+
+      console.log(`[VDR] ZIP download completed:`, {
+        documentCount: docIds.length,
+        fileSize: `${(content.size / 1048576).toFixed(2)}MB`,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('[VDR] ZIP creation failed:', error);
+      throw error;
+    }
+  };
+
+  // 프로필용 대표 문서 필터링 함수
+  const getRepresentativeDocumentsForProfile = (userType: 'public' | 'team' | 'investors'): VDRDocument[] => {
+    return representativeDocs
+      .filter(repDoc => {
+        // 공개 범위에 따른 필터링
+        if (userType === 'public') {
+          return repDoc.profileVisibility === 'public';
+        } else if (userType === 'team') {
+          return ['public', 'team'].includes(repDoc.profileVisibility || 'private');
+        } else if (userType === 'investors') {
+          return ['public', 'team', 'investors'].includes(repDoc.profileVisibility || 'private');
+        }
+        return false;
+      })
+      .map(repDoc => {
+        // 해당 타입으로 지정된 실제 문서 찾기
+        const actualDoc = documents.find(doc =>
+          doc.representativeType === repDoc.type && doc.isRepresentative
+        );
+        return actualDoc;
+      })
+      .filter(Boolean) as VDRDocument[];
+  };
+
+  // 대표 문서 공개 범위 업데이트 함수
+  const updateRepresentativeDocumentVisibility = (type: RepresentativeDoc['type'], visibility: VDRDocument['visibility']) => {
+    // 로컬 상태에서 대표 문서 공개 범위 업데이트
+    const updatedRepDocs = representativeDocs.map(repDoc =>
+      repDoc.type === type
+        ? { ...repDoc, profileVisibility: visibility }
+        : repDoc
+    );
+
+    // localStorage에 저장
+    localStorage.setItem('vdr_representative_visibilities', JSON.stringify(
+      updatedRepDocs.reduce((acc, repDoc) => {
+        acc[repDoc.type] = repDoc.profileVisibility || 'private';
+        return acc;
+      }, {} as Record<RepresentativeDoc['type'], VDRDocument['visibility']>)
+    ));
+
+    console.log(`[VDR] Updated representative document visibility:`, { type, visibility });
+  };
+
+  // 접근 로그 관련 함수들
+  const getAccessLogs = (filter?: AccessLogFilter): EnhancedAccessLog[] => {
+    let filteredLogs = [...accessLogs];
+
+    if (filter) {
+      if (filter.startDate) {
+        filteredLogs = filteredLogs.filter(log => log.timestamp >= filter.startDate!);
+      }
+      if (filter.endDate) {
+        filteredLogs = filteredLogs.filter(log => log.timestamp <= filter.endDate!);
+      }
+      if (filter.documentId) {
+        filteredLogs = filteredLogs.filter(log => log.documentId === filter.documentId);
+      }
+      if (filter.sessionId) {
+        filteredLogs = filteredLogs.filter(log => log.sessionId === filter.sessionId);
+      }
+      if (filter.action) {
+        filteredLogs = filteredLogs.filter(log => log.action === filter.action);
+      }
+      if (filter.userId) {
+        filteredLogs = filteredLogs.filter(log => log.userInfo.userId === filter.userId);
+      }
+      if (filter.isAnonymous !== undefined) {
+        filteredLogs = filteredLogs.filter(log => log.userInfo.isAnonymous === filter.isAnonymous);
+      }
+    }
+
+    return filteredLogs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  };
+
+  const clearAccessLogs = (documentId?: string) => {
+    if (documentId) {
+      // 특정 문서의 로그만 삭제
+      const filteredLogs = accessLogs.filter(log => log.documentId !== documentId);
+      setAccessLogs(filteredLogs);
+      localStorage.setItem(ACCESS_LOGS_KEY, JSON.stringify(filteredLogs));
+    } else {
+      // 모든 로그 삭제
+      setAccessLogs([]);
+      localStorage.removeItem(ACCESS_LOGS_KEY);
+    }
+    console.log(`[VDR] Access logs cleared:`, documentId ? `for document ${documentId}` : 'all logs');
+  };
+
+  const exportAccessLogs = (format: 'csv' | 'json') => {
+    const logs = getAccessLogs();
+
+    if (format === 'json') {
+      const jsonData = JSON.stringify(logs, null, 2);
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `vdr_access_logs_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else if (format === 'csv') {
+      const headers = ['ID', 'Timestamp', 'Document ID', 'Document Name', 'Action', 'User', 'Device', 'Success', 'Duration'];
+      const csvRows = [headers.join(',')];
+
+      logs.forEach(log => {
+        const row = [
+          log.id,
+          log.timestamp.toISOString(),
+          log.documentId,
+          `"${log.details.documentName}"`,
+          log.action,
+          log.userInfo.userName || 'Anonymous',
+          log.metadata?.deviceType || 'unknown',
+          log.details.success,
+          log.details.duration || 0
+        ];
+        csvRows.push(row.join(','));
+      });
+
+      const csvData = csvRows.join('\n');
+      const blob = new Blob([csvData], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `vdr_access_logs_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    console.log(`[VDR] Access logs exported as ${format.toUpperCase()}`);
+  };
+
+  const getAccessStatistics = (): AccessStatistics => {
+    const logs = accessLogs;
+    const uniqueUsers = new Set(logs.map(log => log.userInfo.userId || 'anonymous')).size;
+
+    // 문서별 접근 통계
+    const documentStats = new Map<string, { name: string; count: number }>();
+    logs.forEach(log => {
+      const current = documentStats.get(log.documentId) || { name: log.details.documentName, count: 0 };
+      documentStats.set(log.documentId, { ...current, count: current.count + 1 });
+    });
+
+    const topDocuments = Array.from(documentStats.entries())
+      .map(([documentId, stats]) => ({
+        documentId,
+        documentName: stats.name,
+        accessCount: stats.count
+      }))
+      .sort((a, b) => b.accessCount - a.accessCount)
+      .slice(0, 10);
+
+    // 액션별 통계
+    const actionBreakdown = logs.reduce((acc, log) => {
+      acc[log.action] = (acc[log.action] || 0) + 1;
+      return acc;
+    }, {} as Record<EnhancedAccessLog['action'], number>);
+
+    // 일별 통계 (최근 30일)
+    const dailyStats: AccessStatistics['dailyStats'] = [];
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+
+      const dayLogs = logs.filter(log =>
+        log.timestamp.toISOString().split('T')[0] === dateStr
+      );
+
+      const dayUniqueUsers = new Set(dayLogs.map(log => log.userInfo.userId || 'anonymous')).size;
+
+      dailyStats.push({
+        date: dateStr,
+        accessCount: dayLogs.length,
+        uniqueUsers: dayUniqueUsers
+      });
+    }
+
+    // 디바이스별 통계
+    const deviceBreakdown = logs.reduce((acc, log) => {
+      const device = log.metadata?.deviceType || 'unknown';
+      acc[device] = (acc[device] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      totalAccess: logs.length,
+      uniqueUsers,
+      topDocuments,
+      actionBreakdown,
+      dailyStats,
+      deviceBreakdown
+    };
+  };
+
+  // 🚀 Docsend 고급 기능 구현
+
+  // 이메일 초대 생성
+  const createEmailInvite = async (sessionId: string, email: string, expiresAt?: Date): Promise<EmailInvite> => {
+    const accessToken = `invite_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    const invite: EmailInvite = {
+      id: `invite_${Date.now()}`,
+      email,
+      accessToken,
+      expiresAt: expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30일 후
+      viewCount: 0,
+      invitedAt: new Date(),
+      invitedBy: currentUser?.name || 'System',
+      status: 'pending',
+      remindersSent: 0
+    };
+
+    // 세션에 초대 추가
+    setDocsendSessions(prev => prev.map(session =>
+      session.id === sessionId
+        ? { ...session, emailInvites: [...session.emailInvites, invite] }
+        : session
+    ));
+
+    return invite;
+  };
+
+  // 이메일 초대 발송 (Mock 구현)
+  const sendEmailInvitation = async (inviteId: string): Promise<void> => {
+    console.log(`[Docsend] 이메일 초대 발송: ${inviteId}`);
+    // TODO: 실제 이메일 발송 로직 구현
+
+    setDocsendSessions(prev => prev.map(session => ({
+      ...session,
+      emailInvites: session.emailInvites.map(invite =>
+        invite.id === inviteId
+          ? { ...invite, emailSentAt: new Date() }
+          : invite
+      )
+    })));
+  };
+
+  // 리마인더 발송
+  const sendReminder = async (inviteId: string): Promise<void> => {
+    console.log(`[Docsend] 리마인더 발송: ${inviteId}`);
+
+    setDocsendSessions(prev => prev.map(session => ({
+      ...session,
+      emailInvites: session.emailInvites.map(invite =>
+        invite.id === inviteId
+          ? {
+              ...invite,
+              remindersSent: invite.remindersSent + 1,
+              lastReminderAt: new Date()
+            }
+          : invite
+      )
+    })));
+  };
+
+  // 이메일 토큰 검증
+  const verifyEmailToken = async (token: string): Promise<EmailInvite | null> => {
+    const allInvites = docsendSessions.flatMap(session => session.emailInvites);
+    const invite = allInvites.find(inv => inv.accessToken === token);
+
+    if (!invite || invite.expiresAt < new Date()) {
+      return null;
+    }
+
+    return invite;
+  };
+
+  // 고급 Docsend 세션 생성
+  const createDocsendSession = async (
+    name: string,
+    documentIds: string[],
+    options: {
+      requireEmailAuth?: boolean;
+      downloadBlocked?: boolean;
+      watermarkEnabled?: boolean;
+      requireNDA?: boolean;
+      viewLimit?: number;
+      expiresAt?: Date;
+    }
+  ): Promise<DocsendSession> => {
+    const sessionId = `docsend_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    const link = `${window.location.origin}/docsend/${sessionId}`;
+
+    const docsendSession: DocsendSession = {
+      // 기본 SharedSession 필드들
+      id: sessionId,
+      name,
+      createdAt: new Date(),
+      expiresAt: options.expiresAt,
+      accessCount: 0,
+      link,
+      documentIds,
+      accessLog: [],
+
+      // Docsend 확장 필드들
+      emailInvites: [],
+      requireEmailAuth: options.requireEmailAuth || false,
+      downloadBlocked: options.downloadBlocked || false,
+      watermarkEnabled: options.watermarkEnabled || false,
+      watermarkText: currentUser?.name || 'Confidential',
+      requireNDA: options.requireNDA || false,
+      pageViews: [],
+      analytics: {
+        totalViews: 0,
+        uniqueViewers: 0,
+        averageViewTime: 0,
+        completionRate: 0,
+        topPages: [],
+        bounceRate: 0
+      },
+      viewLimit: options.viewLimit
+    };
+
+    setDocsendSessions(prev => [...prev, docsendSession]);
+    setSharedSessions(prev => [...prev, docsendSession]); // 기본 세션 목록에도 추가
+
+    return docsendSession;
+  };
+
+  // 세션 설정 업데이트
+  const updateSessionSettings = async (sessionId: string, settings: Partial<DocsendSession>): Promise<void> => {
+    setDocsendSessions(prev => prev.map(session =>
+      session.id === sessionId
+        ? { ...session, ...settings }
+        : session
+    ));
+  };
+
+  // 페이지 뷰 추적
+  const trackPageView = (sessionId: string, pageNumber: number, timeSpent: number): void => {
+    const pageView: PageView = {
+      id: `pageview_${Date.now()}`,
+      pageNumber,
+      timeSpent,
+      timestamp: new Date(),
+      sessionId,
+      userAgent: navigator.userAgent,
+      scrollDepth: 100, // Mock 값
+      zoomLevel: 1,
+      interactions: {
+        clicks: Math.floor(Math.random() * 5),
+        scrolls: Math.floor(Math.random() * 10),
+        downloads: 0
+      }
+    };
+
+    setDocsendSessions(prev => prev.map(session =>
+      session.id === sessionId
+        ? {
+            ...session,
+            pageViews: [...session.pageViews, pageView],
+            analytics: {
+              ...session.analytics,
+              totalViews: session.analytics.totalViews + 1
+            }
+          }
+        : session
+    ));
+  };
+
+  // 세션 분석 데이터 가져오기
+  const getSessionAnalytics = (sessionId: string): DocsendSession['analytics'] => {
+    const session = docsendSessions.find(s => s.id === sessionId);
+    return session?.analytics || {
+      totalViews: 0,
+      uniqueViewers: 0,
+      averageViewTime: 0,
+      completionRate: 0,
+      topPages: [],
+      bounceRate: 0
+    };
+  };
+
+  // NDA 템플릿 생성
+  const createNDATemplate = async (name: string, content: string, variables: string[]): Promise<NDATemplate> => {
+    const template: NDATemplate = {
+      id: `nda_template_${Date.now()}`,
+      name,
+      content,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isDefault: ndaTemplates.length === 0, // 첫 번째 템플릿을 기본값으로
+      variables
+    };
+
+    setNdaTemplates(prev => [...prev, template]);
+    return template;
+  };
+
+  // NDA 템플릿 업데이트
+  const updateNDATemplate = async (templateId: string, updates: Partial<NDATemplate>): Promise<void> => {
+    setNdaTemplates(prev => prev.map(template =>
+      template.id === templateId
+        ? { ...template, ...updates, updatedAt: new Date() }
+        : template
+    ));
+  };
+
+  // NDA 템플릿 삭제
+  const deleteNDATemplate = async (templateId: string): Promise<void> => {
+    setNdaTemplates(prev => prev.filter(template => template.id !== templateId));
+  };
+
+  // NDA 서명
+  const signNDA = async (sessionId: string, signerInfo: {
+    email: string;
+    name: string;
+    company?: string;
+    signatureData: string;
+  }): Promise<NDASignature> => {
+    const signature: NDASignature = {
+      id: `nda_signature_${Date.now()}`,
+      ndaTemplateId: 'default_template', // TODO: 실제 템플릿 ID 연결
+      sessionId,
+      signerEmail: signerInfo.email,
+      signerName: signerInfo.name,
+      signerCompany: signerInfo.company,
+      signedAt: new Date(),
+      ipAddress: '127.0.0.1', // Mock IP
+      signatureData: signerInfo.signatureData,
+      status: 'signed',
+      documentHash: `hash_${Date.now()}`
+    };
+
+    setNdaSignatures(prev => [...prev, signature]);
+    return signature;
+  };
+
   const value: VDRContextType = {
     documents,
     sharedSessions,
     representativeDocs,
+    accessLogs,
     aggregateDocuments,
     uploadDocument,
     updateDocumentVisibility,
@@ -272,6 +1794,33 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     deleteDocument,
     searchDocuments,
     getDocumentsByCategory,
+    downloadDocument,
+    downloadMultipleDocuments,
+    viewDocument,
+    getRepresentativeDocumentsForProfile,
+    updateRepresentativeDocumentVisibility,
+    getAccessLogs,
+    clearAccessLogs,
+    exportAccessLogs,
+    getAccessStatistics,
+
+    // 🚀 Docsend 고급 기능들
+    docsendSessions,
+    ndaTemplates,
+    ndaSignatures,
+    createEmailInvite,
+    sendEmailInvitation,
+    sendReminder,
+    verifyEmailToken,
+    createDocsendSession,
+    updateSessionSettings,
+    trackPageView,
+    getSessionAnalytics,
+    createNDATemplate,
+    updateNDATemplate,
+    deleteNDATemplate,
+    signNDA,
+
     loading
   };
 

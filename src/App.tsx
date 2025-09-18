@@ -15,6 +15,10 @@ import { GrowthTrackingProvider } from './contexts/GrowthTrackingContext';
 import { RecommendationProvider } from './contexts/RecommendationContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { VDRProvider } from './contexts/VDRContext';
+import { MyProfileProvider } from './contexts/MyProfileContext';
+import { CurrentUserProvider } from './contexts/CurrentUserContext';
+import { ToastProvider } from './contexts/ToastContext';
+import { LoadingProvider } from './contexts/LoadingContext';
 import type { UserRole } from './types';
 
 // Development only: Calendar storage test utilities
@@ -79,6 +83,7 @@ import Landing from './pages/Landing';
 import LandingV2 from './pages/LandingV2';
 import LandingV3 from './pages/LandingV3';
 import LandingV4 from './pages/LandingV4';
+import ErrorBoundary from './components/ErrorBoundary';
 // import LandingV4Enhanced from './pages/LandingV4Enhanced';
 // import LandingV4Refined from './pages/LandingV4Refined';
 
@@ -111,20 +116,24 @@ function App() {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <UserProfileProvider>
-        <UserDocumentProvider>
-          <ApplicationProgressProvider>
-            <ClusterProvider>
-              <KPIDiagnosisProvider>
-                <ScheduleProvider>
-                  <BuildupProvider>
-                    <ChatProvider>
-                      <CalendarProvider>
-                        <IndustryIntelProvider>
-                          <GrowthTrackingProvider>
-                            <RecommendationProvider>
-                              <NotificationProvider>
-                                <VDRProvider>
+      <LoadingProvider>
+        <ToastProvider>
+          <UserProfileProvider>
+          <UserDocumentProvider>
+            <ApplicationProgressProvider>
+              <ClusterProvider>
+                <KPIDiagnosisProvider>
+                  <ScheduleProvider>
+                    <BuildupProvider>
+                      <MyProfileProvider>
+                        <CurrentUserProvider>
+                          <VDRProvider>
+                            <ChatProvider>
+                            <CalendarProvider>
+                              <IndustryIntelProvider>
+                                <GrowthTrackingProvider>
+                                  <RecommendationProvider>
+                                    <NotificationProvider>
                                   <Router>
                                   <Routes>
                           {/* Landing page or redirect based on role */}
@@ -158,7 +167,11 @@ function App() {
                             </Route>
                             <Route path="matching" element={<SmartMatchingContainer />}>
                               <Route index element={<Navigate to="custom" replace />} />
-                              <Route path="custom" element={<CustomRecommendation />} />
+                              <Route path="custom" element={
+                                <ErrorBoundary>
+                                  <CustomRecommendation />
+                                </ErrorBoundary>
+                              } />
                               <Route path="all" element={<AllOpportunities />} />
                             </Route>
 
@@ -221,20 +234,24 @@ function App() {
                           <Route path="*" element={<div className="p-8 text-center">페이지를 찾을 수 없습니다.</div>} />
                                   </Routes>
                                   </Router>
-                                </VDRProvider>
-                              </NotificationProvider>
-                            </RecommendationProvider>
-                          </GrowthTrackingProvider>
-                        </IndustryIntelProvider>
-                      </CalendarProvider>
-                    </ChatProvider>
+                                  </NotificationProvider>
+                                </RecommendationProvider>
+                              </GrowthTrackingProvider>
+                            </IndustryIntelProvider>
+                          </CalendarProvider>
+                          </ChatProvider>
+                        </VDRProvider>
+                      </CurrentUserProvider>
+                    </MyProfileProvider>
                   </BuildupProvider>
                 </ScheduleProvider>
               </KPIDiagnosisProvider>
             </ClusterProvider>
           </ApplicationProgressProvider>
         </UserDocumentProvider>
-      </UserProfileProvider>
+          </UserProfileProvider>
+        </ToastProvider>
+      </LoadingProvider>
     </DndProvider>
   );
 }

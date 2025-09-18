@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useChatContext } from '../../../contexts/ChatContext';
+import { useScheduleContext } from '../../../contexts/ScheduleContext';
+import { UniversalScheduleModal } from '../../../components/schedule';
 import ChatSideModal from '../../../components/chat/ChatSideModal';
-import { mockMeetingRecords } from '../../../data/mockMeetingData';
 import type { GuideMeetingRecord, GuideMeetingComment } from '../../../types/meeting.types';
+import type { BuildupProjectMeeting } from '../../../types/schedule.types';
+import { EventSourceTracker } from '../../../types/events.types';
 import ProjectPhaseIndicator from '../../../components/project/ProjectPhaseIndicator';
 import PhaseHistoryDisplay from '../../../components/project/PhaseHistoryDisplay';
 import ProjectPhaseTransition from '../../../components/phaseTransition/ProjectPhaseTransition';
@@ -38,6 +41,7 @@ import {
   Archive
 } from 'lucide-react';
 import { useBuildupContext } from '../../../contexts/BuildupContext';
+import { useToast } from '../../../contexts/ToastContext';
 import type { Project } from '../../../types/buildup.types';
 import {
   PHASE_INFO,
@@ -90,13 +94,319 @@ export default function ProjectDetail() {
     getUnreadCountByProject,
     createChatRoomForProject
   } = useChatContext();
-  
+  const { buildupMeetings } = useScheduleContext();
+  const { showSuccess, showError, showInfo } = useToast();
+
   const project = projects.find(p => p.id === projectId);
   const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'meetings' | 'phase-history'>('overview');
   const [unreadCount, setUnreadCount] = useState(0);
   const [showChatModal, setShowChatModal] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<GuideMeetingRecord | null>(null);
   const [newComment, setNewComment] = useState('');
+
+  // 🔥 Sprint 3 Phase 3: 애니메이션 상태
+  const [isPhaseTransitioning, setIsPhaseTransitioning] = useState(false);
+  const [lastPhaseChange, setLastPhaseChange] = useState<{ from: string; to: string } | null>(null);
+
+  // UniversalScheduleModal 상태
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleModalMode, setScheduleModalMode] = useState<'create' | 'edit' | 'view'>('create');
+  const [selectedSchedule, setSelectedSchedule] = useState<BuildupProjectMeeting | null>(null);
+
+  // ✅ Step 3을 위한 전문적 이벤트 발송 시스템 (EventSourceTracker 적용)
+  const emitProjectMeetingEvent = (eventType: string, data: any) => {
+    const eventId = `${projectId}_${eventType}_${Date.now()}`;
+
+    // 🔒 순환 업데이트 방지
+    if (!EventSourceTracker.shouldProcess(eventId)) {
+      console.warn(`⚠️ ProjectDetail: Duplicate event blocked by EventSourceTracker`, { eventId, eventType });
+      return eventId;
+    }
+
+    const event = new CustomEvent(`project:meeting_${eventType}`, {
+      detail: {
+        eventId,
+        projectId,
+        ...data,
+        timestamp: new Date(),
+        source: 'project_detail'
+      }
+    });
+
+    console.log(`📤 ProjectDetail emitting: project:meeting_${eventType}`, {
+      eventId,
+      projectId,
+      data,
+      trackerStatus: 'allowed'
+    });
+
+    window.dispatchEvent(event);
+    return eventId;
+  };
+
+  // ✅ Phase Transition 전용 이벤트 발송 (EventSourceTracker 적용)
+  const emitPhaseTransitionEvent = (data: any) => {
+    const eventId = `${projectId}_phase_transition_${Date.now()}`;
+
+    // 🔒 순환 업데이트 방지
+    if (!EventSourceTracker.shouldProcess(eventId)) {
+      console.warn(`⚠️ ProjectDetail: Duplicate phase transition blocked`, { eventId });
+      return eventId;
+    }
+
+    const event = new CustomEvent('project:phase_transition_requested', {
+      detail: {
+        eventId,
+        projectId: project?.id,
+        ...data,
+        timestamp: new Date(),
+        source: 'project_detail'
+      }
+    });
+
+    console.log(`🔄 ProjectDetail emitting: project:phase_transition_requested`, {
+      eventId,
+      data,
+      trackerStatus: 'allowed'
+    });
+
+    window.dispatchEvent(event);
+    return eventId;
+  };
+
+  // 프로젝트 미팅 필터링
+  const projectMeetings = buildupMeetings.filter(m => m.projectId === projectId);
+
+  // ✅ 다음 미팅 계산 (ScheduleContext 기반)
+  const upcomingMeetings = useMemo(() => {
+    const now = new Date();
+    return projectMeetings
+      .filter(meeting => {
+        try {
+          const meetingDate = new Date(meeting.date || meeting.startDateTime);
+          return meetingDate > now && meeting.status !== 'completed' && meeting.status !== 'cancelled';
+        } catch (error) {
+          console.warn('Invalid meeting date:', meeting.id, error);
+          return false;
+        }
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.date || a.startDateTime);
+        const dateB = new Date(b.date || b.startDateTime);
+        return dateA.getTime() - dateB.getTime();
+      });
+  }, [projectMeetings]);
+
+  const nextMeeting = upcomingMeetings[0];
+
+  // ✅ Step 3을 위한 이벤트 수신 및 Phase Transition 시스템
+  useEffect(() => {
+    console.log('🔧 ProjectDetail: Setting up event listeners for Step 3 preparation');
+
+    // ScheduleContext에서 발생하는 변경사항 수신
+    const handleScheduleChanged = (e: CustomEvent) => {
+      const { schedule, operation, source } = e.detail;
+
+      // 현재 프로젝트와 관련된 변경사항만 처리
+      if (schedule.type === 'buildup_project' && schedule.projectId === projectId) {
+        console.log(`📅 ProjectDetail received schedule change:`, {
+          operation,
+          scheduleId: schedule.id,
+          title: schedule.title,
+          source
+        });
+
+        // Phase Transition 확인 및 처리
+        if (schedule.phaseTransitionTrigger && operation === 'created') {
+          const { fromPhase, toPhase } = schedule.phaseTransitionTrigger;
+
+          console.log(`🔄 ProjectDetail detected phase transition trigger:`, {
+            fromPhase,
+            toPhase,
+            scheduleId: schedule.id
+          });
+
+          // ✅ 실제 프로젝트 단계 업데이트 실행
+          if (project && updateProject) {
+            try {
+              updateProject(project.id, { phase: toPhase });
+              console.log(`✅ ProjectDetail: Phase updated from ${fromPhase} to ${toPhase}`);
+            } catch (error) {
+              console.error(`❌ ProjectDetail: Failed to update project phase:`, error);
+            }
+          }
+
+          // Phase Transition 이벤트 발송
+          emitPhaseTransitionEvent({
+            fromPhase,
+            toPhase,
+            triggerType: 'meeting_scheduled',
+            scheduleId: schedule.id,
+            scheduleName: schedule.title,
+            actualUpdate: !!project && !!updateProject
+          });
+        }
+      }
+    };
+
+    // BuildupContext에서 발생하는 프로젝트 변경사항 수신
+    const handleProjectChanged = (e: CustomEvent) => {
+      const { projectId: changedProjectId, changeType } = e.detail;
+
+      if (changedProjectId === projectId) {
+        console.log(`🏗️ ProjectDetail received project change:`, {
+          projectId: changedProjectId,
+          changeType
+        });
+
+        // 프로젝트 변경 시 관련 미팅도 새로고침 요청
+        emitProjectMeetingEvent('refresh_requested', {
+          reason: 'project_changed',
+          changeType
+        });
+      }
+    };
+
+    // ✅ Step 3: ScheduleContext에서 동기화 완료 이벤트 수신
+    const handleSyncCompleted = (e: CustomEvent) => {
+      const { source, projectId: syncProjectId, scheduleCount, originalEventId } = e.detail;
+
+      if (syncProjectId === projectId) {
+        console.log(`✅ ProjectDetail received sync completion from ${source}:`, {
+          scheduleCount,
+          originalEventId
+        });
+        // UI 새로고침이나 토스트 표시 등 추후 구현
+      }
+    };
+
+    // ✅ Step 3: ScheduleContext에서 생성 완료 이벤트 수신
+    const handleCreateCompleted = (e: CustomEvent) => {
+      const { source, projectId: syncProjectId, schedule, originalEventId } = e.detail;
+
+      if (syncProjectId === projectId) {
+        console.log(`✅ ProjectDetail received create completion from ${source}:`, {
+          scheduleId: schedule.id,
+          title: schedule.title,
+          originalEventId
+        });
+        // 성공 토스트나 UI 업데이트 추후 구현
+      }
+    };
+
+    // ✅ Step 3: ScheduleContext에서 업데이트 완료 이벤트 수신
+    const handleUpdateCompleted = (e: CustomEvent) => {
+      const { source, projectId: syncProjectId, scheduleId, originalEventId } = e.detail;
+
+      if (syncProjectId === projectId) {
+        console.log(`✅ ProjectDetail received update completion from ${source}:`, {
+          scheduleId,
+          originalEventId
+        });
+        // 성공 토스트나 UI 업데이트 추후 구현
+      }
+    };
+
+    // ✅ Step 3: ScheduleContext에서 Phase Transition 완료 이벤트 수신
+    const handlePhaseTransitionCompleted = (e: CustomEvent) => {
+      const { source, projectId: syncProjectId, fromPhase, toPhase, updatedScheduleCount, originalEventId } = e.detail;
+
+      if (syncProjectId === projectId) {
+        console.log(`✅ ProjectDetail received phase transition completion from ${source}:`, {
+          fromPhase,
+          toPhase,
+          updatedScheduleCount,
+          originalEventId
+        });
+        // Phase 변경 확인 토스트나 UI 업데이트 추후 구현
+      }
+    };
+
+    // ✅ Step 3: 동기화 에러 이벤트 수신
+    const handleSyncError = (e: CustomEvent) => {
+      const { source, projectId: syncProjectId, operation, error, originalEventId } = e.detail;
+
+      if (syncProjectId === projectId) {
+        console.error(`❌ ProjectDetail received sync error from ${source}:`, {
+          operation,
+          error,
+          originalEventId
+        });
+        // 에러 토스트 표시 추후 구현
+      }
+    };
+
+    // 이벤트 리스너 등록
+    window.addEventListener('schedule:changed', handleScheduleChanged);
+    window.addEventListener('schedule:created', handleScheduleChanged);
+    window.addEventListener('schedule:updated', handleScheduleChanged);
+    window.addEventListener('project:changed', handleProjectChanged);
+
+    // ✅ Step 3: 양방향 동기화 이벤트 리스너
+    window.addEventListener('schedule:refresh_complete', handleSyncCompleted);
+    window.addEventListener('schedule:create_complete', handleCreateCompleted);
+    window.addEventListener('schedule:update_complete', handleUpdateCompleted);
+    window.addEventListener('schedule:phase_transition_complete', handlePhaseTransitionCompleted);
+    window.addEventListener('schedule:sync_error', handleSyncError);
+    window.addEventListener('schedule:phase_transition_error', handleSyncError);
+    window.addEventListener('schedule:buildup_change_error', handleSyncError);
+
+    // 컴포넌트 마운트 시 현재 상태 로깅
+    console.log('📊 ProjectDetail mounted with:', {
+      projectId,
+      projectMeetingsCount: projectMeetings.length,
+      hasProject: !!project,
+      scheduleContextConnected: !!buildupMeetings
+    });
+
+    // 클린업
+    return () => {
+      console.log('🧹 ProjectDetail: Cleaning up event listeners');
+      window.removeEventListener('schedule:changed', handleScheduleChanged);
+      window.removeEventListener('schedule:created', handleScheduleChanged);
+      window.removeEventListener('schedule:updated', handleScheduleChanged);
+      window.removeEventListener('project:changed', handleProjectChanged);
+
+      // ✅ Step 3: 양방향 동기화 이벤트 리스너 클린업
+      window.removeEventListener('schedule:refresh_complete', handleSyncCompleted);
+      window.removeEventListener('schedule:create_complete', handleCreateCompleted);
+      window.removeEventListener('schedule:update_complete', handleUpdateCompleted);
+      window.removeEventListener('schedule:phase_transition_complete', handlePhaseTransitionCompleted);
+      window.removeEventListener('schedule:sync_error', handleSyncError);
+      window.removeEventListener('schedule:phase_transition_error', handleSyncError);
+      window.removeEventListener('schedule:buildup_change_error', handleSyncError);
+    };
+  }, [projectId, projectMeetings.length, project, buildupMeetings, emitPhaseTransitionEvent, emitProjectMeetingEvent]);
+
+  // 🔥 Sprint 3 Phase 3: Project phase change 실시간 리스너
+  useEffect(() => {
+    const handlePhaseChanged = (e: CustomEvent) => {
+      const { projectId: changedProjectId, fromPhase, toPhase, trigger } = e.detail;
+
+      if (changedProjectId === projectId) {
+        console.log(`🎨 ProjectDetail: Phase changed for current project ${projectId}: ${fromPhase} → ${toPhase}`);
+
+        // 애니메이션 효과 시작
+        setIsPhaseTransitioning(true);
+        setLastPhaseChange({ from: fromPhase, to: toPhase });
+
+        // 애니메이션 후 상태 리셋
+        setTimeout(() => {
+          setIsPhaseTransitioning(false);
+        }, 1500); // 1.5초 애니메이션
+
+        // 3초 후 마지막 변경 상태 클리어
+        setTimeout(() => {
+          setLastPhaseChange(null);
+        }, 3000);
+      }
+    };
+
+    window.addEventListener('project:phase_changed', handlePhaseChanged);
+    return () => {
+      window.removeEventListener('project:phase_changed', handlePhaseChanged);
+    };
+  }, [projectId]);
 
   // 채팅방 생성 및 읽지 않은 메시지 수 확인
   useEffect(() => {
@@ -109,15 +419,28 @@ export default function ProjectDetail() {
     }
   }, [project, createChatRoomForProject, getUnreadCountByProject]);
 
-  // 미팅 기록 가져오기
-  const meetingRecords = project ? mockMeetingRecords[project.id] || [] : [];
-
-  // 첫 번째 미팅을 기본 선택
+  // 첫 번째 미팅을 기본 선택 (ScheduleContext 기반)
   useEffect(() => {
-    if (meetingRecords.length > 0 && !selectedMeeting) {
-      setSelectedMeeting(meetingRecords[0]);
+    if (projectMeetings.length > 0 && !selectedMeeting) {
+      // ScheduleContext의 미팅을 GuideMeetingRecord 형태로 변환
+      const firstMeeting = projectMeetings[0];
+      const convertedMeeting: GuideMeetingRecord = {
+        id: firstMeeting.id,
+        title: firstMeeting.title,
+        date: new Date(firstMeeting.startDateTime),
+        status: firstMeeting.status as 'completed' | 'scheduled' | 'cancelled',
+        participants: {
+          pm: { name: 'PM', role: 'project_manager' },
+          client: { name: '클라이언트', role: 'client' }
+        },
+        memo: null,
+        comments: [],
+        unreadCommentCount: 0,
+        pmLastChecked: null
+      };
+      setSelectedMeeting(convertedMeeting);
     }
-  }, [meetingRecords, selectedMeeting]);
+  }, [projectMeetings, selectedMeeting]);
 
   // 미팅 선택 핸들러
   const handleMeetingSelect = (meeting: GuideMeetingRecord) => {
@@ -491,16 +814,27 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        {/* 7단계 진행률 시스템 */}
+        {/* 🔥 Sprint 3 Phase 3: 애니메이션이 적용된 7단계 진행률 시스템 */}
         {progressData && (
-          <div className="space-y-4">
+          <div className={`space-y-4 transition-all duration-500 ${
+            isPhaseTransitioning ? 'transform scale-105 shadow-lg' : ''
+          }`}>
             {/* 상단 정보 */}
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600">프로젝트 단계</span>
               <div className="flex items-center gap-6">
                 <div>
                   <span className="text-gray-600">현재 단계</span>
-                  <span className="ml-2 font-medium">{progressData.phaseInfo.label}</span>
+                  <span className={`ml-2 font-medium transition-all duration-300 ${
+                    isPhaseTransitioning ? 'animate-pulse text-blue-600' : ''
+                  }`}>
+                    {progressData.phaseInfo.label}
+                    {lastPhaseChange && (
+                      <span className="ml-2 text-xs text-green-600 animate-fadeIn">
+                        새로 변경됨!
+                      </span>
+                    )}
+                  </span>
                 </div>
                 <div>
                   <span className="text-gray-600">진행률</span>
@@ -516,7 +850,11 @@ export default function ProjectDetail() {
 
               {/* 진행 바 */}
               <div
-                className="absolute top-0 left-0 bg-blue-600 h-3 rounded-full transition-all duration-1000"
+                className={`absolute top-0 left-0 h-3 rounded-full transition-all duration-1000 ${
+                  isPhaseTransitioning
+                    ? 'bg-gradient-to-r from-blue-500 to-green-500 animate-pulse'
+                    : 'bg-blue-600'
+                }`}
                 style={{ width: `${progressData.progress}%` }}
               />
 
@@ -545,7 +883,15 @@ export default function ProjectDetail() {
                         : isCurrent
                         ? 'bg-blue-400'
                         : 'bg-gray-300'
-                    } ${isCurrent ? 'ring-2 ring-blue-400 ring-offset-1 scale-110' : 'hover:scale-110'}`} />
+                    } ${
+                      isCurrent
+                        ? `ring-2 ring-blue-400 ring-offset-1 scale-110 ${
+                            isPhaseTransitioning ? 'animate-bounce ring-green-400' : ''
+                          }`
+                        : 'hover:scale-110'
+                    } ${
+                      isPhaseTransitioning && isCurrent ? 'bg-gradient-to-r from-blue-500 to-green-500' : ''
+                    }`} />
 
                     {/* 호버시 단계 정보 표시 */}
                     <div className="hidden group-hover:block absolute bottom-8 left-1/2 transform -translate-x-1/2 z-30">
@@ -760,33 +1106,56 @@ export default function ProjectDetail() {
                   />
                 </div>
 
-                {/* Next Meeting */}
-                {project.meetings && project.meetings.length > 0 && (
+                {/* Next Meeting - ✅ ScheduleContext 기반 개선 */}
+                {nextMeeting ? (
                   <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <Calendar className="w-5 h-5 text-blue-600" />
                       <h3 className="font-semibold text-blue-900">다음 미팅</h3>
+                      <span className="ml-auto px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
+                        ScheduleContext 연동
+                      </span>
                     </div>
                     <div className="space-y-2">
                       <p className="font-semibold text-gray-900">
-                        {project.meetings[0].title}
+                        {nextMeeting.title}
                       </p>
                       <p className="text-sm text-gray-700">
-                        {new Date(project.meetings[0].date).toLocaleDateString('ko-KR', {
-                          month: 'long',
-                          day: 'numeric',
-                          weekday: 'short'
-                        })} {new Date(project.meetings[0].date).toLocaleTimeString('ko-KR', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                        {(() => {
+                          try {
+                            const meetingDate = new Date(nextMeeting.date || nextMeeting.startDateTime);
+                            return (
+                              meetingDate.toLocaleDateString('ko-KR', {
+                                month: 'long',
+                                day: 'numeric',
+                                weekday: 'short'
+                              }) + ' ' + meetingDate.toLocaleTimeString('ko-KR', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            );
+                          } catch (error) {
+                            console.error('Date formatting error:', error);
+                            return '날짜 정보 오류';
+                          }
+                        })()}
                       </p>
                       <p className="text-sm text-gray-700">
-                        장소: {project.meetings[0].location}
+                        장소: {nextMeeting.location || '미정'}
                       </p>
-                      {project.meetings[0].meeting_link && (
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span>상태: {nextMeeting.status || 'scheduled'}</span>
+                        {nextMeeting.meetingSequence && (
+                          <span>• {
+                            typeof nextMeeting.meetingSequence === 'string'
+                              ? nextMeeting.meetingSequence
+                              : nextMeeting.meetingSequence.type || '미팅'
+                          }</span>
+                        )}
+                      </div>
+                      {nextMeeting.onlineLink && (
                         <a
-                          href={project.meetings[0].meeting_link}
+                          href={nextMeeting.onlineLink}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -795,6 +1164,22 @@ export default function ProjectDetail() {
                           <ArrowLeft className="w-3 h-3 transform rotate-180" />
                         </a>
                       )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Calendar className="w-5 h-5 text-gray-400" />
+                      <h3 className="font-semibold text-gray-700">다음 미팅</h3>
+                      <span className="ml-auto px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
+                        ScheduleContext 연동
+                      </span>
+                    </div>
+                    <div className="text-center py-4">
+                      <p className="text-gray-500 text-sm mb-2">예정된 미팅이 없습니다.</p>
+                      <p className="text-xs text-gray-400">
+                        총 {projectMeetings.length}개 미팅 중 {upcomingMeetings.length}개 예정
+                      </p>
                     </div>
                   </div>
                 )}
@@ -875,15 +1260,44 @@ export default function ProjectDetail() {
             <div className="px-6 py-4 border-b border-gray-200 bg-white">
               <h2 className="text-xl font-bold text-gray-900 mb-2">가이드 미팅 기록</h2>
               <p className="text-sm text-gray-600">프로젝트 진행 중 실시된 모든 가이드 미팅 내역 및 PM 메모</p>
+              <div className="flex items-center gap-3 mt-2">
+                <span className="text-sm text-blue-600 font-medium">
+                  📅 총 {projectMeetings.length}개 미팅 (ScheduleContext 연동)
+                </span>
+                {projectMeetings.length > 0 && (
+                  <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                    ✅ 실시간 동기화 활성
+                  </span>
+                )}
+              </div>
             </div>
 
-            {meetingRecords.length === 0 ? (
-              /* 미팅 기록이 없는 경우 */
+            {projectMeetings.length === 0 ? (
+              /* ✅ ScheduleContext 기반 Empty State */
               <div className="flex-1 flex items-center justify-center bg-gray-50">
-                <div className="text-center">
-                  <Calendar className="w-16 w-16 mx-auto mb-4 text-gray-300" />
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">미팅 기록이 없습니다</h3>
-                  <p className="text-gray-500">아직 진행된 가이드 미팅이 없습니다</p>
+                <div className="text-center max-w-md">
+                  <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">프로젝트 미팅이 없습니다</h3>
+                  <p className="text-gray-500 mb-4">
+                    ScheduleContext에서 {projectId} 프로젝트의 미팅을 찾을 수 없습니다.<br/>
+                    새 미팅을 생성하여 프로젝트를 시작해보세요.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSelectedSchedule(null);
+                      setScheduleModalMode('create');
+                      setShowScheduleModal(true);
+                      // 이벤트 발송
+                      emitProjectMeetingEvent('create_requested', {
+                        projectId,
+                        source: 'empty_state'
+                      });
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 mx-auto"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    첫 번째 미팅 생성
+                  </button>
                 </div>
               </div>
             ) : (
@@ -892,21 +1306,45 @@ export default function ProjectDetail() {
                 {/* 1. 미팅 목록 (왼쪽 20%) */}
                 <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
                   <div className="p-4 border-b border-gray-200">
-                    <h3 className="font-semibold text-gray-900">미팅 목록</h3>
-                    <p className="text-xs text-gray-500 mt-1">{meetingRecords.length}개 미팅</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">미팅 목록</h3>
+                        <p className="text-xs text-gray-500 mt-1">{projectMeetings.length}개 미팅</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedSchedule(null);
+                          setScheduleModalMode('create');
+                          setShowScheduleModal(true);
+                        }}
+                        className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 flex items-center gap-1"
+                      >
+                        <PlusCircle className="w-4 h-4" />
+                        미팅 추가
+                      </button>
+                    </div>
                   </div>
                   <div className="flex-1 overflow-y-auto">
-                    {meetingRecords.map((meeting, index) => {
-                      const isSelected = selectedMeeting?.id === meeting.id;
+                    {/* ✅ ScheduleContext 단일 데이터 소스 */}
+                    {projectMeetings.map((meeting, index) => {
+                      const isSelected = selectedSchedule?.id === meeting.id;
                       return (
                         <button
                           key={meeting.id}
-                          onClick={() => handleMeetingSelect(meeting)}
+                          onClick={() => {
+                            setSelectedSchedule(meeting);
+                            setScheduleModalMode('view');
+                            setShowScheduleModal(true);
+                            // 이벤트 발송
+                            emitProjectMeetingEvent('selected', {
+                              meetingId: meeting.id,
+                              meetingTitle: meeting.title
+                            });
+                          }}
                           className={`w-full p-4 text-left border-b border-gray-100 transition-all hover:bg-gray-50 ${
                             isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
                           }`}
                         >
-                          {/* 미팅 타임라인 dot */}
                           <div className="flex items-start space-x-3">
                             <div className="flex-shrink-0 pt-1">
                               <div className={`w-3 h-3 rounded-full ${
@@ -914,10 +1352,11 @@ export default function ProjectDetail() {
                                   ? 'bg-green-500'
                                   : meeting.status === 'scheduled'
                                   ? 'bg-blue-500'
+                                  : meeting.status === 'cancelled'
+                                  ? 'bg-red-500'
                                   : 'bg-gray-300'
                               }`} />
-                              {/* 타임라인 연결선 */}
-                              {index < meetingRecords.length - 1 && (
+                              {index < projectMeetings.length - 1 && (
                                 <div className="w-0.5 h-12 bg-gray-200 ml-1 mt-1" />
                               )}
                             </div>
@@ -926,14 +1365,23 @@ export default function ProjectDetail() {
                                 <h4 className="font-medium text-gray-900 text-sm truncate">
                                   {meeting.title}
                                 </h4>
-                                {meeting.unreadCommentCount > 0 && (
-                                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
-                                    {meeting.unreadCommentCount}
+                                {meeting.meetingSequence && (
+                                  <span className="text-xs text-blue-600 font-medium">
+                                    {meeting.meetingSequence.type === 'pre_meeting' ? '프리미팅' :
+                                     meeting.meetingSequence.type === 'guide_1' ? '가이드 1차' :
+                                     meeting.meetingSequence.type === 'guide_2' ? '가이드 2차' :
+                                     meeting.meetingSequence.type === 'guide_3' ? '가이드 3차' :
+                                     meeting.meetingSequence.type === 'guide_4' ? '가이드 4차' : ''}
                                   </span>
                                 )}
                               </div>
                               <p className="text-xs text-gray-500 mt-0.5">
-                                {meeting.date.toLocaleDateString('ko-KR')}
+                                {new Date(meeting.startDateTime).toLocaleDateString('ko-KR')}
+                                {' '}
+                                {new Date(meeting.startDateTime).toLocaleTimeString('ko-KR', {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
                               </p>
                               <div className="flex items-center mt-1">
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
@@ -941,16 +1389,22 @@ export default function ProjectDetail() {
                                     ? 'text-green-700 bg-green-100'
                                     : meeting.status === 'scheduled'
                                     ? 'text-blue-700 bg-blue-100'
+                                    : meeting.status === 'cancelled'
+                                    ? 'text-red-700 bg-red-100'
                                     : 'text-gray-700 bg-gray-100'
                                 }`}>
                                   {meeting.status === 'completed' ? '완료' :
-                                   meeting.status === 'scheduled' ? '예정' : '취소'}
+                                   meeting.status === 'scheduled' ? '예정' :
+                                   meeting.status === 'cancelled' ? '취소' : '연기'}
                                 </span>
-                                {meeting.comments.length > 0 && (
-                                  <span className="ml-2 text-xs text-gray-400">
-                                    댓글 {meeting.comments.length}개
+                                {meeting.phaseTransitionTrigger && (
+                                  <span className="ml-2 text-xs text-purple-600 font-medium">
+                                    🔄 단계 전환
                                   </span>
                                 )}
+                                <span className="ml-2 text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
+                                  Schedule#{meeting.id.slice(-6)}
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -1221,10 +1675,29 @@ export default function ProjectDetail() {
           </div>
         )}
 
-        {/* Phase History Tab */}
+        {/* 🔥 Sprint 3 Phase 3: 개선된 Phase History Tab */}
         {activeTab === 'phase-history' && (
           <div className="p-6 max-w-4xl mx-auto">
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
+            {/* 최근 변경사항 알림 */}
+            {lastPhaseChange && (
+              <div className="mb-6 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-xl p-4 animate-fadeIn">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <Activity className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">단계 전환 완료</h3>
+                    <p className="text-sm text-gray-600">
+                      {PHASE_LABELS[lastPhaseChange.from]} → {PHASE_LABELS[lastPhaseChange.to]}으로 전환되었습니다
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className={`bg-white rounded-xl border border-gray-200 p-6 transition-all duration-300 ${
+              isPhaseTransitioning ? 'ring-2 ring-blue-200 shadow-lg' : ''
+            }`}>
               <PhaseHistoryDisplay
                 history={project.phaseHistory}
                 currentPhase={project.phase}
@@ -1535,6 +2008,147 @@ export default function ProjectDetail() {
           onClose={() => setShowChatModal(false)}
         />
       )}
+
+      {/* Universal Schedule Modal */}
+      <UniversalScheduleModal
+        isOpen={showScheduleModal}
+        onClose={() => {
+          setShowScheduleModal(false);
+          setSelectedSchedule(null);
+        }}
+        schedule={selectedSchedule || undefined}
+        mode={scheduleModalMode}
+        defaultType="buildup_project"
+        projectId={projectId}
+        onSuccess={(schedule) => {
+          console.log('✅ ProjectDetail: Schedule saved successfully:', schedule);
+
+          // ✅ Step 3: 실시간 양방향 동기화 트리거
+          const operation = scheduleModalMode === 'create' ? 'created' : 'updated';
+          const scheduleOperation = scheduleModalMode === 'create' ? 'create_meeting' : 'update_meeting';
+
+          // 1. ScheduleContext로 동기화 요청 발송
+          const eventId = `${projectId}_sync_${scheduleOperation}_${Date.now()}`;
+          const syncEvent = new CustomEvent('schedule:sync_requested', {
+            detail: {
+              eventId,
+              source: 'ProjectDetail',
+              projectId,
+              meeting: {
+                id: schedule.id,
+                title: schedule.title,
+                description: schedule.description,
+                date: schedule.date,
+                startDateTime: schedule.startDateTime,
+                endDateTime: schedule.endDateTime,
+                meetingSequence: (schedule as BuildupProjectMeeting).meetingSequence,
+                agenda: (schedule as BuildupProjectMeeting).agenda,
+                deliverables: (schedule as BuildupProjectMeeting).deliverables,
+                participants: schedule.participants,
+                location: schedule.location,
+                status: schedule.status,
+                phaseTransitionTrigger: (schedule as BuildupProjectMeeting).phaseTransitionTrigger
+              },
+              operation: scheduleOperation,
+              timestamp: new Date(),
+              modalMode: scheduleModalMode
+            }
+          });
+
+          console.log(`📤 ProjectDetail: Sending sync request to ScheduleContext`, {
+            eventId,
+            operation: scheduleOperation,
+            scheduleId: schedule.id,
+            title: schedule.title
+          });
+
+          window.dispatchEvent(syncEvent);
+
+          // 2. 기존 프로젝트 이벤트도 유지 (호환성)
+          emitProjectMeetingEvent(operation, {
+            schedule,
+            operation,
+            modalMode: scheduleModalMode,
+            timestamp: new Date()
+          });
+
+          // 3. Phase Transition 처리
+          if (schedule.phaseTransitionTrigger && operation === 'created') {
+            const { fromPhase, toPhase } = schedule.phaseTransitionTrigger;
+
+            console.log(`🔄 ProjectDetail: Triggering phase transition from modal success`);
+
+            // 실제 프로젝트 단계 업데이트 실행
+            if (project && updateProject) {
+              try {
+                updateProject(project.id, { phase: toPhase });
+                console.log(`✅ ProjectDetail: Phase updated from ${fromPhase} to ${toPhase} (modal success)`);
+
+                // ScheduleContext로 Phase Transition 알림
+                const phaseEventId = `${projectId}_phase_${fromPhase}_to_${toPhase}_${Date.now()}`;
+                const phaseTransitionEvent = new CustomEvent('project:phase_transition_requested', {
+                  detail: {
+                    eventId: phaseEventId,
+                    source: 'ProjectDetail',
+                    projectId,
+                    fromPhase,
+                    toPhase,
+                    scheduleId: schedule.id,
+                    triggerType: 'meeting_scheduled',
+                    timestamp: new Date()
+                  }
+                });
+
+                console.log(`📤 ProjectDetail: Sending phase transition to ScheduleContext`, {
+                  eventId: phaseEventId,
+                  fromPhase,
+                  toPhase,
+                  scheduleId: schedule.id
+                });
+
+                window.dispatchEvent(phaseTransitionEvent);
+
+              } catch (error) {
+                console.error(`❌ ProjectDetail: Failed to update project phase (modal):`, error);
+              }
+            }
+
+            // 기존 이벤트도 유지 (호환성)
+            emitPhaseTransitionEvent({
+              fromPhase,
+              toPhase,
+              triggerType: 'meeting_scheduled',
+              scheduleId: schedule.id,
+              scheduleName: schedule.title,
+              source: 'modal_success',
+              actualUpdate: !!project && !!updateProject
+            });
+          }
+
+          // 4. BuildupContext로 데이터 변경 알림 (필요시)
+          if (operation === 'created') {
+            const buildupChangeEvent = new CustomEvent('buildup:data_changed', {
+              detail: {
+                eventId: `${projectId}_buildup_meeting_added_${Date.now()}`,
+                source: 'ProjectDetail',
+                projectId,
+                changeType: 'meeting_added',
+                data: {
+                  meeting: schedule,
+                  projectPhase: project?.phase
+                },
+                timestamp: new Date()
+              }
+            });
+
+            console.log(`📤 ProjectDetail: Notifying BuildupContext of meeting addition`);
+            window.dispatchEvent(buildupChangeEvent);
+          }
+
+          // 성공 토스트 표시
+          showSuccess(`미팅이 성공적으로 ${operation === 'created' ? '생성' : '수정'}되었습니다: ${schedule.title}`);
+        }}
+      />
     </div>
   );
 }

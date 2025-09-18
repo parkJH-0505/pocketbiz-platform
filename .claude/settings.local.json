@@ -20,7 +20,9 @@
       "Bash(npm test:*)",
       "Bash(npm run:*)",
       "Bash(git rm:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(find:*)",
+      "Bash(npx eslint:*)"
     ],
     "deny": [],
     "ask": []

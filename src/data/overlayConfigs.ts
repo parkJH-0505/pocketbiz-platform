@@ -7,6 +7,10 @@ type EventCategory =
   | 'vc_opportunity'
   | 'accelerator'
   | 'tips_program'
+  | 'loan_guarantee'
+  | 'voucher'
+  | 'global'
+  | 'contest'
   | 'loan_program'
   | 'bidding'
   | 'batch_program'
@@ -128,6 +132,86 @@ export const overlayConfigs: Record<EventCategory, OverlayConfig> = {
     ],
     actionButtonText: 'TIPS 지원하기',
     iconColor: 'text-indigo-600'
+  },
+
+  loan_guarantee: {
+    category: 'loan_guarantee',
+    title: '융자·보증',
+    primaryFields: [
+      'fundingAmount',       // 지원금액
+      'programDuration',     // 보증기간
+      'hostOrganization',    // 주관기관
+      'applicationEndDate',  // 마감일
+      'matchingScore'        // 적합도
+    ],
+    secondaryFields: [
+      'evaluationCriteria',
+      'supportBenefits',
+      'keywords',
+      'coreKpiRequirements'
+    ],
+    actionButtonText: '보증 신청하기',
+    iconColor: 'text-emerald-600'
+  },
+
+  voucher: {
+    category: 'voucher',
+    title: '바우처',
+    primaryFields: [
+      'fundingAmount',       // 지원금액
+      'programDuration',     // 지원기간
+      'hostOrganization',    // 주관기관
+      'applicationEndDate',  // 마감일
+      'matchingScore'        // 적합도
+    ],
+    secondaryFields: [
+      'evaluationCriteria',
+      'supportBenefits',
+      'keywords',
+      'coreKpiRequirements'
+    ],
+    actionButtonText: '바우처 신청하기',
+    iconColor: 'text-yellow-600'
+  },
+
+  global: {
+    category: 'global',
+    title: '글로벌',
+    primaryFields: [
+      'fundingAmount',       // 지원금액
+      'programDuration',     // 프로그램 기간
+      'hostOrganization',    // 주관기관
+      'applicationEndDate',  // 마감일
+      'matchingScore'        // 적합도
+    ],
+    secondaryFields: [
+      'evaluationCriteria',
+      'supportBenefits',
+      'keywords',
+      'coreKpiRequirements'
+    ],
+    actionButtonText: '글로벌 진출 신청하기',
+    iconColor: 'text-blue-500'
+  },
+
+  contest: {
+    category: 'contest',
+    title: '공모전',
+    primaryFields: [
+      'fundingAmount',       // 상금
+      'programDuration',     // 공모기간
+      'hostOrganization',    // 주관기관
+      'applicationEndDate',  // 마감일
+      'matchingScore'        // 적합도
+    ],
+    secondaryFields: [
+      'evaluationCriteria',
+      'supportBenefits',
+      'keywords',
+      'coreKpiRequirements'
+    ],
+    actionButtonText: '공모전 참여하기',
+    iconColor: 'text-red-500'
   },
 
   loan_program: {
@@ -291,6 +375,10 @@ export function getCategoryIcon(category: EventCategory): string {
     vc_opportunity: '💼',
     accelerator: '🚀',
     tips_program: '🎯',
+    loan_guarantee: '🛡️',
+    voucher: '🎫',
+    global: '🌍',
+    contest: '🏆',
     loan_program: '💰',
     bidding: '📋',
     batch_program: '👥',

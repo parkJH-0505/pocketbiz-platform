@@ -9,7 +9,8 @@ import {
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
-  ResponsiveContainer
+  ResponsiveContainer,
+  Tooltip
 } from 'recharts';
 import type {
   MatchingResult,
@@ -21,12 +22,17 @@ import {
   categoryRequirements,
   calculateCompatibility
 } from '../../../../data/smartMatching/eventRequirements';
-import { mockRecommendations } from '../../../../data/smartMatching/mockEvents';
-import { useKPIDiagnosis } from '../../../../contexts/KPIDiagnosisContext';
+// import { mockRecommendations } from '../../../../data/smartMatching/mockEvents';
 import {
-  getRecommendedProjects,
-  type ProjectRecommendation
-} from '../../../../data/axisProjectMapping';
+  extendedEvents,
+  calculateRealMatchingScore,
+  generateMatchingReasons,
+  generateRecommendedActions
+} from '../../../../data/smartMatching/extendedEvents';
+import { useKPIDiagnosis } from '../../../../contexts/KPIDiagnosisContext';
+// BuildupContext 추가 - 실제 카탈로그 데이터 연동
+import { useBuildupContext } from '../../../../contexts/BuildupContext';
+import type { BuildupService, AxisKey as BuildupAxisKey } from '../../../../types/buildup.types';
 import EventCard from '../../../../components/smartMatching/EventCard';
 import {
   getTheOneCandidate,
@@ -55,11 +61,37 @@ const axisShortLabels = {
 
 // 카테고리별 정보를 통합하는 유틸 함수들
 
+// 커스텀 Tooltip 컴포넌트
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-white/95 backdrop-blur p-3 rounded-lg shadow-lg border border-gray-200">
+        <p className="font-semibold text-sm text-gray-900 mb-2">{data.axis}</p>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+            <span className="text-xs text-gray-700">내 점수: <span className="font-bold text-blue-600">{Math.round(data.user)}점</span></span>
+          </div>
+          {data.requirement && (
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+              <span className="text-xs text-gray-700">요구 점수: <span className="font-bold text-red-600">{Math.round(data.requirement)}점</span></span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 const CustomRecommendation: React.FC = () => {
   const { axisScores } = useKPIDiagnosis();
+  const { services, addToCart } = useBuildupContext();
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<MatchingResult[]>([]);
-  const [buildupRecommendations, setBuildupRecommendations] = useState<ProjectRecommendation[]>([]);
+  const [buildupRecommendations, setBuildupRecommendations] = useState<BuildupService[]>([]);
   const [theOneCandidate, setTheOneCandidate] = useState<MatchingResult | null>(null);
   const [showChatModal, setShowChatModal] = useState(false);
   const [chatEventData, setChatEventData] = useState<any>(null);
@@ -84,6 +116,12 @@ const CustomRecommendation: React.FC = () => {
 
   // 레이더 차트 데이터 계산
   const radarData = React.useMemo(() => {
+    console.log('🔍 Radar chart data calculation:', {
+      selectedEvent,
+      recommendationsCount: recommendations.length,
+      recommendationIds: recommendations.map(r => r.event.id)
+    });
+
     const data = Object.keys(axisLabels).map(axis => {
       const baseData: any = {
         axis: axisLabels[axis as keyof typeof axisLabels],
@@ -92,51 +130,127 @@ const CustomRecommendation: React.FC = () => {
 
       if (selectedEvent) {
         const event = recommendations.find(r => r.event.id === selectedEvent);
-        if (event && event.event.category) {
-          const requirements = categoryRequirements[event.event.category].requirements;
-          baseData.requirement = requirements[axis as keyof Core5Requirements];
+        console.log('🎯 Finding event:', {
+          selectedEvent,
+          foundEvent: !!event,
+          eventCategory: event?.event.category
+        });
+
+        if (event && event.event.category && categoryRequirements[event.event.category]) {
+          const categoryData = categoryRequirements[event.event.category];
+          console.log(`🏷️ Category data for ${event.event.category}:`, categoryData);
+          if (categoryData && categoryData.requirements) {
+            const requirements = categoryData.requirements;
+            baseData.requirement = requirements[axis as keyof Core5Requirements];
+            console.log(`📊 Adding requirement for ${axis}:`, baseData.requirement);
+          }
+        } else {
+          console.log(`❌ Missing data:`, {
+            hasEvent: !!event,
+            category: event?.event.category,
+            hasCategoryData: event?.event.category ? !!categoryRequirements[event.event.category] : false,
+            availableCategories: Object.keys(categoryRequirements)
+          });
         }
       }
 
       return baseData;
     });
+
+    console.log('📈 Final radar data:', data);
     return data;
   }, [selectedEvent, userScores, recommendations]);
 
-  // Mock 데이터 로드 및 THE ONE 후보 선별
+  // KPI 기반 매칭으로 이벤트 정렬 및 필터링
   useEffect(() => {
-    setRecommendations(mockRecommendations);
+    // 모든 이벤트에 실제 매칭 점수 계산
+    const eventsWithScores = extendedEvents.map(event => ({
+      ...event,
+      score: calculateRealMatchingScore(userScores, event.event),
+      matchingReasons: generateMatchingReasons(userScores, event.event),
+      recommendedActions: generateRecommendedActions(userScores, event.event)
+    }));
 
-    // THE ONE 후보 선별 (21일 이상 남은 이벤트)
-    const candidate = getTheOneCandidate(mockRecommendations);
+    // 매칭 점수로 정렬 (60점 이상만 추천 - 기준 완화)
+    const recommendedEvents = eventsWithScores
+      .filter(event => event.score >= 60)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10); // 상위 10개만 맞춤 추천에 표시
+
+    setRecommendations(recommendedEvents);
+
+    // THE ONE 후보 선별 (21일 이상 남은 이벤트 중 최고 점수)
+    const candidate = getTheOneCandidate(recommendedEvents);
     setTheOneCandidate(candidate);
 
     // 첫 번째 이벤트 또는 THE ONE 후보 자동 선택
     if (candidate) {
       setSelectedEvent(candidate.event.id);
-    } else if (mockRecommendations.length > 0) {
-      setSelectedEvent(mockRecommendations[0].event.id);
+    } else if (recommendedEvents.length > 0) {
+      setSelectedEvent(recommendedEvents[0].event.id);
     }
-  }, []);
+  }, [userScores]);
 
-  // 선택된 이벤트에 따른 빌드업 추천 계산
+  // 선택된 이벤트에 따른 빌드업 추천 계산 - 실제 카탈로그 데이터 사용
   useEffect(() => {
-    if (selectedEvent) {
+    if (selectedEvent && services.length > 0) {
       const event = recommendations.find(r => r.event.id === selectedEvent);
       if (event && event.event.category) {
-        const requirements = categoryRequirements[event.event.category].requirements;
-        const recommended = getRecommendedProjects(
-          userScores,
-          requirements,
-          event.event.category,
-          2
-        );
+        const requirements = categoryRequirements[event.event.category]?.requirements || {};
+
+        // 1단계: 가장 부족한 상위 2개 축 찾기
+        const topDeficientAxes = Object.entries(requirements)
+          .map(([axis, required]) => {
+            const userScore = userScores[axis as keyof Core5Requirements];
+            const gap = required - userScore;
+            return { axis: axis as BuildupAxisKey, gap };
+          })
+          .filter(item => item.gap >= 5) // 갭이 5점 이상인 축만
+          .sort((a, b) => b.gap - a.gap) // 갭이 큰 순으로 정렬
+          .slice(0, 2); // 상위 2개 축만
+
+        // 2단계: 각 부족한 축에 대해 최적의 서비스 1개씩 찾기
+        const recommended: BuildupService[] = [];
+
+        for (const deficientAxis of topDeficientAxes) {
+          const bestServiceForAxis = services
+            .map(service => {
+              // KPI 개선 점수가 있는 서비스만
+              if (!service.benefits?.kpi_improvement) return null;
+
+              const improvement = service.benefits.kpi_improvement[deficientAxis.axis] || 0;
+
+              // 이 축을 개선할 수 있는 서비스인지 확인
+              if (improvement <= 0) return null;
+
+              return {
+                service,
+                axis: deficientAxis.axis,
+                gap: deficientAxis.gap,
+                improvement,
+                effectiveness: Math.min(improvement / deficientAxis.gap, 1)
+              };
+            })
+            .filter(Boolean)
+            .sort((a, b) => {
+              // 1차: 개선 점수가 높은 순
+              // 2차: 효율성이 높은 순
+              const improvementDiff = b!.improvement - a!.improvement;
+              if (Math.abs(improvementDiff) > 2) return improvementDiff;
+              return b!.effectiveness - a!.effectiveness;
+            })[0]; // 가장 좋은 서비스 1개만
+
+          if (bestServiceForAxis && !recommended.find(s => s.service_id === bestServiceForAxis.service.service_id)) {
+            recommended.push(bestServiceForAxis.service);
+          }
+        }
+
         setBuildupRecommendations(recommended);
       }
     } else {
       setBuildupRecommendations([]);
     }
-  }, [selectedEvent, userScores, recommendations]);
+  }, [selectedEvent, userScores, recommendations, services]);
 
   // 이벤트 상담 핸들러
   const handleEventConsultation = (event: any) => {
@@ -207,43 +321,62 @@ const CustomRecommendation: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-6">
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-12 gap-8">
           {/* 왼쪽: 레이더 차트 (고정) */}
-          <div className="col-span-4">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-6">
-              <div className="mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">5축 적합도 분석</h3>
-                <p className="mt-1 text-sm text-gray-500">선택한 이벤트와 비교 분석</p>
-              </div>
+          <div className="col-span-5">
+            <div className="sticky top-6 space-y-6">
+              <div className="bg-gradient-to-br from-white to-blue-50/30 rounded-xl shadow-lg border border-gray-200/80 p-8">
+                <div className="mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900">Core5 권장수준 비교</h3>
 
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart data={radarData}>
+                  {/* 범례 */}
+                  <div className="flex items-center gap-5 mt-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-indigo-600 rounded-full shadow-sm"></div>
+                      <span className="text-xs font-medium text-gray-700">내 점수</span>
+                    </div>
+                    {selectedEvent && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-red-600 rounded-full shadow-sm"></div>
+                        <span className="text-xs font-medium text-gray-700">요구 점수</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="h-80 relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={radarData}>
                     <PolarGrid
                       gridType="polygon"
-                      stroke="#e5e7eb"
+                      stroke="#d1d5db"
+                      strokeWidth={1.5}
                       radialLines={true}
                     />
                     <PolarAngleAxis
                       dataKey="axis"
-                      tick={{ fontSize: 12 }}
-                      className="text-gray-500"
+                      tick={{ fontSize: 13, fontWeight: 500 }}
+                      className="text-gray-700"
                     />
                     <PolarRadiusAxis
                       angle={90}
                       domain={[0, 100]}
-                      tick={{ fontSize: 10 }}
+                      tick={{ fontSize: 11 }}
                       tickCount={5}
+                      stroke="#9ca3af"
                     />
+
+                    {/* Tooltip 추가 */}
+                    <Tooltip content={<CustomTooltip />} />
 
                     {/* 사용자 데이터 (파란색) */}
                     <Radar
                       name="내 점수"
                       dataKey="user"
-                      stroke="#6366f1"
-                      fill="#6366f1"
-                      fillOpacity={0.3}
-                      strokeWidth={2}
+                      stroke="#4f46e5"
+                      fill="#4f46e5"
+                      fillOpacity={0.45}
+                      strokeWidth={3}
                     />
 
                     {/* 요구사항 데이터 (빨간색) - 선택시만 표시 */}
@@ -251,100 +384,207 @@ const CustomRecommendation: React.FC = () => {
                       <Radar
                         name="요구 점수"
                         dataKey="requirement"
-                        stroke="#ef4444"
-                        fill="#ef4444"
-                        fillOpacity={0.15}
-                        strokeWidth={2}
+                        stroke="#dc2626"
+                        fill="#dc2626"
+                        fillOpacity={0.25}
+                        strokeWidth={2.5}
                         strokeDasharray="5 3"
                       />
                     )}
                   </RadarChart>
                 </ResponsiveContainer>
-              </div>
 
-              {/* 레전드 */}
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
-                  <span className="text-sm text-gray-500">내 점수</span>
                 </div>
-                {selectedEvent && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <span className="text-sm text-gray-500">요구 점수</span>
-                  </div>
-                )}
               </div>
 
-              {/* 점수 표시 */}
-              <div className="grid grid-cols-5 gap-2 mt-6 pt-6 border-t">
-                {Object.entries(axisLabels).map(([key, label]) => (
-                  <div key={key} className="text-center">
-                    <p className="text-xs text-gray-500 mb-1">{label}</p>
-                    <p className="text-lg font-bold text-gray-900">
-                      {Math.round(userScores[key as keyof Core5Requirements])}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
+              {/* 빌드업 추천 섹션 - 이벤트 선택시만 표시 */}
+              {selectedEvent && buildupRecommendations.length > 0 && (
+                <div className="relative overflow-hidden">
+                  {/* 그라데이션 배경 */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 rounded-xl" />
 
-            {/* 빌드업 추천 섹션 - 이벤트 선택시만 표시 */}
-            {selectedEvent && buildupRecommendations.length > 0 && (
-              <div className="mt-6">
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                    추천 빌드업 서비스
-                  </h4>
-                  <div className="space-y-3">
-                    {buildupRecommendations.slice(0, 2).map((recommendation, index) => (
-                      <div
-                        key={`${recommendation.axis}-${index}`}
-                        className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-medium px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
-                            {axisLabels[recommendation.axis as keyof typeof axisLabels]}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            갭 {Math.round(recommendation.gap)}점
-                          </span>
+                  {/* 내부 콘텐츠 */}
+                  <div className="relative bg-white/95 backdrop-blur rounded-xl shadow-lg border border-white/20 p-3">
+                    {/* 헤더 섹션 */}
+                    <div className="mb-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-base">🎯</span>
+                        <h4 className="text-base font-bold text-gray-900">
+                          맞춤 빌드업 처방전
+                        </h4>
+                      </div>
+                      <p className="text-xs text-gray-600">
+                        선택한 기회에 최적화된 역량 강화 솔루션
+                      </p>
+                    </div>
+
+                    {/* 진단 섭션 - 감정적 메시지 */}
+                    {(() => {
+                      const event = recommendations.find(r => r.event.id === selectedEvent);
+                      const requirements = event?.event.category ? (categoryRequirements[event.event.category]?.requirements || {}) : {};
+                      const totalGap = Object.entries(requirements)
+                        .reduce((sum, [axis, required]) => {
+                          const userScore = userScores[axis as keyof Core5Requirements];
+                          return sum + Math.max(0, required - userScore);
+                        }, 0);
+
+                      return totalGap > 0 ? (
+                        <div className="mb-3 flex items-center gap-2 text-amber-700 text-xs">
+                          <span>⚠️</span>
+                          <span className="font-medium">총 {Math.round(totalGap)}점 갭 • 전략적 준비 필요</span>
                         </div>
-                        <div className="space-y-2">
-                          {recommendation.services.map((service) => (
-                            <div key={service.service_id} className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <p className="text-sm font-medium text-gray-900">
-                                  {service.name}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  +{service.improvement_score}점 개선 • {service.price.toLocaleString()}원
-                                </p>
+                      ) : null;
+                    })()}
+
+                    {/* 추천 서비스 표시 - 모두 표시 */}
+                    {buildupRecommendations.length > 0 && (
+                      <div className="space-y-2">
+                        {buildupRecommendations.map((service, index) => {
+                      // 이벤트 요구사항 가져오기
+                      const event = recommendations.find(r => r.event.id === selectedEvent);
+                      const requirements = event?.event.category ? (categoryRequirements[event.event.category]?.requirements || {}) : {};
+
+                      // 실제 부족한 축 중에서 이 서비스가 가장 효과적인 축 찾기
+                      const bestAxisForGap = Object.entries(requirements)
+                        .map(([axis, required]) => {
+                          const userScore = userScores[axis as keyof Core5Requirements];
+                          const gap = required - userScore;
+                          const improvement = service.benefits.kpi_improvement[axis as BuildupAxisKey] || 0;
+
+                          if (gap >= 5 && improvement > 0) {
+                            return {
+                              axis: axis as BuildupAxisKey,
+                              gap,
+                              improvement,
+                              effectiveness: Math.min(improvement / gap, 1)
+                            };
+                          }
+                          return null;
+                        })
+                        .filter(Boolean)
+                        .reduce((best, current) =>
+                          current!.effectiveness > best!.effectiveness ? current : best,
+                          { axis: 'GO' as BuildupAxisKey, gap: 0, improvement: 0, effectiveness: 0 }
+                        );
+
+                      return (
+                        <div
+                          key={service.service_id}
+                          className="relative group"
+                        >
+                          <div className="p-4 bg-gradient-to-br from-white to-blue-50/20 rounded-lg border border-blue-200/50 hover:shadow-lg hover:border-blue-400 transition-all">
+                            {/* 서비스 제목과 설명 */}
+                            <div className="mb-3">
+                              <h3 className="text-lg font-bold text-gray-900 mb-1">
+                                {service.name}
+                              </h3>
+                              <p className="text-sm text-gray-600 mb-3">
+                                {service.description && service.description.length > 50
+                                  ? service.description.substring(0, 50) + '...'
+                                  : service.description || '전문 컨설팅을 통해 역량을 체계적으로 개선합니다'}
+                              </p>
+
+                              {/* 갭 정보와 가격 */}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="px-3 py-1 bg-red-50 border border-red-200 rounded-md">
+                                    <span className="text-xs font-medium text-red-700">
+                                      {axisLabels[bestAxisForGap.axis as keyof typeof axisLabels]} {Math.round(Math.max(0, bestAxisForGap.gap))}점 부족
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  {service.price.discounted && service.price.discounted < service.price.original ? (
+                                    <>
+                                      <span className="text-xs text-gray-500 line-through">
+                                        {service.price.original.toLocaleString()}원
+                                      </span>
+                                      <div className="text-lg font-bold text-blue-600">
+                                        {service.price.discounted.toLocaleString()}원
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className="text-lg font-bold text-gray-900">
+                                      {service.price.original.toLocaleString()}원
+                                    </div>
+                                  )}
+                                  <span className="text-xs text-gray-500">
+                                    {service.duration?.display || '8주'}
+                                  </span>
+                                </div>
                               </div>
-                              <button className="px-3 py-1.5 text-xs text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
-                                <ShoppingCart className="w-3 h-3 mr-1" />
-                                담기
-                              </button>
                             </div>
-                          ))}
+
+                            {/* CTA 버튼 - 시스템 색상 */}
+                            <button
+                              onClick={() => addToCart(service)}
+                              className="w-full py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-semibold text-sm shadow-sm hover:shadow-md"
+                            >
+                              지금 시작하기 →
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                      </div>
+                    )}
+
+                    {/* 하단 액션 영역 - 간소화 */}
+                    <div className="mt-4 space-y-3">
+                      {/* 번들 할인 제안 - 간소화 */}
+                      {buildupRecommendations.length >= 2 && (
+                        <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base">🎁</span>
+                              <span className="font-semibold text-purple-900 text-sm">번들 특가 20% OFF</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const services = buildupRecommendations.slice(0, 2);
+                                services.forEach((service, index) => {
+                                  setTimeout(() => {
+                                    addToCart(service);
+                                  }, index * 100);
+                                });
+                              }}
+                              className="px-3 py-1.5 bg-purple-600 text-white rounded text-sm font-medium hover:bg-purple-700 transition-colors"
+                            >
+                              번들 담기
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 긴급성/시간 제한 메시지 - 간소화 */}
+                      <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                        <div className="flex items-center gap-2">
+                          <span className="text-amber-600">⏰</span>
+                          <div className="flex-1">
+                            {(() => {
+                              const event = recommendations.find(r => r.event.id === selectedEvent);
+                              if (event) {
+                                const dday = calculateDday(event.event.applicationEndDate);
+                                return (
+                                  <p className="text-xs text-amber-800">
+                                    <span className="font-semibold">D-{dday}일 남음</span> • {Math.ceil(dday * 0.7)}일 전 시작 권장
+                                  </p>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                  {buildupRecommendations.length > 2 && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <button className="w-full py-2 text-sm text-blue-600 hover:text-blue-700 font-medium">
-                        더 많은 빌드업 서비스 보기 ({buildupRecommendations.length - 2}개)
-                      </button>
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* 오른쪽: 이벤트 카드 리스트 */}
-          <div className="col-span-8 space-y-6">
+          <div className="col-span-7 space-y-6">
             {/* THE ONE 후보가 없을 때 안내 메시지 */}
             {!theOneCandidate && recommendations.length > 0 && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
@@ -358,7 +598,16 @@ const CustomRecommendation: React.FC = () => {
             )}
 
             {recommendations.map((rec, index) => {
-              const compatibility = calculateCompatibility(userScores, rec.event.category);
+              const compatibility = calculateCompatibility(
+                userScores,
+                categoryRequirements[rec.event.category]?.requirements || {
+                  GO: 50,
+                  EC: 50,
+                  PT: 50,
+                  PF: 50,
+                  TO: 50
+                }
+              );
               const isSelected = selectedEvent === rec.event.id;
               const isTheOne = theOneCandidate?.event.id === rec.event.id; // THE ONE 후보와 일치하는지 확인
 
@@ -399,7 +648,14 @@ const CustomRecommendation: React.FC = () => {
                   <div className={isTheOne ? "transform scale-[1.02] transition-transform" : ""}>
                     <EventCard
                       result={rec}
-                      onSelect={() => setSelectedEvent(rec.event.id)}
+                      onSelect={() => {
+                        console.log('🖱️ Event selected:', {
+                          eventId: rec.event.id,
+                          eventTitle: rec.event.title,
+                          eventCategory: rec.event.category
+                        });
+                        setSelectedEvent(rec.event.id);
+                      }}
                       isSelected={isSelected}
                       showStatus={true}
                       compatibility={{

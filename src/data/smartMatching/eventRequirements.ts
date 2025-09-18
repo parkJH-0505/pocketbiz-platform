@@ -136,6 +136,62 @@ export const categoryRequirements: Record<EventCategory, {
     minScore: 250
   },
 
+  // 융자·보증
+  loan_guarantee: {
+    requirements: {
+      PF: 85,  // 증빙 자료 최우선
+      EC: 75,  // 상환능력
+      GO: 65,  // 운영 안정성
+      TO: 65,  // 실행 신뢰성
+      PT: 60   // 기술력 덜 중요
+    },
+    description: '재무 건전성과 보증 조건이 핵심인 프로그램',
+    focusAreas: ['신용도', '보증 조건', '재무 증빙'],
+    minScore: 350
+  },
+
+  // 바우처
+  voucher: {
+    requirements: {
+      GO: 65,  // 성장 의지
+      PF: 60,  // 기본 서류
+      PT: 55,  // 기술 이해도
+      TO: 50,  // 활용 역량
+      EC: 45   // 수익성 덜 중요
+    },
+    description: '성장 의지와 바우처 활용 능력이 중요한 프로그램',
+    focusAreas: ['성장 계획', '바우처 활용', '기술 개발'],
+    minScore: 275
+  },
+
+  // 글로벌
+  global: {
+    requirements: {
+      GO: 80,  // 해외 확장 역량
+      PT: 70,  // 글로벌 경쟁력
+      TO: 70,  // 국제 협업 역량
+      EC: 65,  // 해외 수익성
+      PF: 65   // 글로벌 증빙
+    },
+    description: '해외 진출 역량과 글로벌 경쟁력이 핵심인 프로그램',
+    focusAreas: ['해외 진출', '글로벌 경쟁력', '국제 협업'],
+    minScore: 350
+  },
+
+  // 공모전
+  contest: {
+    requirements: {
+      PT: 75,  // 혁신성 우선
+      GO: 65,  // 성장 가능성
+      TO: 60,  // 발표 역량
+      PF: 55,  // 기본 자료
+      EC: 50   // 수익성 보다 혁신성
+    },
+    description: '혁신성과 창의성이 중요한 공모전',
+    focusAreas: ['혁신성', '창의성', '발표력'],
+    minScore: 305
+  },
+
   // 세미나
   seminar: {
     requirements: {
@@ -156,7 +212,19 @@ export const calculateCompatibility = (
   userScores: Core5Requirements,
   category: EventCategory
 ): CompatibilityResult => {
-  const requirements = categoryRequirements[category].requirements;
+  const categoryData = categoryRequirements[category];
+  if (!categoryData || !categoryData.requirements) {
+    return {
+      overallScore: 0,
+      details: {} as Record<keyof Core5Requirements, boolean>,
+      meetCount: 0,
+      totalCount: 0,
+      percentage: 0,
+      suggestedFocus: [],
+      marketFit: 'Poor'
+    };
+  }
+  const requirements = categoryData.requirements;
   const details: Record<keyof Core5Requirements, boolean> = {} as any;
   let meetCount = 0;
 
@@ -214,6 +282,10 @@ const getAxisWeights = (category: EventCategory): Record<keyof Core5Requirements
     government_support: { PF: 2.5, TO: 2, PT: 1.5, GO: 1, EC: 0.8 },
     vc_opportunity: { GO: 3, EC: 2.5, TO: 2, PT: 1.5, PF: 1 },
     open_innovation: { GO: 2, PT: 2, TO: 2, PF: 1.5, EC: 1 },
+    loan_guarantee: { PF: 3, EC: 2.5, GO: 1.5, TO: 1.5, PT: 1 },
+    voucher: { GO: 2, PF: 1.5, PT: 1.3, TO: 1.2, EC: 0.9 },
+    global: { GO: 2.8, PT: 2.2, TO: 2, EC: 1.8, PF: 1.5 },
+    contest: { PT: 2.5, GO: 2, TO: 1.8, PF: 1.3, EC: 1 },
     loan_program: { PF: 3, EC: 2.5, GO: 1.5, TO: 1.5, PT: 1 },
     accelerator: { TO: 2.5, PT: 2, GO: 1.5, PF: 1, EC: 0.8 },
     bidding: { PF: 3, TO: 2, PT: 1.8, GO: 1.5, EC: 1.2 },

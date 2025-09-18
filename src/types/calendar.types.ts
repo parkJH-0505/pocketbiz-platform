@@ -129,6 +129,7 @@ export interface CalendarFilter {
   pmIds?: string[];
   statuses?: CalendarEvent['status'][];
   priorities?: CalendarEvent['priority'][];
+  phases?: string[];  // 🔥 Sprint 3 Phase 2: 프로젝트 단계별 필터
   dateRange?: {
     start: Date;
     end: Date;

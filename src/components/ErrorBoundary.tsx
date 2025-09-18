@@ -1,8 +1,10 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { ErrorFallback } from './ui/ErrorFallback';
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  onError?: (error: Error, errorInfo: ErrorInfo) => void;
 }
 
 interface State {
@@ -19,47 +21,61 @@ class ErrorBoundary extends Component<Props, State> {
   };
 
   public static getDerivedStateFromError(error: Error): State {
-    return { 
-      hasError: true, 
+    return {
+      hasError: true,
       error,
-      errorInfo: null 
+      errorInfo: null
     };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+
+    // 상태 업데이트
     this.setState({
       error,
       errorInfo
     });
+
+    // 커스텀 에러 핸들러 호출
+    if (this.props.onError) {
+      this.props.onError(error, errorInfo);
+    }
+
+    // 에러 리포팅 (개발 환경에서는 콘솔에만)
+    if (process.env.NODE_ENV === 'development') {
+      console.group('🐛 ErrorBoundary Details');
+      console.error('Error:', error);
+      console.error('Error Info:', errorInfo);
+      console.groupEnd();
+    } else {
+      // 프로덕션에서는 에러 리포팅 서비스로 전송
+      // 예: Sentry.captureException(error, { contexts: { react: { componentStack: errorInfo.componentStack } } });
+    }
   }
+
+  private handleReset = () => {
+    this.setState({
+      hasError: false,
+      error: null,
+      errorInfo: null
+    });
+  };
 
   public render() {
     if (this.state.hasError) {
+      // 커스텀 fallback이 제공된 경우 사용
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+
+      // 기본 ErrorFallback 컴포넌트 사용
       return (
-        <div style={{ 
-          padding: '20px', 
-          margin: '20px',
-          backgroundColor: '#fee',
-          border: '1px solid #fcc',
-          borderRadius: '4px'
-        }}>
-          <h2 style={{ color: '#c00' }}>Something went wrong!</h2>
-          <details style={{ whiteSpace: 'pre-wrap', marginTop: '10px' }}>
-            <summary>Click for error details</summary>
-            <p style={{ color: '#800', marginTop: '10px' }}>
-              {this.state.error && this.state.error.toString()}
-            </p>
-            <pre style={{ 
-              backgroundColor: '#f5f5f5', 
-              padding: '10px', 
-              marginTop: '10px',
-              overflow: 'auto'
-            }}>
-              {this.state.errorInfo && this.state.errorInfo.componentStack}
-            </pre>
-          </details>
-        </div>
+        <ErrorFallback
+          error={this.state.error!}
+          resetError={this.handleReset}
+          componentStack={this.state.errorInfo?.componentStack}
+        />
       );
     }
 

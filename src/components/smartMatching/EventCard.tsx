@@ -15,6 +15,10 @@ const categoryLabels: Record<string, string> = {
   accelerator: '액셀러레이터',
   open_innovation: '오픈이노베이션',
   loan_program: '융자 프로그램',
+  loan_guarantee: '융자·보증',
+  voucher: '바우처',
+  global: '글로벌',
+  contest: '공모전',
   bidding: '입찰',
   batch_program: '배치 프로그램',
   conference: '컨퍼런스',
@@ -61,6 +65,7 @@ interface EventCardProps {
   isSelected?: boolean;
   showStatus?: boolean;
   isTheOne?: boolean;
+  compact?: boolean;
   compatibility?: {
     meetCount: number;
     status: 'recommended' | 'preparing' | 'insufficient';
@@ -74,6 +79,7 @@ const EventCard: React.FC<EventCardProps> = ({
   isSelected = false,
   showStatus = false,
   isTheOne = false,
+  compact = false,
   compatibility,
   onBuilderConsult
 }) => {

@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useSearchParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import {
   LayoutDashboard,
   FileText,
@@ -24,6 +24,9 @@ import { useBuildupContext } from '../contexts/BuildupContext';
 import { useChatContext } from '../contexts/ChatContext';
 import { NotificationBell } from '../components/notifications/NotificationBell';
 
+// 프로필 카드 지연 로딩
+const ProfileCard = React.lazy(() => import('../components/dashboard/ProfileCard'));
+
 const StartupLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
@@ -31,11 +34,14 @@ const StartupLayout = () => {
   const [searchParams] = useSearchParams();
   const { cart } = useBuildupContext();
   const { totalUnreadCount } = useChatContext();
-  
+
   // KPI 진단 페이지의 평가 탭인지 확인
-  const isKPIAssessmentTab = location.pathname === '/startup/kpi' && 
+  const isKPIAssessmentTab = location.pathname === '/startup/kpi' &&
     (!searchParams.get('tab') || searchParams.get('tab') === 'assess');
-  
+
+  // 대시보드 페이지인지 확인
+  const isDashboardPage = location.pathname === '/startup/dashboard';
+
   console.log('StartupLayout rendering, location:', location.pathname);
 
   // MASTER_PLAN.md 기준 5개 메뉴 (Sprint 3 PRD v4.0) + 추가 메뉴 4개
@@ -86,8 +92,8 @@ const StartupLayout = () => {
         <div className="p-6 border-b border-neutral-gray">
           <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
             <div className={`${collapsed ? 'hidden' : 'block'}`}>
-              <h1 className="text-xl font-bold text-white">Startup Hub</h1>
-              <p className="text-sm text-neutral-lighter mt-1">스타트업 평가 시스템</p>
+              <h1 className="text-xl font-bold text-white">PocketBiz</h1>
+              <p className="text-sm text-neutral-lighter mt-1">스타트업 올인원 성장 OS</p>
             </div>
             <button
               onClick={() => setCollapsed(!collapsed)}
@@ -103,7 +109,8 @@ const StartupLayout = () => {
             </button>
           </div>
         </div>
-        
+
+
         <nav className="flex-1 overflow-y-auto py-6">
           {menuItems.map((item) => {
             const Icon = item.icon;

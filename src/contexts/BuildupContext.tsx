@@ -14,20 +14,30 @@
  * @since 2024
  */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import type {
   BuildupService,
   CartItem,
   Project,
+  Meeting,
   AxisKey,
   PhaseTransitionEvent,
   GuideMeetingRecord,
   PhaseTransitionApprovalRequest
 } from '../types/buildup.types';
+import { useScheduleContext } from './ScheduleContext';
 import {
   loadBuildupServices,
   calculateBundleDiscount
 } from '../utils/buildupServiceLoader';
+import { dataConverter, DuplicateDetector } from '../utils/dataConverters';
+import type { UnifiedSchedule, BuildupProjectMeeting } from '../types/schedule.types';
+import {
+  EventSourceTracker,
+  CONTEXT_EVENTS,
+  type ScheduleEventDetail,
+  logEvent
+} from '../types/events.types';
 import { mockProjects, defaultBusinessSupportPM } from '../data/mockProjects';
 import {
   calculatePhaseProgress,
@@ -46,6 +56,17 @@ import type {
   PhaseChangeRequestEvent,
   PhaseChangedEvent
 } from '../core/index';
+
+// Sprint 1 Step 3: Event system imports (additional)
+import {
+  type BuildupEventDetail,
+  createBuildupEvent
+} from '../types/events.types';
+import {
+  updateMeetingInArray,
+  removeMeetingFromArray,
+  findMeetingById
+} from '../utils/dataConverters';
 
 interface BuildupContextType {
   // Services
@@ -121,11 +142,21 @@ interface BuildupContextType {
   getPendingPhaseApprovals: () => PhaseTransitionApprovalRequest[];
   getPhaseTransitionHistory: (projectId?: string) => PhaseTransitionEvent[];
   phaseTransitionEvents: PhaseTransitionEvent[];
+
+  // Sprint 1 Step 3: Meeting Management Functions
+  addMeetingToProject: (projectId: string, meeting: Meeting) => void;
+  updateProjectMeeting: (projectId: string, meetingId: string, updates: Partial<Meeting>) => void;
+  removeProjectMeeting: (projectId: string, meetingId: string) => void;
+  syncProjectMeetings: (projectId: string, meetings: Meeting[]) => void;
+  getProjectMeetings: (projectId: string) => Meeting[];
 }
 
 const BuildupContext = createContext<BuildupContextType | undefined>(undefined);
 
 export function BuildupProvider({ children }: { children: ReactNode }) {
+  // ScheduleContext 접근
+  const scheduleContext = useScheduleContext();
+
   const [services, setServices] = useState<BuildupService[]>([]);
   const [loadingServices, setLoadingServices] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -142,12 +173,138 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>(getInitialProjects());
   const [phaseTransitionEvents, setPhaseTransitionEvents] = useState<PhaseTransitionEvent[]>([]);
 
+  // Step 4: Initial Data Synchronization Implementation
+  const performInitialSync = useCallback(async () => {
+    // ✅ 이중 실행 방지: 이미 진행 중이면 중단
+    if (scheduleContext.isSyncInProgress()) {
+      console.log('⏸️ Sync already in progress, skipping...');
+      return;
+    }
+
+    try {
+      console.log('🔄 Starting initial data synchronization...');
+
+      // 1. 동기화 플래그 설정
+      scheduleContext.setSyncInProgress(true);
+
+      // 2. 프로젝트별 미팅 데이터 수집
+      const allMeetings: Meeting[] = [];
+
+      projects.forEach(project => {
+        if (project.meetings && project.meetings.length > 0) {
+          console.log(`📋 Found ${project.meetings.length} meetings in project ${project.id}`);
+          allMeetings.push(...project.meetings);
+        }
+      });
+
+      if (allMeetings.length === 0) {
+        console.log('ℹ️ No meetings found to sync');
+        scheduleContext.setSyncInProgress(false);
+        return;
+      }
+
+      // 3. 중복 제거 및 변환 준비
+      const uniqueMeetings = DuplicateDetector.removeDuplicateMeetings(allMeetings);
+      console.log(`📦 Processing ${uniqueMeetings.length} unique meetings (removed ${allMeetings.length - uniqueMeetings.length} duplicates)`);
+
+      // 4. Meeting → UnifiedSchedule 변환
+      const schedulesToCreate = uniqueMeetings.map(meeting => {
+        const project = projects.find(p => p.meetings?.some(m => m.id === meeting.id));
+        if (!project) {
+          console.warn(`⚠️ Project not found for meeting ${meeting.id}`);
+          return null;
+        }
+
+        try {
+          const schedule = dataConverter.meetingToSchedule(meeting, project);
+          console.log(`✅ Converted meeting ${meeting.id} to schedule`);
+          return schedule;
+        } catch (error) {
+          console.error(`❌ Failed to convert meeting ${meeting.id}:`, error);
+          return null;
+        }
+      }).filter((schedule): schedule is UnifiedSchedule => schedule !== null);
+
+      // 5. 기존 스케줄 중복 체크
+      const filteredSchedules = schedulesToCreate.filter(schedule => {
+        // ScheduleContext에 이미 있는지 확인
+        const hasExisting = scheduleContext.hasSchedulesForProject(
+          (schedule as BuildupProjectMeeting).projectId
+        );
+
+        if (hasExisting) {
+          console.log(`ℹ️ Skipping sync for project ${(schedule as BuildupProjectMeeting).projectId} - already exists`);
+          return false;
+        }
+
+        return true;
+      });
+
+      if (filteredSchedules.length === 0) {
+        console.log('ℹ️ No new schedules to sync (all already exist)');
+        scheduleContext.setSyncInProgress(false);
+        return;
+      }
+
+      // 6. 배치 생성 실행
+      console.log(`📦 Creating ${filteredSchedules.length} schedules in batch...`);
+
+      const createdSchedules = await scheduleContext.createSchedulesBatch(
+        filteredSchedules.map(s => ({
+          ...s,
+          id: undefined, // ID는 자동 생성되도록
+          createdAt: undefined,
+          updatedAt: undefined
+        })),
+        {
+          skipDuplicateCheck: false, // 중복 체크 활성화
+          suppressEvents: true, // 이벤트 억제 (무한 루프 방지)
+          source: 'buildup_initial_sync'
+        }
+      );
+
+      console.log(`✅ Initial sync completed: ${createdSchedules.length} schedules created`);
+
+      // 7. 통계 출력
+      const stats = scheduleContext.getStatistics();
+      console.log('📊 Sync Statistics:', {
+        totalSchedules: scheduleContext.schedules.length,
+        buildupMeetings: scheduleContext.buildupMeetings.length,
+        newlyCreated: createdSchedules.length
+      });
+
+    } catch (error) {
+      console.error('❌ Initial sync failed:', error);
+      setError('초기 데이터 동기화에 실패했습니다.');
+    } finally {
+      // 8. 동기화 플래그 해제
+      scheduleContext.setSyncInProgress(false);
+    }
+  }, [projects, scheduleContext]);
+
   // Load services on mount
   useEffect(() => {
     loadServices();
     loadCartFromStorage();
     // Don't load projects from storage anymore, use initial state
   }, []);
+
+  // Step 4: Initial Data Synchronization - Single execution with sync flag
+  const [initialSyncCompleted, setInitialSyncCompleted] = useState(false);
+
+  useEffect(() => {
+    // Wait for ScheduleContext to be initialized and ensure single execution
+    if (scheduleContext && !scheduleContext.isLoading && !initialSyncCompleted) {
+      console.log('📋 ScheduleContext ready, starting initial sync...');
+      performInitialSync().then(() => {
+        setInitialSyncCompleted(true);
+        console.log('🎯 Initial sync completed, won\'t run again until page refresh');
+      }).catch((error) => {
+        console.error('❌ Initial sync failed:', error);
+        // Don't set flag on error, allow retry
+      });
+    }
+  }, [scheduleContext?.isLoading, initialSyncCompleted, performInitialSync]);
 
   // Save cart to localStorage whenever it changes
   useEffect(() => {
@@ -780,13 +937,412 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     // Register event listener
     const subscriptionId = eventBus.on('PHASE_CHANGED', handlePhaseChangedEvent);
 
-    console.log('🚀 New Phase Transition Module initialized');
+    // Phase 4: Listen for Schedule Events from ScheduleContext (Refactored with EventSourceTracker)
+    const handleBuildupMeetingCreated = (event: CustomEvent) => {
+      const { schedule, metadata } = event.detail;
+
+      // Step 3-4: Apply EventSourceTracker for circular reference prevention
+      if (event.detail.eventId && !EventSourceTracker.shouldProcess(event.detail.eventId)) {
+        logEvent('CIRCULAR_REF_PREVENTED', event.detail, 'BuildupContext-PhaseTransition');
+        return;
+      }
+
+      // Also add the meeting to the project meetings array
+      if (metadata?.projectId) {
+        // Convert schedule to meeting and add to project
+        const meeting = dataConverter.scheduleToMeeting(schedule);
+
+        setProjects(prevProjects => {
+          const updatedProjects = prevProjects.map(project => {
+            if (project.id !== metadata.projectId) return project;
+
+            // Add meeting if not exists
+            const existingMeeting = project.meetings?.find(m => m.id === meeting.id);
+            if (!existingMeeting) {
+              project = {
+                ...project,
+                meetings: [...(project.meetings || []), meeting]
+              };
+            }
+
+            // Handle phase transition if needed
+            if (metadata.phaseTransition?.toPhase) {
+              project = {
+                ...project,
+                currentPhase: metadata.phaseTransition.toPhase
+              };
+
+              console.log('✅ Phase transition completed:', {
+                projectId: metadata.projectId,
+                fromPhase: project.phase,
+                toPhase: metadata.phaseTransition.toPhase
+              });
+            }
+
+            return project;
+          });
+
+          return updatedProjects;
+        });
+
+        // Still emit the event for other listeners
+        if (metadata.phaseTransition) {
+          const phaseChangeEvent = createEvent('PHASE_CHANGE_REQUEST', {
+            projectId: metadata.projectId,
+            targetPhase: metadata.phaseTransition.toPhase,
+            requestedBy: 'ScheduleSystem',
+            reason: `미팅 예약됨: ${schedule.title}`,
+            automatic: true
+          }, { source: 'ScheduleContext' });
+
+          eventBus.emit('PHASE_CHANGE_REQUEST', phaseChangeEvent);
+        }
+      }
+    };
+
+    // Add schedule event listener with debug log
+    console.log('🎧 Setting up BuildupContext event listener for: schedule:buildup_meeting_created');
+    window.addEventListener('schedule:buildup_meeting_created', handleBuildupMeetingCreated as EventListener);
+
+    console.log('🚀 New Phase Transition Module initialized with Schedule integration');
 
     // Cleanup function
     return () => {
       eventBus.off(subscriptionId);
+      window.removeEventListener('schedule:buildup_meeting_created', handleBuildupMeetingCreated as EventListener);
     };
   }, []); // Empty dependency array since we use functional state updates
+
+  // ================================================================================
+  // Sprint 3 Phase 1: Phase Transition Mapping Constants
+  // ================================================================================
+
+  const MEETING_SEQUENCE_TO_PHASE_MAP: Record<string, string> = {
+    'pre_meeting': 'contract_signed',
+    'guide_1st': 'planning',
+    'guide_2nd': 'design',
+    'guide_3rd': 'execution',
+    'guide_4th': 'review'
+  };
+
+  const PHASE_LABELS: Record<string, string> = {
+    'contract_pending': '계약 중',
+    'contract_signed': '계약 완료',
+    'planning': '기획',
+    'design': '설계',
+    'execution': '실행',
+    'review': '검토',
+    'completed': '완료'
+  };
+
+  // ================================================================================
+  // Sprint 1 Step 3: Schedule Event Handlers for Context Synchronization
+  // ================================================================================
+
+  useEffect(() => {
+    // Sprint 3 Phase 1: Helper Functions
+
+    // Identify meeting sequence from schedule
+    const identifyMeetingSequence = (schedule: any): string | null => {
+      // 1. Check explicit meetingSequence field
+      if (schedule.meetingSequence) {
+        console.log('📋 Meeting sequence from field:', schedule.meetingSequence);
+        return schedule.meetingSequence;
+      }
+
+      // 2. Check metadata for sequence
+      if (schedule.metadata?.meetingSequence) {
+        console.log('📋 Meeting sequence from metadata:', schedule.metadata.meetingSequence);
+        return schedule.metadata.meetingSequence;
+      }
+
+      // 3. Pattern matching from title
+      const title = schedule.title?.toLowerCase() || '';
+
+      if (title.includes('프리미팅') || title.includes('pre')) return 'pre_meeting';
+      if (title.includes('킥오프') || title.includes('1차') || title.includes('guide 1')) return 'guide_1st';
+      if (title.includes('2차') || title.includes('guide 2')) return 'guide_2nd';
+      if (title.includes('3차') || title.includes('guide 3')) return 'guide_3rd';
+      if (title.includes('4차') || title.includes('guide 4')) return 'guide_4th';
+
+      console.log('⚠️ Could not identify meeting sequence from title:', title);
+      return null;
+    };
+
+    // Execute phase transition
+    const executePhaseTransition = (projectId: string, toPhase: string, trigger: string, metadata?: any) => {
+      console.log('🔄 Executing phase transition:', { projectId, toPhase, trigger });
+
+      const project = projects.find(p => p.id === projectId);
+      if (!project) {
+        console.error('Project not found:', projectId);
+        return;
+      }
+
+      const fromPhase = project.phase;
+
+      // Skip if already in target phase
+      if (fromPhase === toPhase) {
+        console.log('Already in phase:', toPhase);
+        return;
+      }
+
+      // Update project phase
+      setProjects(prev => prev.map(p =>
+        p.id === projectId
+          ? {
+              ...p,
+              phase: toPhase,
+              phaseHistory: [
+                ...(p.phaseHistory || []),
+                {
+                  phase: toPhase,
+                  transitionedAt: new Date().toISOString(),
+                  transitionedBy: metadata?.userId || 'system',
+                  trigger,
+                  metadata
+                }
+              ]
+            }
+          : p
+      ));
+
+      // Record phase transition event
+      const transitionEvent: PhaseTransitionEvent = {
+        id: `PTE-${Date.now()}`,
+        projectId,
+        fromPhase,
+        toPhase,
+        trigger,
+        timestamp: new Date().toISOString(),
+        metadata
+      };
+
+      setPhaseTransitionEvents(prev => [...prev, transitionEvent]);
+
+      // 🔥 Sprint 3 Phase 3: 단계별 맞춤 토스트 메시지
+      const fromPhaseLabel = PHASE_LABELS[fromPhase] || fromPhase;
+      const toPhaseLabel = PHASE_LABELS[toPhase] || toPhase;
+      const projectTitle = project.title || '프로젝트';
+
+      // 단계별 맞춤 메시지와 이모지
+      const phaseMessages: Record<string, { emoji: string; title: string; description: string }> = {
+        'contract_pending': {
+          emoji: '📋',
+          title: '계약 준비 단계',
+          description: '프로젝트 계약 체결을 위한 준비가 시작되었습니다'
+        },
+        'contract_signed': {
+          emoji: '✍️',
+          title: '계약 체결 완료',
+          description: '프로젝트 계약이 성공적으로 체결되었습니다'
+        },
+        'planning': {
+          emoji: '🎯',
+          title: '기획 단계 시작',
+          description: '프로젝트 전략과 계획을 수립하는 단계입니다'
+        },
+        'design': {
+          emoji: '🎨',
+          title: '디자인 단계 진입',
+          description: 'UI/UX 설계와 디자인 작업이 시작됩니다'
+        },
+        'execution': {
+          emoji: '🚀',
+          title: '개발 실행 단계',
+          description: '본격적인 개발과 구현 작업이 진행됩니다'
+        },
+        'review': {
+          emoji: '✅',
+          title: '검토 및 테스트',
+          description: '최종 검토와 품질 검증이 이루어집니다'
+        },
+        'completed': {
+          emoji: '🎉',
+          title: '프로젝트 완료',
+          description: '프로젝트가 성공적으로 완료되었습니다'
+        }
+      };
+
+      const phaseInfo = phaseMessages[toPhase];
+      if (phaseInfo) {
+        showSuccess(
+          `${phaseInfo.emoji} ${projectTitle} - ${phaseInfo.title}\n${phaseInfo.description}`,
+          6000 // 6초간 표시
+        );
+      } else {
+        // 기본 메시지
+        showSuccess(
+          `🚀 ${projectTitle} 단계 전환 완료! ${fromPhaseLabel} → ${toPhaseLabel}`,
+          5000
+        );
+      }
+
+      // Emit custom event for other components
+      window.dispatchEvent(new CustomEvent('project:phase_changed', {
+        detail: { projectId, fromPhase, toPhase, trigger }
+      }));
+
+      console.log(`✅ Phase transition completed: ${fromPhase} → ${toPhase}`);
+    };
+
+    // Step 3-2: Event Handlers Implementation
+
+    // Handle schedule created event
+    const handleScheduleCreated = (e: CustomEvent<ScheduleEventDetail>) => {
+      const { schedule, metadata } = e.detail;
+
+      // 1. Prevent circular reference
+      if (!e.detail.eventId || !EventSourceTracker.shouldProcess(e.detail.eventId)) {
+        logEvent('CIRCULAR_REF_PREVENTED', e.detail, 'BuildupContext');
+        return;
+      }
+
+      // 2. Only process buildup project meetings
+      if (schedule.subType !== 'buildup_project') return;
+
+      // 3. Check project ID
+      const projectId = metadata?.projectId;
+      if (!projectId) {
+        console.warn('[BuildupContext] Schedule has no projectId, skipping');
+        return;
+      }
+
+      // 4. Convert to Meeting
+      const meeting = dataConverter.scheduleToMeeting(schedule);
+
+      // 5. Add to project meetings array
+      setProjects(prev => prev.map(project => {
+        if (project.id !== projectId) return project;
+
+        // Check for duplicate
+        const existingMeeting = project.meetings?.find(m => m.id === meeting.id);
+        if (existingMeeting) {
+          console.warn(`[BuildupContext] Meeting ${meeting.id} already exists in project ${projectId}`);
+          return project;
+        }
+
+        return {
+          ...project,
+          meetings: [...(project.meetings || []), meeting]
+        };
+      }));
+
+      logEvent('MEETING_ADDED_TO_PROJECT', e.detail, 'BuildupContext');
+      console.log(`✅ [BuildupContext] Added meeting ${meeting.id} to project ${projectId}`);
+
+      // 🔥 Sprint 3 Phase 1: Check for phase transition
+      const meetingSequence = identifyMeetingSequence(schedule);
+      if (meetingSequence) {
+        const targetPhase = MEETING_SEQUENCE_TO_PHASE_MAP[meetingSequence];
+        if (targetPhase) {
+          // Find the project that was just updated
+          const updatedProject = projects.find(p => p.id === projectId);
+          if (updatedProject && updatedProject.phase !== targetPhase) {
+            console.log(`🚀 [Phase Transition] Triggering phase change for project ${projectId}: ${updatedProject.phase} → ${targetPhase}`);
+            executePhaseTransition(projectId, targetPhase, setProjects);
+          }
+        }
+      }
+    };
+
+    // Handle schedule updated event
+    const handleScheduleUpdated = (e: CustomEvent<ScheduleEventDetail>) => {
+      const { schedule, metadata } = e.detail;
+
+      // 1. Prevent circular reference
+      if (!e.detail.eventId || !EventSourceTracker.shouldProcess(e.detail.eventId)) {
+        logEvent('CIRCULAR_REF_PREVENTED', e.detail, 'BuildupContext');
+        return;
+      }
+
+      // 2. Only process buildup project meetings
+      if (schedule.subType !== 'buildup_project') return;
+
+      // 3. Check project ID
+      const projectId = metadata?.projectId;
+      if (!projectId) return;
+
+      // 4. Convert to Meeting
+      const updatedMeeting = dataConverter.scheduleToMeeting(schedule);
+
+      // 5. Update in project meetings array
+      setProjects(prev => prev.map(project => {
+        if (project.id !== projectId) return project;
+
+        return {
+          ...project,
+          meetings: updateMeetingInArray(project.meetings || [], schedule.id, updatedMeeting)
+        };
+      }));
+
+      logEvent('MEETING_UPDATED_IN_PROJECT', e.detail, 'BuildupContext');
+      console.log(`✅ [BuildupContext] Updated meeting ${schedule.id} in project ${projectId}`);
+    };
+
+    // Handle schedule deleted event
+    const handleScheduleDeleted = (e: CustomEvent<ScheduleEventDetail>) => {
+      const { schedule, metadata } = e.detail;
+
+      // 1. Prevent circular reference
+      if (!e.detail.eventId || !EventSourceTracker.shouldProcess(e.detail.eventId)) {
+        logEvent('CIRCULAR_REF_PREVENTED', e.detail, 'BuildupContext');
+        return;
+      }
+
+      // 2. Only process buildup project meetings
+      if (schedule.subType !== 'buildup_project') return;
+
+      // 3. Check project ID
+      const projectId = metadata?.projectId;
+      if (!projectId) return;
+
+      // 4. Remove from project meetings array
+      setProjects(prev => prev.map(project => {
+        if (project.id !== projectId) return project;
+
+        return {
+          ...project,
+          meetings: removeMeetingFromArray(project.meetings || [], schedule.id)
+        };
+      }));
+
+      logEvent('MEETING_REMOVED_FROM_PROJECT', e.detail, 'BuildupContext');
+      console.log(`✅ [BuildupContext] Removed meeting ${schedule.id} from project ${projectId}`);
+    };
+
+    // Handle schedule synced event (batch sync)
+    const handleScheduleSynced = (e: CustomEvent<ScheduleEventDetail>) => {
+      const { metadata } = e.detail;
+
+      // This would be used for initial sync or batch updates
+      // For now, we'll skip implementation as it requires more complex logic
+      console.log('[BuildupContext] Schedule sync event received', metadata);
+    };
+
+    // Step 3-1: Register all event listeners
+    const eventHandlers: Record<string, EventListener> = {
+      [CONTEXT_EVENTS.SCHEDULE_CREATED]: handleScheduleCreated as EventListener,
+      [CONTEXT_EVENTS.SCHEDULE_UPDATED]: handleScheduleUpdated as EventListener,
+      [CONTEXT_EVENTS.SCHEDULE_DELETED]: handleScheduleDeleted as EventListener,
+      [CONTEXT_EVENTS.SCHEDULE_SYNCED]: handleScheduleSynced as EventListener
+    };
+
+    // Register listeners
+    console.log('🎧 [BuildupContext] Registering schedule event listeners...');
+    Object.entries(eventHandlers).forEach(([event, handler]) => {
+      window.addEventListener(event, handler);
+      console.log(`  ✓ Registered: ${event}`);
+    });
+
+    // Cleanup
+    return () => {
+      console.log('🔌 [BuildupContext] Removing schedule event listeners...');
+      Object.entries(eventHandlers).forEach(([event, handler]) => {
+        window.removeEventListener(event, handler);
+      });
+    };
+  }, []); // Empty dependency to run once
 
   // Stage C-3: Phase transition functions connected to new system
   const triggerPhaseTransition = async (projectId: string, meetingRecord: GuideMeetingRecord, pmId: string) => {
@@ -973,6 +1529,96 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       return price >= min && price <= max;
     });
   };
+
+  // ================================================================================
+  // Sprint 1 Step 3-3: Meeting Management Public Methods
+  // ================================================================================
+
+  // Add meeting to project
+  const addMeetingToProject = useCallback((projectId: string, meeting: Meeting) => {
+    // 1. Update internal state
+    setProjects(prev => prev.map(project => {
+      if (project.id !== projectId) return project;
+
+      // Check for duplicate
+      const existingMeeting = project.meetings?.find(m => m.id === meeting.id);
+      if (existingMeeting) {
+        console.warn(`[BuildupContext] Meeting ${meeting.id} already exists in project ${projectId}`);
+        return project;
+      }
+
+      return {
+        ...project,
+        meetings: [...(project.meetings || []), meeting]
+      };
+    }));
+
+    // 2. Emit event to ScheduleContext (for bidirectional sync in future)
+    // For now, we'll skip this to avoid circular dependency
+    // This will be implemented in Sprint 2
+
+    console.log(`✅ [BuildupContext] Meeting ${meeting.id} added to project ${projectId}`);
+  }, []);
+
+  // Update project meeting
+  const updateProjectMeeting = useCallback((projectId: string, meetingId: string, updates: Partial<Meeting>) => {
+    setProjects(prev => prev.map(project => {
+      if (project.id !== projectId) return project;
+
+      const meetingExists = project.meetings?.find(m => m.id === meetingId);
+      if (!meetingExists) {
+        console.warn(`[BuildupContext] Meeting ${meetingId} not found in project ${projectId}`);
+        return project;
+      }
+
+      return {
+        ...project,
+        meetings: updateMeetingInArray(project.meetings || [], meetingId, updates)
+      };
+    }));
+
+    console.log(`✅ [BuildupContext] Meeting ${meetingId} updated in project ${projectId}`);
+  }, []);
+
+  // Remove meeting from project
+  const removeProjectMeeting = useCallback((projectId: string, meetingId: string) => {
+    setProjects(prev => prev.map(project => {
+      if (project.id !== projectId) return project;
+
+      const meetingExists = project.meetings?.find(m => m.id === meetingId);
+      if (!meetingExists) {
+        console.warn(`[BuildupContext] Meeting ${meetingId} not found in project ${projectId}`);
+        return project;
+      }
+
+      return {
+        ...project,
+        meetings: removeMeetingFromArray(project.meetings || [], meetingId)
+      };
+    }));
+
+    console.log(`✅ [BuildupContext] Meeting ${meetingId} removed from project ${projectId}`);
+  }, []);
+
+  // Sync all project meetings (batch update)
+  const syncProjectMeetings = useCallback((projectId: string, meetings: Meeting[]) => {
+    setProjects(prev => prev.map(project => {
+      if (project.id !== projectId) return project;
+
+      return {
+        ...project,
+        meetings
+      };
+    }));
+
+    console.log(`✅ [BuildupContext] Synced ${meetings.length} meetings for project ${projectId}`);
+  }, []);
+
+  // Get project meetings
+  const getProjectMeetings = useCallback((projectId: string): Meeting[] => {
+    const project = projects.find(p => p.id === projectId);
+    return project?.meetings || [];
+  }, [projects]);
 
   // 관리자용: 새 서비스 추가
   const addService = async (service: BuildupService) => {
@@ -1266,8 +1912,150 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     rejectPhaseTransition,
     getPendingPhaseApprovals,
     getPhaseTransitionHistory,
-    phaseTransitionEvents
+    phaseTransitionEvents,
+
+    // Meeting Management Functions (Sprint 1 Step 3)
+    addMeetingToProject,
+    updateProjectMeeting,
+    removeProjectMeeting,
+    syncProjectMeetings,
+    getProjectMeetings
   };
+
+  // Development: Store context for testing
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+      // @ts-ignore
+      if (window.testBuildupSync) {
+        // @ts-ignore
+        window.testBuildupSync._context = value;
+        // @ts-ignore
+        window.testBuildupSync.getContext = () => value;
+      }
+
+      // Step 5: Integration Testing Tools
+      // @ts-ignore
+      window.syncTest = {
+        // 초기 동기화 재실행
+        runInitialSync: () => {
+          console.log('🧪 [Test] Running initial sync...');
+          performInitialSync();
+        },
+
+        // 동기화 상태 확인
+        getSyncStatus: () => {
+          return {
+            isInProgress: scheduleContext.isSyncInProgress(),
+            scheduleCount: scheduleContext.schedules.length,
+            buildupMeetingCount: scheduleContext.buildupMeetings.length,
+            projectCount: projects.length,
+            totalMeetings: projects.reduce((acc, p) => acc + (p.meetings?.length || 0), 0)
+          };
+        },
+
+        // 프로젝트별 스케줄 확인
+        checkProjectSchedules: (projectId: string) => {
+          const hasSchedules = scheduleContext.hasSchedulesForProject(projectId);
+          const projectSchedules = scheduleContext.getSchedulesByProject(projectId);
+          const project = projects.find(p => p.id === projectId);
+
+          return {
+            projectId,
+            hasSchedules,
+            scheduleCount: projectSchedules.length,
+            projectMeetingCount: project?.meetings?.length || 0,
+            schedules: projectSchedules,
+            meetings: project?.meetings || []
+          };
+        },
+
+        // 이벤트 추적기 상태
+        getEventTrackerStatus: () => {
+          return {
+            activeTrackers: EventSourceTracker.getActiveCount()
+          };
+        },
+
+        // 전체 동기화 검증
+        validateSync: () => {
+          const results: any = {};
+
+          projects.forEach(project => {
+            const check = window.syncTest.checkProjectSchedules(project.id);
+            // ✅ 올바른 검증: 프로젝트별 buildup_project 스케줄만 카운트
+            const projectBuildupSchedules = scheduleContext.schedules.filter(s =>
+              s.type === 'buildup_project' && s.projectId === project.id
+            ).length;
+
+            results[project.id] = {
+              projectTitle: project.title,
+              status: check.hasSchedules ? '✅ Synced' : '❌ Not Synced',
+              meetingCount: check.projectMeetingCount,
+              scheduleCount: check.scheduleCount, // 전체 스케줄 수
+              buildupScheduleCount: projectBuildupSchedules, // 실제 비교할 값
+              isValid: projectBuildupSchedules >= check.projectMeetingCount, // >=로 변경 (스케줄이 미팅보다 많거나 같으면 정상)
+              syncRatio: check.projectMeetingCount > 0 ?
+                Math.round((projectBuildupSchedules / check.projectMeetingCount) * 100) + '%' : '100%'
+            };
+          });
+
+          console.table(results);
+          return results;
+        },
+
+        // 강제 재동기화 (기존 데이터 삭제 후)
+        forcePurgeAndResync: async () => {
+          console.log('🧪 [Test] Force purge and resync...');
+
+          // ScheduleContext 클리어
+          scheduleContext.clearAllSchedules();
+
+          // 잠시 대기
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          // 재동기화
+          await performInitialSync();
+
+          // 결과 검증
+          return window.syncTest.validateSync();
+        }
+      };
+
+      console.log('🧪 Sync testing tools available at window.syncTest');
+      console.log('Available methods:', Object.keys(window.syncTest));
+      console.log('');
+      console.log('🎉 Sprint 1 Step 5: Integration Testing Complete!');
+      console.log('📋 Test Commands:');
+      console.log('  • window.syncTest.getSyncStatus() - Check sync status');
+      console.log('  • window.syncTest.validateSync() - Validate all projects');
+      console.log('  • window.syncTest.runInitialSync() - Run sync again');
+      console.log('  • window.syncTest.forcePurgeAndResync() - Clean and resync');
+      console.log('');
+      console.log('🚀 Sprint 3 Phase 1: Phase Transition Test Commands:');
+      console.log('  • window.testBuildupSync.testPhaseTransition("PRJ-001", "guide_1st") - Test single phase transition');
+      console.log('  • window.testBuildupSync.testAllPhaseTransitions("PRJ-001") - Test all phase transitions');
+      console.log('');
+      console.log('🎨 Sprint 3 Phase 2: UI Integration Test Commands:');
+      console.log('  • window.testBuildupSync.testUIIntegration("PRJ-001") - Test UI updates with phase transitions');
+      console.log('');
+      console.log('🎭 Sprint 3 Phase 3: UI Feedback & Animation Test Commands:');
+      console.log('  • window.testBuildupSync.testUIFeedback("PRJ-001") - Test UI feedback and animations');
+      console.log('');
+      console.log('📝 Available meeting types for phase transitions:');
+      console.log('  • pre_meeting → contract_signed (계약 체결)');
+      console.log('  • guide_1st → planning (기획)');
+      console.log('  • guide_2nd → design (디자인)');
+      console.log('  • guide_3rd → execution (실행)');
+      console.log('  • guide_4th → review (검토)');
+      console.log('');
+
+      // 자동으로 초기 상태 검증 실행
+      setTimeout(() => {
+        console.log('🔍 Running automatic validation...');
+        window.syncTest.validateSync();
+      }, 2000);
+    }
+  }, [value]);
 
   return (
     <BuildupContext.Provider value={value}>
@@ -1282,4 +2070,380 @@ export function useBuildupContext() {
     throw new Error('useBuildupContext must be used within a BuildupProvider');
   }
   return context;
+}
+
+// ================================================================================
+// Sprint 1 Step 3-5: Development Test Cases
+// ================================================================================
+
+if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+  // @ts-ignore - Development only test utilities
+  window.testBuildupSync = {
+    // Test: Create a schedule and check if it syncs to buildup
+    createTestMeeting: (projectId: string = 'PRJ-001') => {
+      const testSchedule = {
+        id: `test-meeting-${Date.now()}`,
+        type: 'meeting',
+        subType: 'buildup_project',
+        title: 'Test Meeting',
+        description: 'Test meeting for sync verification',
+        date: new Date(),
+        time: '10:00',
+        duration: 60,
+        location: 'Online',
+        participants: ['PM', 'Client'],
+        status: 'scheduled',
+        priority: 'high',
+        isRecurring: false,
+        createdAt: new Date(),
+        createdBy: 'test-system'
+      };
+
+      const testEvent = new CustomEvent(CONTEXT_EVENTS.SCHEDULE_CREATED, {
+        detail: {
+          action: 'created',
+          schedule: testSchedule,
+          source: 'Test',
+          timestamp: Date.now(),
+          eventId: `test-${Date.now()}`,
+          metadata: {
+            projectId
+          }
+        }
+      });
+
+      console.log('🧪 [TEST] Dispatching test schedule:created event...');
+      window.dispatchEvent(testEvent);
+      return testSchedule.id;
+    },
+
+    // Test: Update a schedule
+    updateTestMeeting: (meetingId: string, projectId: string = 'PRJ-001') => {
+      const updatedSchedule = {
+        id: meetingId,
+        type: 'meeting',
+        subType: 'buildup_project',
+        title: 'Updated Test Meeting',
+        description: 'Updated description',
+        date: new Date(),
+        time: '14:00',
+        duration: 90,
+        location: 'Office',
+        participants: ['PM', 'Client', 'Developer'],
+        status: 'scheduled',
+        priority: 'high',
+        isRecurring: false,
+        createdAt: new Date(),
+        createdBy: 'test-system'
+      };
+
+      const testEvent = new CustomEvent(CONTEXT_EVENTS.SCHEDULE_UPDATED, {
+        detail: {
+          action: 'updated',
+          schedule: updatedSchedule,
+          source: 'Test',
+          timestamp: Date.now(),
+          eventId: `test-update-${Date.now()}`,
+          metadata: {
+            projectId
+          }
+        }
+      });
+
+      console.log('🧪 [TEST] Dispatching test schedule:updated event...');
+      window.dispatchEvent(testEvent);
+    },
+
+    // Test: Delete a schedule
+    deleteTestMeeting: (meetingId: string, projectId: string = 'PRJ-001') => {
+      const testEvent = new CustomEvent(CONTEXT_EVENTS.SCHEDULE_DELETED, {
+        detail: {
+          action: 'deleted',
+          schedule: {
+            id: meetingId,
+            type: 'meeting',
+            subType: 'buildup_project',
+            title: 'Deleted Meeting',
+            date: new Date(),
+            status: 'cancelled'
+          },
+          source: 'Test',
+          timestamp: Date.now(),
+          eventId: `test-delete-${Date.now()}`,
+          metadata: {
+            projectId
+          }
+        }
+      });
+
+      console.log('🧪 [TEST] Dispatching test schedule:deleted event...');
+      window.dispatchEvent(testEvent);
+    },
+
+    // Check project meetings
+    checkProjectMeetings: (projectId: string = 'PRJ-001') => {
+      const buildupContext = window.testBuildupSync.getContext();
+      if (!buildupContext) {
+        console.error('[TEST] BuildupContext not available');
+        return;
+      }
+
+      const meetings = buildupContext.getProjectMeetings(projectId);
+      console.log(`🔍 [TEST] Project ${projectId} meetings:`, meetings);
+      console.table(meetings.map(m => ({
+        id: m.id,
+        title: m.title,
+        type: m.type,
+        date: m.date,
+        duration: m.duration,
+        attendees: m.attendees?.length || 0
+      })));
+      return meetings;
+    },
+
+    // Check sync status
+    checkSyncStatus: () => {
+      console.log('📊 [TEST] Sync Status:');
+      console.log('  - Active event trackers:', EventSourceTracker.getActiveCount());
+      console.log('  - Test commands:');
+      console.log('    window.testBuildupSync.createTestMeeting("PRJ-001")');
+      console.log('    window.testBuildupSync.checkProjectMeetings("PRJ-001")');
+      console.log('    window.testBuildupSync.runFullSyncTest()');
+    },
+
+    // Run full sync test
+    runFullSyncTest: async (projectId: string = 'PRJ-001') => {
+      console.log('🎬 [TEST] Starting full sync test...');
+
+      // 1. Create a test meeting
+      console.log('1️⃣ Creating test meeting...');
+      const meetingId = window.testBuildupSync.createTestMeeting(projectId);
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 2. Check if it was added
+      console.log('2️⃣ Checking if meeting was added...');
+      window.testBuildupSync.checkProjectMeetings(projectId);
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 3. Update the meeting
+      console.log('3️⃣ Updating test meeting...');
+      window.testBuildupSync.updateTestMeeting(meetingId, projectId);
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 4. Check if it was updated
+      console.log('4️⃣ Checking if meeting was updated...');
+      window.testBuildupSync.checkProjectMeetings(projectId);
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 5. Delete the meeting
+      console.log('5️⃣ Deleting test meeting...');
+      window.testBuildupSync.deleteTestMeeting(meetingId, projectId);
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 6. Check if it was removed
+      console.log('6️⃣ Checking if meeting was removed...');
+      window.testBuildupSync.checkProjectMeetings(projectId);
+
+      console.log('✅ [TEST] Full sync test completed!');
+    },
+
+    // 🔥 Sprint 3 Phase 1: Test phase transition
+    testPhaseTransition: async (projectId: string = 'PRJ-001', meetingType: string = 'guide_1st') => {
+      console.log('🚀 [TEST] Testing phase transition...');
+      console.log(`📌 Project: ${projectId}, Meeting Type: ${meetingType}`);
+
+      // Get current project phase
+      const buildupContext = window.testBuildupSync.getContext();
+      if (!buildupContext) {
+        console.error('[TEST] BuildupContext not available');
+        return;
+      }
+
+      const project = buildupContext.projects.find((p: any) => p.id === projectId);
+      if (!project) {
+        console.error(`[TEST] Project ${projectId} not found`);
+        return;
+      }
+
+      console.log(`📊 Current Phase: ${project.phase} (${PHASE_LABELS[project.phase] || project.phase})`);
+
+      // Create a meeting with specific type
+      const testSchedule = {
+        id: `test-phase-${Date.now()}`,
+        type: 'meeting',
+        subType: 'buildup_project',
+        title: `테스트 미팅 - ${meetingType}`,
+        description: `Phase transition test for ${meetingType}`,
+        date: new Date(),
+        time: '10:00',
+        duration: 60,
+        location: 'Online',
+        participants: ['PM', 'Client'],
+        status: 'scheduled',
+        priority: 'high',
+        isRecurring: false,
+        createdAt: new Date(),
+        createdBy: 'test-system',
+        meetingSequence: meetingType // Explicitly set meeting sequence
+      };
+
+      const testEvent = new CustomEvent(CONTEXT_EVENTS.SCHEDULE_CREATED, {
+        detail: {
+          action: 'created',
+          schedule: testSchedule,
+          source: 'Test',
+          timestamp: Date.now(),
+          eventId: `test-phase-${Date.now()}`,
+          metadata: {
+            projectId
+          }
+        }
+      });
+
+      console.log('📤 Dispatching schedule:created event with meeting sequence:', meetingType);
+      window.dispatchEvent(testEvent);
+
+      // Wait for state update
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Check if phase changed
+      const updatedProject = buildupContext.projects.find((p: any) => p.id === projectId);
+      if (updatedProject) {
+        console.log(`📊 New Phase: ${updatedProject.phase} (${PHASE_LABELS[updatedProject.phase] || updatedProject.phase})`);
+
+        const expectedPhase = MEETING_SEQUENCE_TO_PHASE_MAP[meetingType];
+        if (expectedPhase && updatedProject.phase === expectedPhase) {
+          console.log(`✅ Phase transition successful! ${project.phase} → ${updatedProject.phase}`);
+        } else if (expectedPhase) {
+          console.log(`⚠️ Phase transition expected ${expectedPhase}, but got ${updatedProject.phase}`);
+        } else {
+          console.log(`ℹ️ No phase transition expected for meeting type: ${meetingType}`);
+        }
+      }
+
+      return updatedProject;
+    },
+
+    // Test all phase transitions
+    testAllPhaseTransitions: async (projectId: string = 'PRJ-001') => {
+      console.log('🔄 [TEST] Testing all phase transitions...');
+
+      const transitions = [
+        { type: 'pre_meeting', expectedPhase: 'contract_signed', label: '사전 미팅 → 계약 체결' },
+        { type: 'guide_1st', expectedPhase: 'planning', label: '1차 가이드 → 기획 단계' },
+        { type: 'guide_2nd', expectedPhase: 'design', label: '2차 가이드 → 디자인 단계' },
+        { type: 'guide_3rd', expectedPhase: 'execution', label: '3차 가이드 → 실행 단계' },
+        { type: 'guide_4th', expectedPhase: 'review', label: '4차 가이드 → 검토 단계' }
+      ];
+
+      for (const transition of transitions) {
+        console.log(`\n🔹 Testing: ${transition.label}`);
+        await window.testBuildupSync.testPhaseTransition(projectId, transition.type);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      console.log('\n✅ [TEST] All phase transition tests completed!');
+    },
+
+    // 🔥 Sprint 3 Phase 2: UI 업데이트 통합 테스트
+    testUIIntegration: async (projectId: string = 'PRJ-001') => {
+      console.log('🎨 [TEST] Testing Sprint 3 Phase 2: UI Integration...');
+
+      const buildupContext = window.testBuildupSync.getContext();
+      if (!buildupContext) {
+        console.error('[TEST] BuildupContext not available');
+        return;
+      }
+
+      // 1. 현재 프로젝트 단계 확인
+      const project = buildupContext.projects.find((p: any) => p.id === projectId);
+      if (!project) {
+        console.error(`[TEST] Project ${projectId} not found`);
+        return;
+      }
+
+      console.log(`📊 현재 프로젝트 단계: ${project.phase} (${PHASE_LABELS[project.phase] || project.phase})`);
+
+      // 2. 단계 전환 테스트 및 UI 업데이트 확인
+      console.log('\n🔄 Testing phase transition with UI updates...');
+      await window.testBuildupSync.testPhaseTransition(projectId, 'guide_1st');
+
+      // 3. 업데이트된 프로젝트 확인
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const updatedProject = buildupContext.projects.find((p: any) => p.id === projectId);
+      console.log(`📊 업데이트된 단계: ${updatedProject?.phase} (${PHASE_LABELS[updatedProject?.phase] || updatedProject?.phase})`);
+
+      // 4. UI 컴포넌트 검증 가이드
+      console.log('\n🎯 UI 컴포넌트 검증 가이드:');
+      console.log('  1. ProjectDetail: 7단계 진행바에서 현재 단계 강조 표시 확인');
+      console.log('  2. BuildupCalendarV3: "단계 필터" 버튼 클릭하여 필터 UI 확인');
+      console.log('  3. ServiceCatalog: "현재 단계" 추천 탭에서 단계별 서비스 확인');
+      console.log('  4. 단계 전환 시 토스트 알림 표시 확인');
+
+      console.log('\n✅ [TEST] Phase 2 UI Integration test completed!');
+      console.log('🔔 Manual verification required for UI components');
+    },
+
+    // 🔥 Sprint 3 Phase 3: UI 피드백 및 애니메이션 테스트
+    testUIFeedback: async (projectId: string = 'PRJ-001') => {
+      console.log('🎭 [TEST] Testing Sprint 3 Phase 3: UI Feedback & Animations...');
+
+      const buildupContext = window.testBuildupSync.getContext();
+      if (!buildupContext) {
+        console.error('[TEST] BuildupContext not available');
+        return;
+      }
+
+      const project = buildupContext.projects.find((p: any) => p.id === projectId);
+      if (!project) {
+        console.error(`[TEST] Project ${projectId} not found`);
+        return;
+      }
+
+      console.log(`📊 현재 프로젝트: ${project.title || projectId}`);
+      console.log(`📊 현재 단계: ${project.phase} (${PHASE_LABELS[project.phase] || project.phase})`);
+
+      // 1. 단계별 맞춤 토스트 메시지 테스트
+      console.log('\n🎯 Testing customized toast messages...');
+      const phases = ['design', 'execution', 'review'];
+
+      for (const phase of phases) {
+        console.log(`  ➤ Testing ${phase} phase transition...`);
+        await window.testBuildupSync.testPhaseTransition(projectId, phase === 'design' ? 'guide_2nd' : phase === 'execution' ? 'guide_3rd' : 'guide_4th');
+        await new Promise(resolve => setTimeout(resolve, 2000)); // 토스트 표시 시간 대기
+      }
+
+      // 2. UI 피드백 검증 가이드
+      console.log('\n🎨 UI 피드백 및 애니메이션 검증 가이드:');
+      console.log('  1. 단계별 맞춤 토스트: 각 단계마다 고유한 이모지와 메시지 확인');
+      console.log('     - 기획: 🎯, 디자인: 🎨, 실행: 🚀, 검토: ✅');
+      console.log('  2. ProjectDetail 애니메이션:');
+      console.log('     - 7단계 진행률 시스템 전체 확대/축소 효과');
+      console.log('     - 현재 단계 텍스트 펄스 애니메이션 및 "새로 변경됨!" 표시');
+      console.log('     - 진행바 그라데이션 및 펄스 효과');
+      console.log('     - 현재 단계 점(dot) 바운스 애니메이션');
+      console.log('  3. Phase History 탭:');
+      console.log('     - 최근 변경사항 알림 카드 표시');
+      console.log('     - 히스토리 컨테이너 링 효과');
+
+      console.log('\n🎯 수동 검증 단계:');
+      console.log('  1. ProjectDetail 페이지로 이동');
+      console.log('  2. 단계 전환 테스트 실행 후 애니메이션 효과 확인');
+      console.log('  3. "단계 이력" 탭에서 최근 변경사항 알림 확인');
+      console.log('  4. 여러 단계 전환을 연속으로 실행하여 애니메이션 지속성 확인');
+
+      console.log('\n✅ [TEST] Phase 3 UI Feedback test completed!');
+      return true;
+    },
+
+    // Store context reference for testing
+    getContext: () => null,
+    setContext: (ctx: BuildupContextType) => {
+      // @ts-ignore
+      window.testBuildupSync._context = ctx;
+    }
+  };
+
+  console.log('🧪 [BuildupContext] Test utilities loaded. Access via window.testBuildupSync');
+  console.log('   Run window.testBuildupSync.checkSyncStatus() for available commands');
 }

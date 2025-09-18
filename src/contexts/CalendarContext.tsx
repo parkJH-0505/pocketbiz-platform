@@ -370,6 +370,15 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
       filtered = filtered.filter(e => filter.statuses!.includes(e.status));
     }
 
+    // 🔥 Sprint 3 Phase 2: 프로젝트 단계별 필터
+    if (filter.phases && filter.phases.length > 0) {
+      filtered = filtered.filter(e => {
+        // 프로젝트 ID로 프로젝트 찾기
+        const project = projects.find(p => p.id === e.projectId);
+        return project && filter.phases!.includes(project.phase);
+      });
+    }
+
     // 날짜 범위 필터
     if (filter.dateRange) {
       filtered = filtered.filter(e =>

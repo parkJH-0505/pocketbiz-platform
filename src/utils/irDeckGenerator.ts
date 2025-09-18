@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import type { AxisKey } from '../types';
+import { loadPretendardFont } from './fontConverter';
 
 export interface IRDeckData {
   // 회사 정보
@@ -55,6 +56,7 @@ export class IRDeckGenerator {
   private currentY: number = 40;
   private primaryColor = [15, 82, 222]; // RGB for primary-main
   private textColor = [24, 24, 27]; // RGB for neutral-dark
+  private fontLoaded: boolean = false;
 
   constructor() {
     this.pdf = new jsPDF({
@@ -69,7 +71,7 @@ export class IRDeckGenerator {
 
   async generate(data: IRDeckData): Promise<Blob> {
     // 폰트 설정
-    this.setupFonts();
+    await this.setupFonts();
 
     // 1. 타이틀 슬라이드
     this.createTitleSlide(data);
@@ -111,9 +113,24 @@ export class IRDeckGenerator {
     return this.pdf.output('blob');
   }
 
-  private setupFonts() {
-    // 한글 폰트 지원을 위한 설정 (실제로는 폰트 파일 필요)
-    this.pdf.setFont('helvetica');
+  private async setupFonts() {
+    try {
+      // Pretendard 폰트 로드
+      const fontBase64 = await loadPretendardFont();
+
+      // jsPDF에 폰트 추가
+      this.pdf.addFileToVFS('Pretendard-Regular.otf', fontBase64);
+      this.pdf.addFont('Pretendard-Regular.otf', 'Pretendard', 'normal');
+
+      // 기본 폰트로 설정
+      this.pdf.setFont('Pretendard', 'normal');
+      this.fontLoaded = true;
+    } catch (error) {
+      console.error('Failed to load Korean font, falling back to default:', error);
+      // 폰트 로드 실패시 기본 폰트 사용
+      this.pdf.setFont('helvetica');
+      this.fontLoaded = false;
+    }
   }
 
   private createTitleSlide(data: IRDeckData) {
@@ -561,22 +578,49 @@ export class IRDeckGenerator {
   }
 
   private splitText(text: string, maxWidth: number): string[] {
-    // 텍스트를 여러 줄로 분할 (간단한 구현)
-    const words = text.split(' ');
+    // 한글 텍스트를 고려한 텍스트 분할
+    if (!this.fontLoaded) {
+      // 폰트가 로드되지 않은 경우 기존 방식 사용
+      const words = text.split(' ');
+      const lines: string[] = [];
+      let currentLine = '';
+
+      words.forEach(word => {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        const testWidth = this.pdf.getTextWidth(testLine);
+
+        if (testWidth > maxWidth && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      });
+
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+
+      return lines;
+    }
+
+    // 한글 폰트가 로드된 경우 문자 단위로 분할
     const lines: string[] = [];
     let currentLine = '';
+    const chars = text.split('');
 
-    words.forEach(word => {
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
+    for (let i = 0; i < chars.length; i++) {
+      const char = chars[i];
+      const testLine = currentLine + char;
       const testWidth = this.pdf.getTextWidth(testLine);
 
       if (testWidth > maxWidth && currentLine) {
         lines.push(currentLine);
-        currentLine = word;
+        currentLine = char;
       } else {
         currentLine = testLine;
       }
-    });
+    }
 
     if (currentLine) {
       lines.push(currentLine);
