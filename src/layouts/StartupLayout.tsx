@@ -42,7 +42,9 @@ const StartupLayout = () => {
   // 대시보드 페이지인지 확인
   const isDashboardPage = location.pathname === '/startup/dashboard';
 
-  console.log('StartupLayout rendering, location:', location.pathname);
+  if (import.meta.env.DEV) {
+    console.log('StartupLayout rendering, location:', location.pathname);
+  }
 
   // MASTER_PLAN.md 기준 5개 메뉴 (Sprint 3 PRD v4.0) + 추가 메뉴 4개
   const menuItems: Array<{

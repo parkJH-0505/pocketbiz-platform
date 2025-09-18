@@ -120,7 +120,9 @@ export class QueueRecoveryManager {
       clearInterval(this.monitoringInterval);
     }
 
-    console.log('🔍 Starting queue monitoring...');
+    if (import.meta.env.DEV) {
+      console.log('🔍 Starting queue monitoring...');
+    }
 
     this.monitoringInterval = setInterval(() => {
       this.performHealthCheck();
@@ -137,7 +139,9 @@ export class QueueRecoveryManager {
     if (this.monitoringInterval) {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = null;
-      console.log('⏹️ Queue monitoring stopped');
+      if (import.meta.env.DEV) {
+        console.log('⏹️ Queue monitoring stopped');
+      }
     }
   }
 
@@ -152,7 +156,10 @@ export class QueueRecoveryManager {
       // 큐 상태 가져오기
       const queueStatus = this.getQueueStatus();
       if (!queueStatus) {
+        // Queue status not available - silently skip in production
+      if (import.meta.env.DEV) {
         console.warn('⚠️ Queue status not available');
+      }
         return failures;
       }
 
@@ -171,13 +178,19 @@ export class QueueRecoveryManager {
       // 자동 복구 시도 (심각하지 않은 경우만)
       for (const failure of failures) {
         if (failure.autoRecoverable && failure.severity !== 'critical') {
-          console.log(`🔧 Attempting auto-recovery for: ${failure.description}`);
+          if (import.meta.env.DEV) {
+            console.log(`🔧 Attempting auto-recovery for: ${failure.description}`);
+          }
           const recoveryResult = await this.attemptAutoRecovery(failure);
 
           if (recoveryResult.success) {
-            console.log(`✅ Auto-recovery successful: ${failure.type}`);
+            if (import.meta.env.DEV) {
+              console.log(`✅ Auto-recovery successful: ${failure.type}`);
+            }
           } else {
-            console.log(`❌ Auto-recovery failed: ${failure.type}`);
+            if (import.meta.env.DEV) {
+              console.log(`❌ Auto-recovery failed: ${failure.type}`);
+            }
           }
         }
       }
@@ -185,7 +198,9 @@ export class QueueRecoveryManager {
       // 건강성 로깅
       if (failures.length > 0) {
         const criticalCount = failures.filter(f => f.severity === 'critical').length;
-        console.log(`🚨 Queue health check: ${failures.length} issues found (${criticalCount} critical)`);
+        if (import.meta.env.DEV) {
+          console.log(`🚨 Queue health check: ${failures.length} issues found (${criticalCount} critical)`);
+        }
 
         EdgeCaseLogger.log('EC_QUEUE_001', {
           failureCount: failures.length,
@@ -197,7 +212,9 @@ export class QueueRecoveryManager {
       }
 
     } catch (error) {
-      console.error('❌ Queue health check failed:', error);
+      if (import.meta.env.DEV) {
+        console.error('❌ Queue health check failed:', error);
+      }
       EdgeCaseLogger.log('EC_QUEUE_002', {
         error: error.message,
         timestamp: new Date().toISOString()

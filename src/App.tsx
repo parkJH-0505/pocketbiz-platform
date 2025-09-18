@@ -101,17 +101,21 @@ function App() {
   // startup 경로들은 role 파라미터 없어도 작동하도록 수정
   const showLanding = !roleParam && window.location.pathname === '/' && !window.location.pathname.includes('/startup');
 
-  console.log('App rendering:', {
-    isAuthenticated,
-    roleParam,
-    userRole,
-    showLanding,
-    pathname: window.location.pathname,
-    search: window.location.search
-  });
+  if (import.meta.env.DEV) {
+    console.log('App rendering:', {
+      isAuthenticated,
+      roleParam,
+      userRole,
+      showLanding,
+      pathname: window.location.pathname,
+      search: window.location.search
+    });
+  }
 
   if (!isAuthenticated) {
-    console.log('Not authenticated, showing Login');
+    if (import.meta.env.DEV) {
+      console.log('Not authenticated, showing Login');
+    }
     return <Login />;
   }
 
