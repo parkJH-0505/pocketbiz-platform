@@ -26,12 +26,53 @@ const LoadingSkeleton: React.FC<{ className?: string }> = ({ className }) => (
   <div className={`animate-pulse bg-gray-200 rounded-xl ${className}`} />
 );
 
+// Error Boundary 컴포넌트
+class DashboardErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Dashboard Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">대시보드 로딩 중 오류 발생</h2>
+            <p className="text-gray-600 mb-4">{this.state.error?.message}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              페이지 새로고침
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 const Dashboard: React.FC = () => {
   const [showKPIPanel, setShowKPIPanel] = useState(false);
 
   return (
-    <DashboardProvider>
-      <div className="min-h-screen bg-gray-50">
+    <DashboardErrorBoundary>
+      <DashboardProvider>
+        <div className="min-h-screen bg-gray-50">
         {/* 오늘의 액션 - 상단 고정 알림바 */}
         <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
           <div className="max-w-7xl mx-auto px-6 py-3">
@@ -146,8 +187,9 @@ const Dashboard: React.FC = () => {
             </>
           )}
         </AnimatePresence>
-      </div>
-    </DashboardProvider>
+        </div>
+      </DashboardProvider>
+    </DashboardErrorBoundary>
   );
 };
 
