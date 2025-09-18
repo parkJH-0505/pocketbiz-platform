@@ -16,7 +16,8 @@ import {
   GraduationCap,
   Calendar,
   Wrench,
-  Bot
+  Bot,
+  FolderLock
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useBuildupContext } from '../contexts/BuildupContext';
@@ -51,7 +52,8 @@ const StartupLayout = () => {
       icon: FileText,
       subItems: [
         { path: '/startup/kpi?tab=assess', label: '진단하기' },
-        { path: '/startup/kpi?tab=insights', label: '결과 & 인사이트' }
+        { path: '/startup/kpi?tab=insights', label: '결과 & 인사이트' },
+        { path: '/startup/kpi?tab=action', label: '액션플랜' }
       ]
     },
     {
@@ -73,7 +75,8 @@ const StartupLayout = () => {
         { path: '/startup/buildup/calendar', label: '빌드업 캘린더' }
       ]
     },
-    { path: '/startup/profile', label: 'VDR/마이프로필', icon: User },
+    { path: '/startup/vdr', label: 'VDR', icon: FolderLock },
+    { path: '/startup/profile', label: '마이프로필', icon: User },
   ];
 
   return (

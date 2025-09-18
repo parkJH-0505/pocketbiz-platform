@@ -4,6 +4,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { ClusterProvider } from './contexts/ClusterContext';
 import { KPIDiagnosisProvider } from './contexts/KPIDiagnosisContext';
 import { BuildupProvider } from './contexts/BuildupContext';
+import { ScheduleProvider } from './contexts/ScheduleContext';
 import { UserProfileProvider } from './contexts/UserProfileContext';
 import { UserDocumentProvider } from './contexts/UserDocumentContext';
 import { ChatProvider } from './contexts/ChatContext';
@@ -13,6 +14,7 @@ import { IndustryIntelProvider } from './contexts/IndustryIntelContext';
 import { GrowthTrackingProvider } from './contexts/GrowthTrackingContext';
 import { RecommendationProvider } from './contexts/RecommendationContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { VDRProvider } from './contexts/VDRContext';
 import type { UserRole } from './types';
 
 // Development only: Calendar storage test utilities
@@ -55,6 +57,7 @@ import PocketDay from './pages/startup/PocketDay';
 import PocketBuilder from './pages/startup/PocketBuilder';
 import ConnectAI from './pages/startup/ConnectAI';
 import NotificationCenterPage from './pages/startup/NotificationCenter';
+import VDR from './pages/startup/VDR';
 
 // Admin Pages
 import AdminKPILibrary from './pages/admin/KPILibrary';
@@ -113,15 +116,17 @@ function App() {
           <ApplicationProgressProvider>
             <ClusterProvider>
               <KPIDiagnosisProvider>
-                <BuildupProvider>
-                  <ChatProvider>
-                    <CalendarProvider>
-                      <IndustryIntelProvider>
-                        <GrowthTrackingProvider>
-                          <RecommendationProvider>
-                            <NotificationProvider>
-                              <Router>
-                              <Routes>
+                <ScheduleProvider>
+                  <BuildupProvider>
+                    <ChatProvider>
+                      <CalendarProvider>
+                        <IndustryIntelProvider>
+                          <GrowthTrackingProvider>
+                            <RecommendationProvider>
+                              <NotificationProvider>
+                                <VDRProvider>
+                                  <Router>
+                                  <Routes>
                           {/* Landing page or redirect based on role */}
                           <Route path="/" element={
                             showLanding ? <LandingV3 /> :
@@ -163,7 +168,8 @@ function App() {
                             <Route path="pocket-builder" element={<PocketBuilder />} />
                             <Route path="connect-ai" element={<ConnectAI />} />
 
-                            <Route path="profile" element={<div className="p-8 text-center">VDR/마이프로필 (개발중)</div>} />
+                            <Route path="vdr" element={<VDR />} />
+                            <Route path="profile" element={<div className="p-8 text-center">마이프로필 (개발중)</div>} />
                             <Route path="cart" element={<Cart />} />
                             <Route path="checkout" element={<CheckoutEnhanced />} />
                             <Route path="messages" element={<Messages />} />
@@ -213,15 +219,17 @@ function App() {
 
                           {/* 404 */}
                           <Route path="*" element={<div className="p-8 text-center">페이지를 찾을 수 없습니다.</div>} />
-                              </Routes>
-                              </Router>
-                            </NotificationProvider>
-                          </RecommendationProvider>
-                        </GrowthTrackingProvider>
-                      </IndustryIntelProvider>
-                    </CalendarProvider>
-                  </ChatProvider>
-                </BuildupProvider>
+                                  </Routes>
+                                  </Router>
+                                </VDRProvider>
+                              </NotificationProvider>
+                            </RecommendationProvider>
+                          </GrowthTrackingProvider>
+                        </IndustryIntelProvider>
+                      </CalendarProvider>
+                    </ChatProvider>
+                  </BuildupProvider>
+                </ScheduleProvider>
               </KPIDiagnosisProvider>
             </ClusterProvider>
           </ApplicationProgressProvider>
