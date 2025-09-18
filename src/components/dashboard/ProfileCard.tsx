@@ -122,16 +122,19 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ className = '' }) => {
             <p className="text-white/70 text-xs">KPI</p>
           </div>
 
-          {/* 오른쪽: 담당자와 액션 */}
+          {/* 오른쪽: 담당 빌더와 액션 */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
                 <User className="w-4 h-4 text-white" />
               </div>
               <div>
-                <span className="text-white font-medium text-sm block">
-                  {userData.builder.name}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className="text-white/80 text-xs">담당 빌더</span>
+                  <span className="text-white font-medium text-sm">
+                    {userData.builder.name}
+                  </span>
+                </div>
                 <span className="text-white/70 text-xs">
                   {userData.builder.role}
                 </span>

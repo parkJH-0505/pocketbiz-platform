@@ -9,72 +9,173 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, Lightbulb, Users, Search, TrendingUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Lightbulb, Users, Search, TrendingUp, Calendar, Target, Star } from 'lucide-react';
 import { useKPIDiagnosis } from '../../contexts/KPIDiagnosisContext';
 import { useDashboard } from '../../contexts/DashboardContext';
+import { useCalendarContext } from '../../contexts/CalendarContext';
+import type { UnifiedCalendarEvent } from '../../types/unifiedCalendar.types';
+import type { MatchingResult } from '../../types/smartMatching/types';
+import { mockSmartMatchingResults } from '../../data/smartMatching/mockMatchingResults';
+import { transformSmartMatchingEvent, transformBuildupEvent } from '../../utils/unifiedCalendar.utils';
 
 const GrowthInsights: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { axisScores, overallScore, strongestAxis, weakestAxis, previousScores } = useKPIDiagnosis();
-  const { growthStatus } = useDashboard();
+  const { growthStatus, weeklySchedule } = useDashboard();
+  const { events: calendarEvents, stats: calendarStats } = useCalendarContext();
 
-  // 실제 KPI 데이터 기반 인사이트 생성
+  // 통합 이벤트 데이터 생성 (스마트매칭 + 빌드업)
+  const unifiedEvents = useMemo<UnifiedCalendarEvent[]>(() => {
+    const allEvents: UnifiedCalendarEvent[] = [];
+
+    // 스마트매칭 이벤트 변환
+    mockSmartMatchingResults.forEach(result => {
+      const transformResult = transformSmartMatchingEvent(result);
+      if (transformResult.success && transformResult.event) {
+        allEvents.push(transformResult.event);
+      }
+    });
+
+    // 빌드업 캘린더 이벤트 변환
+    calendarEvents.forEach(event => {
+      const transformResult = transformBuildupEvent(event);
+      if (transformResult.success && transformResult.event) {
+        allEvents.push(transformResult.event);
+      }
+    });
+
+    return allEvents.sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [calendarEvents]);
+
+  // 실제 활동 데이터 기반 인사이트 생성
   const insights = useMemo(() => {
     const currentScores = axisScores;
     const previous = previousScores;
+    const today = new Date();
+    const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    // 개인 패턴 분석
+    // 최근 활동 분석
+    const recentSmartMatchingEvents = unifiedEvents.filter(event =>
+      event.sourceType === 'smart_matching' &&
+      event.date >= oneWeekAgo
+    );
+    const recentBuildupEvents = unifiedEvents.filter(event =>
+      event.sourceType === 'buildup_schedule' &&
+      event.date >= oneWeekAgo
+    );
+    const completedBuildupEvents = calendarEvents.filter(event =>
+      event.status === 'completed' &&
+      new Date(event.completedAt || event.date) >= oneWeekAgo
+    );
+
+    // 개인 활동 패턴 분석
     const personalInsight = (() => {
-      if (strongestAxis && currentScores[strongestAxis as keyof typeof currentScores]) {
+      if (completedBuildupEvents.length > 0 && strongestAxis) {
+        const avgCompletionRate = (completedBuildupEvents.length / calendarEvents.length) * 100;
         const strongScore = currentScores[strongestAxis as keyof typeof currentScores];
         const improvement = previous[strongestAxis as keyof typeof previous]
           ? strongScore - previous[strongestAxis as keyof typeof previous]
           : 0;
 
-        if (improvement > 0) {
-          return {
-            title: '당신만의 성장 패턴',
-            insight: `${strongestAxis}축에서 지속적인 성장을 보이고 있어요. ${improvement.toFixed(1)}점 향상되었습니다`,
-            actionSuggestion: '이런 성장 패턴을 다른 영역에도 적용해보세요'
-          };
-        }
+        return {
+          title: '활동 기반 성장 패턴',
+          insight: `지난 주 ${completedBuildupEvents.length}개 미팅 완료로 ${strongestAxis}축이 ${improvement > 0 ? `+${improvement.toFixed(1)}점` : '안정적'} 성장했어요`,
+          actionSuggestion: `미팅 완료율 ${avgCompletionRate.toFixed(0)}%를 유지하며 다른 영역도 균형있게 발전시켜보세요`,
+          metrics: {
+            completedMeetings: completedBuildupEvents.length,
+            completionRate: avgCompletionRate,
+            strongestAxis,
+            improvement
+          }
+        };
+      }
+
+      if (recentSmartMatchingEvents.length > 0) {
+        const highScoreMatches = recentSmartMatchingEvents.filter(event =>
+          event.sourceType === 'smart_matching' && event.matchingScore >= 80
+        );
+
+        return {
+          title: '기회 매칭 패턴',
+          insight: `이번 주 ${recentSmartMatchingEvents.length}개 기회 중 ${highScoreMatches.length}개가 고매칭(80점+)이에요`,
+          actionSuggestion: 'KPI 데이터 완성도가 높을수록 더 정확한 매칭이 가능해요',
+          metrics: {
+            totalOpportunities: recentSmartMatchingEvents.length,
+            highScoreMatches: highScoreMatches.length,
+            matchingAccuracy: recentSmartMatchingEvents.length > 0 ? (highScoreMatches.length / recentSmartMatchingEvents.length) * 100 : 0
+          }
+        };
       }
 
       return {
-        title: '당신만의 성장 패턴',
-        insight: 'KPI 완성도가 높은 주에 기회 매칭률이 15% 더 높아져요',
-        actionSuggestion: '꾸준한 KPI 관리가 성장의 핵심입니다'
+        title: '성장 패턴 분석',
+        insight: '활동 데이터를 더 쌓으면 개인화된 성장 패턴을 분석해드릴게요',
+        actionSuggestion: 'KPI 진단과 미팅 참여를 통해 데이터를 축적해보세요'
       };
     })();
 
-    // 벤치마크 비교
+    // 활동 기반 벤치마크 비교
     const benchmarkInsight = (() => {
       const percentile = Math.round(((overallScore || 0) / 100) * 100);
+      const weeklyEngagement = completedBuildupEvents.length + recentSmartMatchingEvents.length;
+      const avgWeeklyEngagement = 4; // 평균 기준
 
-      if (percentile >= 75) {
+      if (percentile >= 75 && weeklyEngagement >= avgWeeklyEngagement) {
         return {
-          title: '동종업계 위치',
-          insight: `전체 KPI 점수 ${overallScore?.toFixed(1)}점으로 상위 ${100-percentile}% 수준입니다`,
-          encouragement: '업계 리더로 성장할 잠재력이 충분해요'
+          title: '성장 활동 벤치마크',
+          insight: `KPI ${overallScore?.toFixed(1)}점 + 주간활동 ${weeklyEngagement}건으로 상위 15% 수준입니다`,
+          encouragement: '성과와 활동 모두 우수해요! 이 속도로 성장하고 계세요',
+          metrics: {
+            kpiScore: overallScore,
+            weeklyActivity: weeklyEngagement,
+            benchmark: 'top_15_percent'
+          }
         };
       } else if (percentile >= 50) {
         return {
-          title: '동종업계 위치',
-          insight: `평균 이상의 성과를 보이고 있어요. 상위 ${100-percentile}% 수준입니다`,
-          encouragement: '조금만 더 노력하면 상위권 진입이 가능해요'
+          title: '성장 활동 벤치마크',
+          insight: `KPI는 평균 이상, ${weeklyEngagement >= avgWeeklyEngagement ? '활동도 활발' : '활동 늘리면 더 좋을 것 같아요'}`,
+          encouragement: weeklyEngagement >= avgWeeklyEngagement ? '꾸준한 활동이 성과로 이어지고 있어요' : '미팅이나 기회 탐색을 조금 더 늘려보세요',
+          metrics: {
+            kpiScore: overallScore,
+            weeklyActivity: weeklyEngagement,
+            benchmark: 'above_average'
+          }
         };
       } else {
+        const improvementArea = weeklyEngagement < avgWeeklyEngagement ? '활동 빈도' : 'KPI 완성도';
         return {
-          title: '동종업계 위치',
-          insight: `성장 잠재력이 큰 단계입니다. 체계적인 개선이 필요해요`,
-          encouragement: '한 단계씩 개선해나가면 큰 성장을 이룰 수 있어요'
+          title: '성장 활동 벤치마크',
+          insight: `${improvementArea} 개선에 집중하면 빠른 성장이 가능해요`,
+          encouragement: '단계별로 차근차근 개선해나가면 성과가 따라올 거예요',
+          metrics: {
+            kpiScore: overallScore,
+            weeklyActivity: weeklyEngagement,
+            recommendedFocus: improvementArea,
+            benchmark: 'growth_potential'
+          }
         };
       }
     })();
 
-    // 숨은 기회 발견
+    // 실제 데이터 기반 숨은 기회 발견
     const opportunityInsight = (() => {
-      if (weakestAxis) {
+      const upcomingOpportunities = unifiedEvents.filter(event =>
+        event.sourceType === 'smart_matching' &&
+        event.date >= today &&
+        event.date <= new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000) // 2주 내
+      );
+
+      const highPotentialOpps = upcomingOpportunities.filter(event =>
+        event.sourceType === 'smart_matching' && event.matchingScore >= 75
+      );
+
+      const urgentOpps = upcomingOpportunities.filter(event =>
+        event.sourceType === 'smart_matching' &&
+        event.deadline.daysUntilDeadline <= 7 && event.deadline.daysUntilDeadline > 0
+      );
+
+      if (weakestAxis && highPotentialOpps.length > 0) {
         const axisNames = {
           GO: '운영·성장',
           EC: '경제성',
@@ -83,26 +184,71 @@ const GrowthInsights: React.FC = () => {
           TO: '팀·조직'
         };
 
+        const categoryOpps = highPotentialOpps.filter(event => {
+          if (event.sourceType === 'smart_matching') {
+            const categoryAxisMap: Record<string, string> = {
+              'government_support': 'GO',
+              'vc_opportunity': 'EC',
+              'tips_program': 'PT',
+              'accelerator': 'PF',
+              'open_innovation': 'TO'
+            };
+            return categoryAxisMap[event.category] === weakestAxis;
+          }
+          return false;
+        });
+
         return {
-          title: '숨은 기회',
-          insight: `${axisNames[weakestAxis as keyof typeof axisNames]} 영역에 집중하면 전체 점수를 크게 끌어올릴 수 있어요`,
-          explorationSuggestion: '해당 영역의 정부지원사업을 확인해보세요'
+          title: '맞춤 기회 발견',
+          insight: `${axisNames[weakestAxis as keyof typeof axisNames]} 보완을 위한 고매칭 기회 ${categoryOpps.length}개가 있어요`,
+          explorationSuggestion: `2주 내 마감 ${urgentOpps.length}개 포함, 지금 확인해보세요`,
+          metrics: {
+            totalOpportunities: upcomingOpportunities.length,
+            highPotential: highPotentialOpps.length,
+            urgentDeadlines: urgentOpps.length,
+            weakestAxisOpps: categoryOpps.length,
+            focusArea: axisNames[weakestAxis as keyof typeof axisNames]
+          }
+        };
+      }
+
+      if (highPotentialOpps.length > 0) {
+        return {
+          title: '고매칭 기회 알림',
+          insight: `2주 내 ${upcomingOpportunities.length}개 기회 중 ${highPotentialOpps.length}개가 75점+ 고매칭이에요`,
+          explorationSuggestion: `${urgentOpps.length > 0 ? `급한 마감 ${urgentOpps.length}개 우선 처리하세요` : '차근차근 검토해보시길 추천해요'}`,
+          metrics: {
+            totalOpportunities: upcomingOpportunities.length,
+            highPotential: highPotentialOpps.length,
+            urgentDeadlines: urgentOpps.length
+          }
         };
       }
 
       return {
-        title: '숨은 기회',
-        insight: '딥테크 분야 정부지원사업이 평소보다 30% 증가했어요',
-        explorationSuggestion: '스마트 매칭에서 관련 기회들을 확인해보세요'
+        title: '기회 탐색 제안',
+        insight: '새로운 기회들이 계속 업데이트되고 있어요',
+        explorationSuggestion: 'KPI 데이터를 더 완성하면 더 정확한 매칭이 가능해요',
+        metrics: {
+          totalOpportunities: upcomingOpportunities.length
+        }
       };
     })();
 
     return {
       personal: personalInsight,
       benchmark: benchmarkInsight,
-      opportunity: opportunityInsight
+      opportunity: opportunityInsight,
+      summary: {
+        totalEvents: unifiedEvents.length,
+        recentActivity: recentSmartMatchingEvents.length + recentBuildupEvents.length,
+        completedMeetings: completedBuildupEvents.length,
+        upcomingOpportunities: unifiedEvents.filter(e =>
+          e.sourceType === 'smart_matching' && e.date >= today
+        ).length
+      }
     };
-  }, [axisScores, overallScore, strongestAxis, weakestAxis, previousScores]);
+  }, [axisScores, overallScore, strongestAxis, weakestAxis, previousScores, unifiedEvents, calendarEvents, calendarStats]);
 
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
@@ -145,19 +291,28 @@ const GrowthInsights: React.FC = () => {
 
       {/* 인사이트 미리보기 (항상 표시) */}
       <div className="p-6">
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-4 text-sm flex-wrap">
           <div className="flex items-center gap-2 text-blue-600">
             <TrendingUp className="w-4 h-4" />
-            <span>패턴 분석</span>
+            <span>활동 {insights.summary.recentActivity}건</span>
           </div>
           <div className="flex items-center gap-2 text-green-600">
-            <Users className="w-4 h-4" />
-            <span>상위 25% 수준</span>
+            <Calendar className="w-4 h-4" />
+            <span>완료 미팅 {insights.summary.completedMeetings}건</span>
           </div>
           <div className="flex items-center gap-2 text-purple-600">
-            <Search className="w-4 h-4" />
-            <span>새로운 기회 3개</span>
+            <Target className="w-4 h-4" />
+            <span>신규 기회 {insights.summary.upcomingOpportunities}개</span>
           </div>
+          {insights.benchmark.metrics && (
+            <div className="flex items-center gap-2 text-orange-600">
+              <Star className="w-4 h-4" />
+              <span>
+                {insights.benchmark.metrics.benchmark === 'top_15_percent' ? '상위 15%' :
+                 insights.benchmark.metrics.benchmark === 'above_average' ? '평균 이상' : '성장 중'}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -193,6 +348,16 @@ const GrowthInsights: React.FC = () => {
                   <div className="bg-blue-100 p-2 rounded text-xs text-blue-700">
                     💡 {insights.personal.actionSuggestion}
                   </div>
+                  {insights.personal.metrics && (
+                    <div className="mt-2 text-xs text-blue-600 space-y-1">
+                      {insights.personal.metrics.completedMeetings && (
+                        <div>📅 완료 미팅: {insights.personal.metrics.completedMeetings}건</div>
+                      )}
+                      {insights.personal.metrics.matchingAccuracy && (
+                        <div>🎯 매칭 정확도: {insights.personal.metrics.matchingAccuracy.toFixed(0)}%</div>
+                      )}
+                    </div>
+                  )}
                 </motion.div>
 
                 {/* 벤치마크 비교 */}
@@ -214,6 +379,15 @@ const GrowthInsights: React.FC = () => {
                   <div className="bg-green-100 p-2 rounded text-xs text-green-700">
                     🌟 {insights.benchmark.encouragement}
                   </div>
+                  {insights.benchmark.metrics && (
+                    <div className="mt-2 text-xs text-green-600 space-y-1">
+                      <div>📊 KPI: {insights.benchmark.metrics.kpiScore?.toFixed(1)}점</div>
+                      <div>⚡ 주간활동: {insights.benchmark.metrics.weeklyActivity}건</div>
+                      {insights.benchmark.metrics.recommendedFocus && (
+                        <div>🎯 집중영역: {insights.benchmark.metrics.recommendedFocus}</div>
+                      )}
+                    </div>
+                  )}
                 </motion.div>
 
                 {/* 숨은 기회 */}
@@ -235,6 +409,20 @@ const GrowthInsights: React.FC = () => {
                   <div className="bg-purple-100 p-2 rounded text-xs text-purple-700">
                     🔍 {insights.opportunity.explorationSuggestion}
                   </div>
+                  {insights.opportunity.metrics && (
+                    <div className="mt-2 text-xs text-purple-600 space-y-1">
+                      <div>📈 전체 기회: {insights.opportunity.metrics.totalOpportunities}개</div>
+                      {insights.opportunity.metrics.highPotential && (
+                        <div>⭐ 고매칭: {insights.opportunity.metrics.highPotential}개</div>
+                      )}
+                      {insights.opportunity.metrics.urgentDeadlines && insights.opportunity.metrics.urgentDeadlines > 0 && (
+                        <div className="text-red-600">⏰ 긴급: {insights.opportunity.metrics.urgentDeadlines}개</div>
+                      )}
+                      {insights.opportunity.metrics.focusArea && (
+                        <div>🎯 추천영역: {insights.opportunity.metrics.focusArea}</div>
+                      )}
+                    </div>
+                  )}
                 </motion.div>
 
               </div>

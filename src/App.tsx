@@ -19,6 +19,7 @@ import { MyProfileProvider } from './contexts/MyProfileContext';
 import { CurrentUserProvider } from './contexts/CurrentUserContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { LoadingProvider } from './contexts/LoadingContext';
+import { MeetingNotesProvider } from './contexts/MeetingNotesContext';
 import type { UserRole } from './types';
 
 // Development only: Calendar storage test utilities
@@ -124,7 +125,8 @@ function App() {
               <ClusterProvider>
                 <KPIDiagnosisProvider>
                   <ScheduleProvider>
-                    <BuildupProvider>
+                    <MeetingNotesProvider>
+                      <BuildupProvider>
                       <MyProfileProvider>
                         <CurrentUserProvider>
                           <VDRProvider>
@@ -134,7 +136,7 @@ function App() {
                                 <GrowthTrackingProvider>
                                   <RecommendationProvider>
                                     <NotificationProvider>
-                                  <Router>
+                                      <Router>
                                   <Routes>
                           {/* Landing page or redirect based on role */}
                           <Route path="/" element={
@@ -232,19 +234,20 @@ function App() {
 
                           {/* 404 */}
                           <Route path="*" element={<div className="p-8 text-center">페이지를 찾을 수 없습니다.</div>} />
-                                  </Routes>
-                                  </Router>
-                                  </NotificationProvider>
-                                </RecommendationProvider>
-                              </GrowthTrackingProvider>
-                            </IndustryIntelProvider>
-                          </CalendarProvider>
+                                    </Routes>
+                                      </Router>
+                                    </NotificationProvider>
+                                  </RecommendationProvider>
+                                </GrowthTrackingProvider>
+                              </IndustryIntelProvider>
+                            </CalendarProvider>
                           </ChatProvider>
                         </VDRProvider>
                       </CurrentUserProvider>
                     </MyProfileProvider>
                   </BuildupProvider>
-                </ScheduleProvider>
+                </MeetingNotesProvider>
+              </ScheduleProvider>
               </KPIDiagnosisProvider>
             </ClusterProvider>
           </ApplicationProgressProvider>

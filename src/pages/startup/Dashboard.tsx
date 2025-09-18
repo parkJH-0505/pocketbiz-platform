@@ -11,7 +11,6 @@ import React, { Suspense, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart3, X } from 'lucide-react';
 import { DashboardProvider } from '../../contexts/DashboardContext';
-import { NotificationBell } from '../../components/notifications/NotificationBell';
 
 // 컴포넌트 지연 로딩
 const TodaysActionCompact = React.lazy(() => import('../../components/dashboard/TodaysActionCompact'));
@@ -94,8 +93,6 @@ const Dashboard: React.FC = () => {
           </motion.section>
         </div>
 
-        {/* 알림 벨 - 우상단 고정 */}
-        <NotificationBell className="fixed top-4 right-4 z-50" />
 
         {/* KPI 레이더 플로팅 버튼 */}
         <motion.button

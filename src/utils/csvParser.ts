@@ -86,8 +86,8 @@ function parseKPILibrary(csv: string): KPIDefinition[] {
       row.applicable_stages.split(',').map(s => s.trim()).filter(s => s) : 
       [];
     
-    // 디버깅: 처음 몇 개 KPI의 stages 확인
-    if (row.kpi_id.startsWith('S1-[GO]')) {
+    // 디버깅: 처음 몇 개 KPI의 stages 확인 (개발 환경에서만)
+    if (import.meta.env.DEV && row.kpi_id.startsWith('S1-[GO]') && row.kpi_id.endsWith('-01')) {
       console.log(`Parsing ${row.kpi_id}: applicable_stages="${row.applicable_stages}" -> stages=[${stages.join(', ')}]`);
     }
     
@@ -346,7 +346,7 @@ function parseRulesetText(rulesetText: string): Partial<StageRule> {
     });
     
     if (choices.length > 0) {
-      console.log('Parsed choices:', choices.length, 'items');
+      // console.log('Parsed choices:', choices.length, 'items'); // 개발 로그 비활성화
       return { choices };
     }
   }

@@ -7,6 +7,7 @@ import ChatSideModal from '../../../components/chat/ChatSideModal';
 import type { GuideMeetingRecord, GuideMeetingComment } from '../../../types/meeting.types';
 import type { BuildupProjectMeeting } from '../../../types/schedule.types';
 import { EventSourceTracker } from '../../../types/events.types';
+import { MEETING_TYPE_CONFIG } from '../../../types/meeting.enhanced.types';
 import ProjectPhaseIndicator from '../../../components/project/ProjectPhaseIndicator';
 import PhaseHistoryDisplay from '../../../components/project/PhaseHistoryDisplay';
 import ProjectPhaseTransition from '../../../components/phaseTransition/ProjectPhaseTransition';
@@ -42,6 +43,7 @@ import {
 } from 'lucide-react';
 import { useBuildupContext } from '../../../contexts/BuildupContext';
 import { useToast } from '../../../contexts/ToastContext';
+import { useMeetingNotes } from '../../../contexts/MeetingNotesContext';
 import type { Project } from '../../../types/buildup.types';
 import {
   PHASE_INFO,
@@ -96,13 +98,38 @@ export default function ProjectDetail() {
   } = useChatContext();
   const { buildupMeetings } = useScheduleContext();
   const { showSuccess, showError, showInfo } = useToast();
+  const {
+    notes,
+    actionItems,
+    getNotes,
+    createNotes,
+    updateNotes,
+    getActionItemsByMeeting,
+    createActionItem,
+    updateActionItem,
+    getNotesTemplate
+  } = useMeetingNotes();
 
   const project = projects.find(p => p.id === projectId);
   const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'meetings' | 'phase-history'>('overview');
   const [unreadCount, setUnreadCount] = useState(0);
   const [showChatModal, setShowChatModal] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<GuideMeetingRecord | null>(null);
+  const [selectedMeetingNotes, setSelectedMeetingNotes] = useState<any>(null);
+  const [selectedMeetingActionItems, setSelectedMeetingActionItems] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [rightPanelTab, setRightPanelTab] = useState<'summary' | 'comments'>('comments'); // 기본값을 댓글로
+
+  // 미팅별 댓글 저장 (로컬 상태)
+  const [meetingComments, setMeetingComments] = useState<Record<string, Array<{
+    id: string;
+    author: string;
+    content: string;
+    createdAt: Date;
+    isRead: boolean;
+  }>>>({});
 
   // 🔥 Sprint 3 Phase 3: 애니메이션 상태
   const [isPhaseTransitioning, setIsPhaseTransitioning] = useState(false);
@@ -112,6 +139,43 @@ export default function ProjectDetail() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleModalMode, setScheduleModalMode] = useState<'create' | 'edit' | 'view'>('create');
   const [selectedSchedule, setSelectedSchedule] = useState<BuildupProjectMeeting | null>(null);
+
+  // 🚀 Sprint 6 Phase 6-3: 키보드 단축키
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl/Cmd + E: 편집 모드 토글
+      if ((event.ctrlKey || event.metaKey) && event.key === 'e' && activeTab === 'meetings') {
+        event.preventDefault();
+        setIsEditMode(!isEditMode);
+        showInfo(`편집 모드 ${!isEditMode ? '활성화' : '비활성화'}`);
+      }
+
+      // Ctrl/Cmd + S: 노트 저장
+      if ((event.ctrlKey || event.metaKey) && event.key === 's' && activeTab === 'meetings' && selectedMeetingNotes) {
+        event.preventDefault();
+        const updatedNotes = updateNotes(selectedSchedule!.id, selectedMeetingNotes);
+        setSelectedMeetingNotes(updatedNotes);
+        showSuccess('미팅 노트가 저장되었습니다.');
+      }
+
+      // Escape: 검색 초기화
+      if (event.key === 'Escape' && activeTab === 'meetings') {
+        setSearchTerm('');
+      }
+
+      // Ctrl/Cmd + /: 검색 포커스
+      if ((event.ctrlKey || event.metaKey) && event.key === '/' && activeTab === 'meetings') {
+        event.preventDefault();
+        const searchInput = document.querySelector('input[placeholder*="검색"]') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab, isEditMode, selectedMeetingNotes, selectedSchedule]);
 
   // ✅ Step 3을 위한 전문적 이벤트 발송 시스템 (EventSourceTracker 적용)
   const emitProjectMeetingEvent = (eventType: string, data: any) => {
@@ -441,6 +505,50 @@ export default function ProjectDetail() {
       setSelectedMeeting(convertedMeeting);
     }
   }, [projectMeetings, selectedMeeting]);
+
+  // 댓글 데이터 로드 (로컬스토리지에서)
+  useEffect(() => {
+    const savedComments = localStorage.getItem(`meetingComments_${projectId}`);
+    if (savedComments) {
+      try {
+        const parsedComments = JSON.parse(savedComments);
+        setMeetingComments(parsedComments);
+      } catch (error) {
+        console.error('Failed to load meeting comments:', error);
+      }
+    } else {
+      // 샘플 댓글 데이터 (초기 데모용)
+      const sampleComments: Record<string, Array<{ id: string; content: string; author: string; timestamp: string }>> = {};
+      projectMeetings.forEach(meeting => {
+        if (meeting.status === 'completed') {
+          sampleComments[meeting.id] = [
+            {
+              id: `sample-${meeting.id}-1`,
+              content: '미팅 준비사항 모두 확인했습니다. IR 자료 최종본 준비 완료했어요.',
+              author: '김대표',
+              timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+            },
+            {
+              id: `sample-${meeting.id}-2`,
+              content: '수고하셨습니다! 다음 미팅에서 논의할 액션아이템 정리해서 공유드릴게요.',
+              author: '박PM',
+              timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+            }
+          ];
+        }
+      });
+      if (Object.keys(sampleComments).length > 0) {
+        setMeetingComments(sampleComments);
+      }
+    }
+  }, [projectId, projectMeetings]);
+
+  // 댓글 데이터 저장 (로컬스토리지에)
+  useEffect(() => {
+    if (Object.keys(meetingComments).length > 0) {
+      localStorage.setItem(`meetingComments_${projectId}`, JSON.stringify(meetingComments));
+    }
+  }, [meetingComments, projectId]);
 
   // 미팅 선택 핸들러
   const handleMeetingSelect = (meeting: GuideMeetingRecord) => {
@@ -1258,17 +1366,32 @@ export default function ProjectDetail() {
           <div className="h-full flex flex-col">
             {/* 헤더 */}
             <div className="px-6 py-4 border-b border-gray-200 bg-white">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">가이드 미팅 기록</h2>
-              <p className="text-sm text-gray-600">프로젝트 진행 중 실시된 모든 가이드 미팅 내역 및 PM 메모</p>
-              <div className="flex items-center gap-3 mt-2">
-                <span className="text-sm text-blue-600 font-medium">
-                  📅 총 {projectMeetings.length}개 미팅 (ScheduleContext 연동)
-                </span>
-                {projectMeetings.length > 0 && (
-                  <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                    ✅ 실시간 동기화 활성
-                  </span>
-                )}
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">가이드 미팅 기록</h2>
+                  <p className="text-sm text-gray-600">프로젝트 진행 중 실시된 모든 가이드 미팅 내역 및 PM 메모</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <span className="text-sm text-blue-600 font-medium">
+                      📅 총 {projectMeetings.length}개 미팅 (ScheduleContext 연동)
+                    </span>
+                    {projectMeetings.length > 0 && (
+                      <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                        ✅ 실시간 동기화 활성
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 키보드 단축키 가이드 */}
+                <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
+                  <h4 className="font-medium text-gray-700 mb-2">키보드 단축키</h4>
+                  <div className="space-y-1">
+                    <div><kbd className="px-1 py-0.5 bg-white border rounded text-xs">Ctrl+E</kbd> 편집 모드</div>
+                    <div><kbd className="px-1 py-0.5 bg-white border rounded text-xs">Ctrl+S</kbd> 노트 저장</div>
+                    <div><kbd className="px-1 py-0.5 bg-white border rounded text-xs">Ctrl+/</kbd> 검색 포커스</div>
+                    <div><kbd className="px-1 py-0.5 bg-white border rounded text-xs">ESC</kbd> 검색 초기화</div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1306,10 +1429,15 @@ export default function ProjectDetail() {
                 {/* 1. 미팅 목록 (왼쪽 20%) */}
                 <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
                   <div className="p-4 border-b border-gray-200">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-3">
                       <div>
                         <h3 className="font-semibold text-gray-900">미팅 목록</h3>
-                        <p className="text-xs text-gray-500 mt-1">{projectMeetings.length}개 미팅</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {projectMeetings.filter(meeting =>
+                            meeting.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (meeting.meetingSequence?.type && MEETING_TYPE_CONFIG[meeting.meetingSequence.type]?.label.includes(searchTerm))
+                          ).length}개 미팅 표시 (총 {projectMeetings.length}개)
+                        </p>
                       </div>
                       <button
                         onClick={() => {
@@ -1323,18 +1451,77 @@ export default function ProjectDetail() {
                         미팅 추가
                       </button>
                     </div>
+
+                    {/* 검색 및 필터 */}
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          placeholder="미팅 제목이나 유형으로 검색..."
+                          className="w-full px-3 py-2 pl-8 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <MessageSquare className="w-4 h-4 text-gray-400 absolute left-2.5 top-2.5" />
+                      </div>
+
+                      {/* 빠른 필터 */}
+                      <div className="flex space-x-1 overflow-x-auto">
+                        <button
+                          onClick={() => setSearchTerm('')}
+                          className={`px-2 py-1 text-xs rounded whitespace-nowrap ${
+                            searchTerm === '' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          전체
+                        </button>
+                        {Object.entries(MEETING_TYPE_CONFIG).map(([type, config]) => (
+                          <button
+                            key={type}
+                            onClick={() => setSearchTerm(config.label)}
+                            className={`px-2 py-1 text-xs rounded whitespace-nowrap ${
+                              searchTerm === config.label ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {config.icon} {config.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                   <div className="flex-1 overflow-y-auto">
-                    {/* ✅ ScheduleContext 단일 데이터 소스 */}
-                    {projectMeetings.map((meeting, index) => {
+                    {/* ✅ ScheduleContext 단일 데이터 소스 with Search Filter */}
+                    {projectMeetings
+                      .filter(meeting =>
+                        meeting.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        (meeting.meetingSequence?.type && MEETING_TYPE_CONFIG[meeting.meetingSequence.type]?.label.includes(searchTerm))
+                      )
+                      .map((meeting, index) => {
                       const isSelected = selectedSchedule?.id === meeting.id;
                       return (
                         <button
                           key={meeting.id}
-                          onClick={() => {
+                          onClick={async () => {
                             setSelectedSchedule(meeting);
-                            setScheduleModalMode('view');
-                            setShowScheduleModal(true);
+                            // setScheduleModalMode('view');
+                            // setShowScheduleModal(true); // 모달을 열지 않음
+
+                            // MeetingNotesContext에서 해당 미팅의 노트와 액션 아이템 가져오기
+                            const meetingNotes = getNotes(meeting.id);
+                            const meetingActionItems = getActionItemsByMeeting(meeting.id);
+
+                            setSelectedMeetingNotes(meetingNotes);
+                            setSelectedMeetingActionItems(meetingActionItems);
+
+                            // 노트가 없으면 미팅 타입에 따른 템플릿 생성
+                            if (!meetingNotes && meeting.meetingSequence?.type) {
+                              const template = getNotesTemplate(meeting.meetingSequence.type);
+                              if (template) {
+                                const newNotes = await createNotes(meeting.id, template);
+                                setSelectedMeetingNotes(newNotes);
+                              }
+                            }
+
                             // 이벤트 발송
                             emitProjectMeetingEvent('selected', {
                               meetingId: meeting.id,
@@ -1365,46 +1552,78 @@ export default function ProjectDetail() {
                                 <h4 className="font-medium text-gray-900 text-sm truncate">
                                   {meeting.title}
                                 </h4>
-                                {meeting.meetingSequence && (
-                                  <span className="text-xs text-blue-600 font-medium">
-                                    {meeting.meetingSequence.type === 'pre_meeting' ? '프리미팅' :
-                                     meeting.meetingSequence.type === 'guide_1' ? '가이드 1차' :
-                                     meeting.meetingSequence.type === 'guide_2' ? '가이드 2차' :
-                                     meeting.meetingSequence.type === 'guide_3' ? '가이드 3차' :
-                                     meeting.meetingSequence.type === 'guide_4' ? '가이드 4차' : ''}
+                                {meeting.meetingSequence && MEETING_TYPE_CONFIG[meeting.meetingSequence.type] && (
+                                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                                    MEETING_TYPE_CONFIG[meeting.meetingSequence.type].color === 'purple' ? 'bg-purple-100 text-purple-700' :
+                                    MEETING_TYPE_CONFIG[meeting.meetingSequence.type].color === 'blue' ? 'bg-blue-100 text-blue-700' :
+                                    MEETING_TYPE_CONFIG[meeting.meetingSequence.type].color === 'green' ? 'bg-green-100 text-green-700' :
+                                    MEETING_TYPE_CONFIG[meeting.meetingSequence.type].color === 'orange' ? 'bg-orange-100 text-orange-700' :
+                                    'bg-emerald-100 text-emerald-700'
+                                  }`}>
+                                    {MEETING_TYPE_CONFIG[meeting.meetingSequence.type].icon} {MEETING_TYPE_CONFIG[meeting.meetingSequence.type].label}
                                   </span>
                                 )}
                               </div>
+                              {meeting.meetingSequence && MEETING_TYPE_CONFIG[meeting.meetingSequence.type] && (
+                                <p className="text-xs text-gray-500 mt-1 truncate">
+                                  {MEETING_TYPE_CONFIG[meeting.meetingSequence.type].description}
+                                </p>
+                              )}
                               <p className="text-xs text-gray-500 mt-0.5">
-                                {new Date(meeting.startDateTime).toLocaleDateString('ko-KR')}
-                                {' '}
-                                {new Date(meeting.startDateTime).toLocaleTimeString('ko-KR', {
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
+                                {(() => {
+                                  try {
+                                    const meetingDate = new Date(meeting.date || meeting.startDateTime);
+                                    if (isNaN(meetingDate.getTime())) {
+                                      return '날짜 미정';
+                                    }
+                                    return meetingDate.toLocaleDateString('ko-KR') + ' ' +
+                                           meetingDate.toLocaleTimeString('ko-KR', {
+                                             hour: '2-digit',
+                                             minute: '2-digit'
+                                           });
+                                  } catch (error) {
+                                    return '날짜 미정';
+                                  }
+                                })()}
                               </p>
                               <div className="flex items-center mt-1">
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                  meeting.status === 'completed'
-                                    ? 'text-green-700 bg-green-100'
-                                    : meeting.status === 'scheduled'
-                                    ? 'text-blue-700 bg-blue-100'
-                                    : meeting.status === 'cancelled'
-                                    ? 'text-red-700 bg-red-100'
-                                    : 'text-gray-700 bg-gray-100'
+                                  (() => {
+                                    const meetingDate = new Date(meeting.date || meeting.startDateTime);
+                                    const now = new Date();
+                                    const status = meeting.status ||
+                                      (isNaN(meetingDate.getTime()) ? 'unknown' :
+                                       meetingDate < now ? 'completed' : 'scheduled');
+
+                                    switch (status) {
+                                      case 'completed': return 'text-green-700 bg-green-100';
+                                      case 'scheduled': return 'text-blue-700 bg-blue-100';
+                                      case 'cancelled': return 'text-red-700 bg-red-100';
+                                      default: return 'text-gray-700 bg-gray-100';
+                                    }
+                                  })()
                                 }`}>
-                                  {meeting.status === 'completed' ? '완료' :
-                                   meeting.status === 'scheduled' ? '예정' :
-                                   meeting.status === 'cancelled' ? '취소' : '연기'}
+                                  {(() => {
+                                    const meetingDate = new Date(meeting.date || meeting.startDateTime);
+                                    const now = new Date();
+                                    const status = meeting.status ||
+                                      (isNaN(meetingDate.getTime()) ? 'unknown' :
+                                       meetingDate < now ? 'completed' : 'scheduled');
+
+                                    switch (status) {
+                                      case 'completed': return '완료';
+                                      case 'scheduled': return '예정';
+                                      case 'cancelled': return '취소';
+                                      case 'unknown': return '시간 미정';
+                                      default: return '예정';
+                                    }
+                                  })()}
                                 </span>
                                 {meeting.phaseTransitionTrigger && (
                                   <span className="ml-2 text-xs text-purple-600 font-medium">
                                     🔄 단계 전환
                                   </span>
                                 )}
-                                <span className="ml-2 text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
-                                  Schedule#{meeting.id.slice(-6)}
-                                </span>
                               </div>
                             </div>
                           </div>
@@ -1416,50 +1635,116 @@ export default function ProjectDetail() {
 
                 {/* 2. PM 미팅 메모 (가운데 50%) */}
                 <div className="flex-1 bg-white border-r border-gray-200 flex flex-col">
-                  {selectedMeeting ? (
+                  {selectedSchedule ? (
                     <>
                       {/* 메모 헤더 */}
                       <div className="p-4 border-b border-gray-200">
                         <div className="flex items-start justify-between">
                           <div>
-                            <h3 className="font-semibold text-gray-900">{selectedMeeting.title}</h3>
+                            <h3 className="font-semibold text-gray-900">{selectedSchedule.title}</h3>
+                            <div className="flex items-center mt-1 space-x-2">
+                              {selectedSchedule.meetingSequence?.type && MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type] && (
+                                <div className="flex flex-col space-y-1">
+                                  <span className={`px-3 py-1 text-sm font-medium rounded-lg ${
+                                    MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].color === 'purple' ? 'bg-purple-100 text-purple-800' :
+                                    MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].color === 'blue' ? 'bg-blue-100 text-blue-800' :
+                                    MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].color === 'green' ? 'bg-green-100 text-green-800' :
+                                    MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].color === 'orange' ? 'bg-orange-100 text-orange-800' :
+                                    'bg-emerald-100 text-emerald-800'
+                                  }`}>
+                                    {MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].icon} {MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].label}
+                                  </span>
+                                  <p className="text-xs text-gray-600">
+                                    {MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].description}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
                             <p className="text-sm text-gray-600 mt-1">
-                              {selectedMeeting.date.toLocaleDateString('ko-KR')} •
-                              {selectedMeeting.duration ? `${selectedMeeting.duration}분` : '시간 미정'} •
-                              {selectedMeeting.location || '장소 미정'}
+                              {(() => {
+                                try {
+                                  const meetingDate = new Date(selectedSchedule.date || selectedSchedule.startDateTime);
+                                  if (isNaN(meetingDate.getTime())) {
+                                    return '날짜 미정';
+                                  }
+                                  return meetingDate.toLocaleDateString('ko-KR');
+                                } catch (error) {
+                                  return '날짜 미정';
+                                }
+                              })()} •
+                              {selectedSchedule.duration ? `${selectedSchedule.duration}분` : '시간 미정'} •
+                              {selectedSchedule.location || '장소 미정'}
                             </p>
                           </div>
                           <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => {
+                                setScheduleModalMode('view');
+                                setShowScheduleModal(true);
+                              }}
+                              className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded flex items-center gap-1"
+                              title="일정 상세 보기"
+                            >
+                              <Calendar className="w-3 h-3" />
+                              상세
+                            </button>
                             <Download className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-pointer" title="PDF 다운로드" />
-                            <Edit className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-pointer" title="인쇄" />
+                            <Edit className="w-4 h-4 text-gray-400 hover:text-gray-600 cursor-pointer" title="편집" />
                           </div>
                         </div>
                       </div>
 
                       {/* 메모 내용 */}
                       <div className="flex-1 overflow-y-auto p-4">
-                        {selectedMeeting.memo ? (
+                        {selectedMeetingNotes ? (
                           <div className="prose prose-sm max-w-none">
-                            {/* 미팅 요약 */}
-                            <div className="mb-6">
-                              <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-2">
-                                <Target className="w-4 h-4 mr-2 text-blue-500" />
-                                미팅 요약
-                              </h4>
-                              <p className="text-sm text-gray-700 leading-relaxed bg-gray-50 p-3 rounded-lg">
-                                {selectedMeeting.memo.summary}
-                              </p>
-                            </div>
+                            {/* 사전 준비 */}
+                            {selectedMeetingNotes.preparation && (
+                              <div className="mb-6">
+                                <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-3">
+                                  <Briefcase className="w-4 h-4 mr-2 text-purple-500" />
+                                  사전 준비
+                                </h4>
+                                <div className="bg-purple-50 p-3 rounded-lg space-y-2">
+                                  {selectedMeetingNotes.preparation.agenda?.length > 0 && (
+                                    <div>
+                                      <span className="text-xs font-medium text-purple-700">안건:</span>
+                                      <ul className="text-sm text-gray-700 ml-2">
+                                        {selectedMeetingNotes.preparation.agenda.map((item: string, index: number) => (
+                                          <li key={index} className="flex items-start">
+                                            <span className="w-1 h-1 bg-purple-400 rounded-full mt-2 mr-2 flex-shrink-0" />
+                                            {item}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  {selectedMeetingNotes.preparation.goals?.length > 0 && (
+                                    <div>
+                                      <span className="text-xs font-medium text-purple-700">목표:</span>
+                                      <ul className="text-sm text-gray-700 ml-2">
+                                        {selectedMeetingNotes.preparation.goals.map((goal: string, index: number) => (
+                                          <li key={index} className="flex items-start">
+                                            <Target className="w-3 h-3 text-purple-400 mt-1 mr-2 flex-shrink-0" />
+                                            {goal}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
 
-                            {/* 주요 논의사항 */}
-                            {selectedMeeting.memo.discussions.length > 0 && (
+                            {/* 미팅 진행 - 핵심 포인트 */}
+                            {selectedMeetingNotes.discussion?.keyPoints?.length > 0 && (
                               <div className="mb-6">
                                 <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-3">
                                   <MessageSquare className="w-4 h-4 mr-2 text-green-500" />
-                                  주요 논의사항
+                                  핵심 논의사항
                                 </h4>
                                 <ul className="space-y-2">
-                                  {selectedMeeting.memo.discussions.map((item, index) => (
+                                  {selectedMeetingNotes.discussion.keyPoints.map((item: string, index: number) => (
                                     <li key={index} className="flex items-start text-sm text-gray-700">
                                       <span className="w-1.5 h-1.5 bg-green-400 rounded-full mt-2 mr-3 flex-shrink-0" />
                                       {item}
@@ -1469,91 +1754,256 @@ export default function ProjectDetail() {
                               </div>
                             )}
 
+                            {/* 우려사항 */}
+                            {selectedMeetingNotes.discussion?.concerns?.length > 0 && (
+                              <div className="mb-6">
+                                <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-3">
+                                  <AlertCircle className="w-4 h-4 mr-2 text-yellow-500" />
+                                  우려사항
+                                </h4>
+                                <ul className="space-y-2">
+                                  {selectedMeetingNotes.discussion.concerns.map((item: string, index: number) => (
+                                    <li key={index} className="flex items-start text-sm text-gray-700 bg-yellow-50 p-2 rounded">
+                                      <AlertCircle className="w-4 h-4 text-yellow-400 mt-0.5 mr-3 flex-shrink-0" />
+                                      {item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
                             {/* 결정사항 */}
-                            {selectedMeeting.memo.decisions.length > 0 && (
+                            {selectedMeetingNotes.outcomes?.decisions?.length > 0 && (
                               <div className="mb-6">
                                 <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-3">
                                   <CheckCircle className="w-4 h-4 mr-2 text-purple-500" />
                                   결정사항
                                 </h4>
-                                <ul className="space-y-2">
-                                  {selectedMeeting.memo.decisions.map((item, index) => (
-                                    <li key={index} className="flex items-start text-sm text-gray-700">
-                                      <CheckCircle className="w-4 h-4 text-purple-400 mt-0.5 mr-3 flex-shrink-0" />
-                                      {item}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-
-                            {/* 액션 아이템 */}
-                            {selectedMeeting.memo.actionItems.length > 0 && (
-                              <div className="mb-6">
-                                <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-3">
-                                  <Clock className="w-4 h-4 mr-2 text-orange-500" />
-                                  액션 아이템
-                                </h4>
-                                <ul className="space-y-2">
-                                  {selectedMeeting.memo.actionItems.map((item, index) => (
-                                    <li key={index} className="flex items-start text-sm text-gray-700 bg-orange-50 p-2 rounded">
-                                      <Clock className="w-4 h-4 text-orange-400 mt-0.5 mr-3 flex-shrink-0" />
-                                      {item}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-
-                            {/* 다음 단계 */}
-                            {selectedMeeting.memo.nextSteps && (
-                              <div className="mb-6">
-                                <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-2">
-                                  <ArrowRight className="w-4 h-4 mr-2 text-blue-500" />
-                                  다음 단계
-                                </h4>
-                                <p className="text-sm text-gray-700 bg-blue-50 p-3 rounded-lg">
-                                  {selectedMeeting.memo.nextSteps}
-                                </p>
-                              </div>
-                            )}
-
-                            {/* 첨부파일 */}
-                            {selectedMeeting.memo.attachments.length > 0 && (
-                              <div className="mb-4">
-                                <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-3">
-                                  <Paperclip className="w-4 h-4 mr-2 text-gray-500" />
-                                  첨부파일
-                                </h4>
-                                <div className="space-y-2">
-                                  {selectedMeeting.memo.attachments.map((file) => (
-                                    <div key={file.id} className="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
-                                      <FileText className="w-4 h-4 text-blue-500 mr-3" />
-                                      <div className="flex-1">
-                                        <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                                        <p className="text-xs text-gray-500">
-                                          {(file.size / 1024 / 1024).toFixed(1)}MB • {file.uploadedAt.toLocaleDateString('ko-KR')}
-                                        </p>
+                                <div className="space-y-3">
+                                  {selectedMeetingNotes.outcomes.decisions.map((decision: any, index: number) => (
+                                    <div key={decision.id || index} className="bg-purple-50 p-3 rounded-lg">
+                                      <div className="flex items-start">
+                                        <CheckCircle className="w-4 h-4 text-purple-500 mt-0.5 mr-3 flex-shrink-0" />
+                                        <div className="flex-1">
+                                          <p className="text-sm font-medium text-gray-900">{decision.decision}</p>
+                                          {decision.rationale && (
+                                            <p className="text-xs text-gray-600 mt-1">근거: {decision.rationale}</p>
+                                          )}
+                                          <div className="flex items-center mt-2 space-x-3">
+                                            <span className={`px-2 py-1 text-xs rounded ${
+                                              decision.impact === 'high' ? 'bg-red-100 text-red-700' :
+                                              decision.impact === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                              'bg-green-100 text-green-700'
+                                            }`}>
+                                              {decision.impact === 'high' ? '🔴 높음' :
+                                               decision.impact === 'medium' ? '🟡 보통' : '🟢 낮음'} 영향도
+                                            </span>
+                                            {decision.approvedBy && (
+                                              <span className="text-xs text-gray-500">승인: {decision.approvedBy}</span>
+                                            )}
+                                          </div>
+                                        </div>
                                       </div>
-                                      <Download className="w-4 h-4 text-gray-400 hover:text-gray-600" />
                                     </div>
                                   ))}
                                 </div>
                               </div>
                             )}
 
-                            {/* 메모 작성 정보 */}
+                            {/* 액션 아이템 */}
+                            {selectedMeetingActionItems.length > 0 && (
+                              <div className="mb-6">
+                                <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-3">
+                                  <Clock className="w-4 h-4 mr-2 text-orange-500" />
+                                  액션 아이템 ({selectedMeetingActionItems.length}개)
+                                </h4>
+                                <div className="space-y-2">
+                                  {selectedMeetingActionItems.map((item: any) => (
+                                    <div key={item.id} className="bg-orange-50 p-3 rounded-lg">
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                          <div className="flex items-center space-x-2">
+                                            <span className={`w-2 h-2 rounded-full ${
+                                              item.status === 'completed' ? 'bg-green-500' :
+                                              item.status === 'in_progress' ? 'bg-blue-500' :
+                                              item.status === 'overdue' ? 'bg-red-500' : 'bg-gray-400'
+                                            }`} />
+                                            <span className="text-sm font-medium text-gray-900">{item.item}</span>
+                                          </div>
+                                          {item.description && (
+                                            <p className="text-xs text-gray-600 mt-1 ml-4">{item.description}</p>
+                                          )}
+                                          <div className="flex items-center mt-2 ml-4 space-x-3">
+                                            <span className="text-xs text-gray-500">담당: {item.assignee}</span>
+                                            <span className="text-xs text-gray-500">
+                                              마감: {new Date(item.dueDate).toLocaleDateString('ko-KR')}
+                                            </span>
+                                            <span className={`px-2 py-1 text-xs rounded ${
+                                              item.priority === 'urgent' ? 'bg-red-100 text-red-700' :
+                                              item.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                                              item.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                              'bg-gray-100 text-gray-700'
+                                            }`}>
+                                              {item.priority === 'urgent' ? '🚨 긴급' :
+                                               item.priority === 'high' ? '🔴 높음' :
+                                               item.priority === 'medium' ? '🟡 보통' : '⚪ 낮음'}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 다음 단계 */}
+                            {selectedMeetingNotes.outcomes?.nextSteps?.length > 0 && (
+                              <div className="mb-6">
+                                <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-2">
+                                  <ArrowRight className="w-4 h-4 mr-2 text-blue-500" />
+                                  다음 단계
+                                </h4>
+                                <div className="bg-blue-50 p-3 rounded-lg">
+                                  <ul className="space-y-1">
+                                    {selectedMeetingNotes.outcomes.nextSteps.map((step: string, index: number) => (
+                                      <li key={index} className="flex items-start text-sm text-gray-700">
+                                        <ArrowRight className="w-3 h-3 text-blue-400 mt-1 mr-2 flex-shrink-0" />
+                                        {step}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 미팅 유형별 특화 데이터 */}
+                            {selectedSchedule.meetingSequence?.type && selectedMeetingNotes && (
+                              <div className="mb-6">
+                                <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-3">
+                                  <Briefcase className="w-4 h-4 mr-2 text-indigo-500" />
+                                  {MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].label} 특화 내용
+                                </h4>
+                                <div className="bg-indigo-50 p-3 rounded-lg">
+                                  {/* 프리미팅 특화 내용 */}
+                                  {selectedSchedule.meetingSequence.type === 'pre_meeting' && (
+                                    <div className="space-y-2">
+                                      <div className="grid grid-cols-2 gap-4 text-xs">
+                                        <div>
+                                          <span className="font-medium text-indigo-700">예상 예산:</span>
+                                          <p className="text-gray-700 mt-1">미정 (프리미팅에서 협의)</p>
+                                        </div>
+                                        <div>
+                                          <span className="font-medium text-indigo-700">예상 기간:</span>
+                                          <p className="text-gray-700 mt-1">미정 (프리미팅에서 협의)</p>
+                                        </div>
+                                      </div>
+                                      <div className="text-xs">
+                                        <span className="font-medium text-indigo-700">기술 요구사항:</span>
+                                        <p className="text-gray-700 mt-1">프리미팅에서 상세히 논의됩니다.</p>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* 가이드 1차 특화 내용 */}
+                                  {selectedSchedule.meetingSequence.type === 'guide_1' && (
+                                    <div className="space-y-2">
+                                      <div className="text-xs">
+                                        <span className="font-medium text-blue-700">킥오프 완료:</span>
+                                        <span className="ml-2 px-2 py-1 bg-green-100 text-green-700 rounded">✅ 완료</span>
+                                      </div>
+                                      <div className="text-xs">
+                                        <span className="font-medium text-blue-700">프로젝트 비전:</span>
+                                        <p className="text-gray-700 mt-1">프로젝트의 전체적인 방향성과 목표를 설정합니다.</p>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* 가이드 2차 특화 내용 */}
+                                  {selectedSchedule.meetingSequence.type === 'guide_2' && (
+                                    <div className="space-y-2">
+                                      <div className="text-xs">
+                                        <span className="font-medium text-green-700">설계 승인:</span>
+                                        <span className="ml-2 px-2 py-1 bg-yellow-100 text-yellow-700 rounded">⏳ 검토중</span>
+                                      </div>
+                                      <div className="text-xs">
+                                        <span className="font-medium text-green-700">기술 스택:</span>
+                                        <p className="text-gray-700 mt-1">React, TypeScript, Node.js 등 기술 스택을 확정합니다.</p>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* 가이드 3차 특화 내용 */}
+                                  {selectedSchedule.meetingSequence.type === 'guide_3' && (
+                                    <div className="space-y-2">
+                                      <div className="text-xs">
+                                        <span className="font-medium text-orange-700">개발 진행률:</span>
+                                        <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded">65% 완료</span>
+                                      </div>
+                                      <div className="text-xs">
+                                        <span className="font-medium text-orange-700">QA 상태:</span>
+                                        <p className="text-gray-700 mt-1">중간 테스트 진행 중, 주요 기능 검증 완료</p>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* 가이드 4차 특화 내용 */}
+                                  {selectedSchedule.meetingSequence.type === 'guide_4' && (
+                                    <div className="space-y-2">
+                                      <div className="text-xs">
+                                        <span className="font-medium text-emerald-700">최종 납품:</span>
+                                        <span className="ml-2 px-2 py-1 bg-green-100 text-green-700 rounded">✅ 준비완료</span>
+                                      </div>
+                                      <div className="text-xs">
+                                        <span className="font-medium text-emerald-700">고객 만족도:</span>
+                                        <span className="ml-2 text-yellow-500">★★★★★ (5.0/5.0)</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 메모 메타데이터 */}
                             <div className="mt-8 pt-4 border-t border-gray-200 text-xs text-gray-500">
-                              <p>작성자: {selectedMeeting.participants.pm.name} PM</p>
-                              <p>작성일: {selectedMeeting.memo.createdAt.toLocaleDateString('ko-KR')} {selectedMeeting.memo.createdAt.toLocaleTimeString('ko-KR')}</p>
+                              <div className="flex justify-between">
+                                <div>
+                                  <p>작성자: {selectedMeetingNotes.createdBy}</p>
+                                  <p>작성일: {new Date(selectedMeetingNotes.createdAt).toLocaleDateString('ko-KR')} {new Date(selectedMeetingNotes.createdAt).toLocaleTimeString('ko-KR')}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p>버전: v{selectedMeetingNotes.version}</p>
+                                  <p>최종 수정: {new Date(selectedMeetingNotes.lastModified).toLocaleDateString('ko-KR')}</p>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         ) : (
                           <div className="flex items-center justify-center h-full">
                             <div className="text-center">
                               <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                              <h4 className="text-lg font-semibold text-gray-700 mb-2">미팅 메모 없음</h4>
-                              <p className="text-gray-500">PM이 아직 미팅 메모를 작성하지 않았습니다</p>
+                              <h4 className="text-lg font-semibold text-gray-700 mb-2">미팅 노트 작성 중</h4>
+                              <p className="text-gray-500 mb-4">
+                                {selectedSchedule.meetingSequence?.type
+                                  ? '미팅 유형에 맞는 템플릿이 생성되었습니다.'
+                                  : 'PM이 아직 미팅 노트를 작성하지 않았습니다.'}
+                              </p>
+                              <button
+                                onClick={async () => {
+                                  if (selectedSchedule.meetingSequence?.type) {
+                                    const template = getNotesTemplate(selectedSchedule.meetingSequence.type);
+                                    if (template) {
+                                      const newNotes = await createNotes(selectedSchedule.id, template);
+                                      setSelectedMeetingNotes(newNotes);
+                                      showSuccess('미팅 노트 템플릿이 생성되었습니다.');
+                                    }
+                                  }
+                                }}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 mx-auto"
+                              >
+                                <PlusCircle className="w-4 h-4" />
+                                노트 작성 시작
+                              </button>
                             </div>
                           </div>
                         )}
@@ -1566,103 +2016,379 @@ export default function ProjectDetail() {
                   )}
                 </div>
 
-                {/* 3. 댓글/피드백 (오른쪽 30%) */}
+                {/* 3. 미팅 요약 & 댓글 (오른쪽 30%) */}
                 <div className="w-96 bg-white flex flex-col">
-                  {selectedMeeting ? (
+                  {selectedSchedule ? (
                     <>
-                      {/* 댓글 헤더 */}
+                      {/* 탭 헤더 */}
                       <div className="p-4 border-b border-gray-200">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-semibold text-gray-900">댓글 & 피드백</h3>
-                          <div className="text-xs text-gray-500">
-                            {selectedMeeting.pmLastChecked ? (
-                              <span className="text-green-600">✓ PM 확인: {formatRelativeTime(selectedMeeting.pmLastChecked)}</span>
-                            ) : (
-                              <span className="text-gray-500">PM 미확인</span>
+                        {/* 탭 버튼 */}
+                        <div className="flex space-x-1 mb-3">
+                          <button
+                            onClick={() => setRightPanelTab('summary')}
+                            className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                              rightPanelTab === 'summary'
+                                ? 'bg-blue-50 text-blue-600'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                            }`}
+                          >
+                            미팅 요약
+                          </button>
+                          <button
+                            onClick={() => setRightPanelTab('comments')}
+                            className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                              rightPanelTab === 'comments'
+                                ? 'bg-blue-50 text-blue-600'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                            }`}
+                          >
+                            댓글
+                            {meetingComments[selectedSchedule.id]?.length > 0 && (
+                              <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-600 text-white rounded-full">
+                                {meetingComments[selectedSchedule.id].length}
+                              </span>
                             )}
-                          </div>
+                          </button>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          댓글 {selectedMeeting.comments.length}개 • 미확인 {selectedMeeting.unreadCommentCount}개
-                        </p>
-                      </div>
 
-                      {/* 댓글 목록 */}
-                      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                        {selectedMeeting.comments.length === 0 ? (
-                          <div className="text-center py-8">
-                            <MessageSquare className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                            <p className="text-sm text-gray-500">아직 댓글이 없습니다</p>
+                        {/* 탭별 헤더 정보 */}
+                        {rightPanelTab === 'summary' ? (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <span className={`px-2 py-1 text-xs rounded ${
+                                selectedMeetingNotes ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                              }`}>
+                                {selectedMeetingNotes ? '✅ 노트 작성됨' : '📝 노트 없음'}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                액션 아이템 {selectedMeetingActionItems.length}개
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                if (selectedMeetingNotes) {
+                                  const updatedNotes = updateNotes(selectedSchedule.id, selectedMeetingNotes);
+                                  setSelectedMeetingNotes(updatedNotes);
+                                  showSuccess('미팅 노트가 저장되었습니다.');
+                                }
+                              }}
+                              className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
+                              저장
+                            </button>
                           </div>
                         ) : (
-                          selectedMeeting.comments.map((comment) => (
-                            <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
-                              <div className="flex items-start justify-between mb-2">
-                                <div className="flex items-center space-x-2">
-                                  <span className="text-sm font-medium text-gray-900">
-                                    {comment.authorName}
-                                  </span>
-                                  <span className={`text-xs px-2 py-0.5 rounded ${
-                                    comment.authorType === 'pm'
-                                      ? 'bg-blue-100 text-blue-700'
-                                      : 'bg-gray-100 text-gray-700'
-                                  }`}>
-                                    {comment.authorType === 'pm' ? 'PM' : '고객'}
-                                  </span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <span className="text-xs text-gray-500">
-                                    {formatRelativeTime(comment.createdAt)}
-                                  </span>
-                                  {comment.isReadByPM && (
-                                    <CheckCircle2 className="w-3 h-3 text-green-500" title="PM 확인" />
-                                  )}
-                                </div>
-                              </div>
-                              <p className="text-sm text-gray-700 leading-relaxed">
-                                {comment.content}
-                              </p>
-                              {comment.attachments && comment.attachments.length > 0 && (
-                                <div className="mt-2 space-y-1">
-                                  {comment.attachments.map((file) => (
-                                    <div key={file.id} className="flex items-center space-x-2 text-xs text-blue-600 hover:text-blue-700 cursor-pointer">
-                                      <Paperclip className="w-3 h-3" />
-                                      <span>{file.name}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">
+                              총 {meetingComments[selectedSchedule.id]?.length || 0}개의 댓글
+                            </span>
+                          </div>
                         )}
                       </div>
 
-                      {/* 댓글 작성 */}
-                      <div className="p-4 border-t border-gray-200">
-                        <textarea
-                          value={newComment}
-                          onChange={(e) => setNewComment(e.target.value)}
-                          placeholder="미팅에 대한 피드백이나 질문을 남겨보세요..."
-                          className="w-full p-3 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          rows={3}
-                        />
-                        <div className="flex items-center justify-between mt-2">
-                          <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded">
-                            <Paperclip className="w-4 h-4" />
-                          </button>
+                      {/* 탭별 콘텐츠 */}
+                      <div className="flex-1 overflow-y-auto">
+                        {rightPanelTab === 'summary' ? (
+                          // 요약 탭 콘텐츠
+                          <div className="p-4 space-y-4">
+                            {/* 미팅 상태 요약 */}
+                            <div className="bg-gray-50 rounded-lg p-3">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+                            <Activity className="w-4 h-4 mr-2 text-blue-500" />
+                            미팅 현황
+                          </h4>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-600">완료율</span>
+                              <span className="font-medium text-gray-900">
+                                {selectedMeetingNotes && selectedMeetingActionItems.length > 0
+                                  ? `${Math.round((selectedMeetingActionItems.filter(item => item.status === 'completed').length / selectedMeetingActionItems.length) * 100)}%`
+                                  : '0%'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-600">노트 상태</span>
+                              <span className={selectedMeetingNotes ? 'text-green-600' : 'text-gray-500'}>
+                                {selectedMeetingNotes ? '작성완료' : '미작성'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-600">액션 아이템</span>
+                              <span className="text-gray-900">
+                                {selectedMeetingActionItems.length}개
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 빠른 액션 아이템 관리 */}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-semibold text-gray-900 flex items-center">
+                              <Clock className="w-4 h-4 mr-2 text-orange-500" />
+                              액션 아이템
+                            </h4>
+                            <button
+                              onClick={async () => {
+                                const newActionItemData = {
+                                  item: '새 액션 아이템',
+                                  description: '',
+                                  assignee: 'PM',
+                                  dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7일 후
+                                  status: 'pending' as const,
+                                  priority: 'medium' as const
+                                };
+                                const newActionItem = await createActionItem(selectedSchedule.id, newActionItemData);
+                                setSelectedMeetingActionItems([...selectedMeetingActionItems, newActionItem]);
+                                showSuccess('새 액션 아이템이 추가되었습니다.');
+                              }}
+                              className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200"
+                            >
+                              + 추가
+                            </button>
+                          </div>
+
+                          {selectedMeetingActionItems.length === 0 ? (
+                            <div className="text-center py-4">
+                              <Clock className="w-6 h-6 mx-auto mb-2 text-gray-300" />
+                              <p className="text-xs text-gray-500">액션 아이템이 없습니다</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {selectedMeetingActionItems.slice(0, 5).map((item, index) => (
+                                <div key={item.id} className="bg-white border border-gray-200 rounded p-2">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center space-x-2">
+                                        <button
+                                          onClick={() => {
+                                            const updatedItem = {
+                                              ...item,
+                                              status: item.status === 'completed' ? 'pending' : 'completed',
+                                              completedAt: item.status === 'completed' ? undefined : new Date()
+                                            };
+                                            updateActionItem(item.id, updatedItem);
+                                            const updatedItems = selectedMeetingActionItems.map(ai =>
+                                              ai.id === item.id ? updatedItem : ai
+                                            );
+                                            setSelectedMeetingActionItems(updatedItems);
+                                          }}
+                                          className={`w-3 h-3 rounded-full border-2 ${
+                                            item.status === 'completed'
+                                              ? 'bg-green-500 border-green-500'
+                                              : 'border-gray-300 hover:border-green-400'
+                                          }`}
+                                        />
+                                        <span className={`text-xs truncate ${
+                                          item.status === 'completed' ? 'line-through text-gray-500' : 'text-gray-900'
+                                        }`}>
+                                          {item.item}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center mt-1 space-x-2">
+                                        <span className="text-xs text-gray-500">{item.assignee}</span>
+                                        <span className={`text-xs px-1 py-0.5 rounded ${
+                                          item.priority === 'urgent' ? 'bg-red-100 text-red-600' :
+                                          item.priority === 'high' ? 'bg-orange-100 text-orange-600' :
+                                          item.priority === 'medium' ? 'bg-yellow-100 text-yellow-600' :
+                                          'bg-gray-100 text-gray-600'
+                                        }`}>
+                                          {item.priority}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                              {selectedMeetingActionItems.length > 5 && (
+                                <p className="text-xs text-gray-500 text-center">
+                                  +{selectedMeetingActionItems.length - 5}개 더 있음
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 미팅 유형별 가이드라인 */}
+                        {selectedSchedule.meetingSequence?.type && MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type] && (
+                          <div className={`rounded-lg p-3 ${
+                            MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].color === 'purple' ? 'bg-purple-50' :
+                            MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].color === 'blue' ? 'bg-blue-50' :
+                            MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].color === 'green' ? 'bg-green-50' :
+                            MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].color === 'orange' ? 'bg-orange-50' :
+                            'bg-emerald-50'
+                          }`}>
+                            <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+                              <span className="mr-2">
+                                {MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].icon}
+                              </span>
+                              미팅 가이드라인
+                            </h4>
+                            <div className="space-y-2">
+                              <div className="text-xs text-gray-700">
+                                <span className="font-medium">추천 시간:</span> {MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].defaultDuration}분
+                              </div>
+                              <div className="text-xs text-gray-700">
+                                <span className="font-medium">필수 참석자:</span> {MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].requiredAttendees.join(', ')}
+                              </div>
+                              {MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].phaseTransition && (
+                                <div className="text-xs text-gray-700">
+                                  <span className="font-medium">단계 전환:</span> {MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].phaseTransition.from} → {MEETING_TYPE_CONFIG[selectedSchedule.meetingSequence.type].phaseTransition.to}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 빠른 메모 */}
+                        <div className="bg-blue-50 rounded-lg p-3">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+                            <MessageSquare className="w-4 h-4 mr-2 text-blue-500" />
+                            핵심 요약
+                          </h4>
+                          {selectedMeetingNotes?.discussion?.keyPoints?.length > 0 ? (
+                            <ul className="space-y-1">
+                              {selectedMeetingNotes.discussion.keyPoints.slice(0, 3).map((point: string, index: number) => (
+                                <li key={index} className="flex items-start text-xs text-gray-700">
+                                  <span className="w-1 h-1 bg-blue-400 rounded-full mt-1.5 mr-2 flex-shrink-0" />
+                                  <span className="line-clamp-2">{point}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-xs text-gray-500">주요 논의사항이 아직 기록되지 않았습니다.</p>
+                          )}
+                        </div>
+                          </div>
+                        ) : (
+                          // 댓글 탭 콘텐츠
+                          <div className="flex flex-col h-full">
+                            {/* 댓글 목록 */}
+                            <div className="flex-1 p-4 space-y-3 overflow-y-auto">
+                              {meetingComments[selectedSchedule.id]?.length > 0 ? (
+                                meetingComments[selectedSchedule.id].map((comment) => (
+                                  <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+                                    <div className="flex items-start justify-between mb-2">
+                                      <div className="flex items-center space-x-2">
+                                        <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-semibold">
+                                          {comment.author.charAt(0)}
+                                        </div>
+                                        <span className="text-sm font-medium text-gray-900">{comment.author}</span>
+                                        <span className="text-xs text-gray-500">
+                                          {new Date(comment.timestamp).toLocaleString('ko-KR', {
+                                            month: 'numeric',
+                                            day: 'numeric',
+                                            hour: 'numeric',
+                                            minute: 'numeric'
+                                          })}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{comment.content}</p>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-center py-8">
+                                  <MessageSquare className="w-8 h-8 mx-auto mb-3 text-gray-300" />
+                                  <p className="text-sm text-gray-500">아직 댓글이 없습니다</p>
+                                  <p className="text-xs text-gray-400 mt-1">첫 번째 댓글을 작성해보세요!</p>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* 댓글 입력 영역 */}
+                            <div className="p-4 border-t border-gray-200">
+                              <div className="space-y-3">
+                                <textarea
+                                  value={newComment}
+                                  onChange={(e) => setNewComment(e.target.value)}
+                                  placeholder="댓글을 작성하세요..."
+                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  rows={3}
+                                />
+                                <button
+                                  onClick={() => {
+                                    if (!newComment.trim() || !selectedSchedule) return;
+
+                                    const newCommentObj = {
+                                      id: `comment-${Date.now()}`,
+                                      content: newComment.trim(),
+                                      author: '김대표', // 현재 사용자 정보로 대체 필요
+                                      timestamp: new Date().toISOString()
+                                    };
+
+                                    setMeetingComments(prev => ({
+                                      ...prev,
+                                      [selectedSchedule.id]: [
+                                        ...(prev[selectedSchedule.id] || []),
+                                        newCommentObj
+                                      ]
+                                    }));
+
+                                    setNewComment('');
+                                    showSuccess('댓글이 추가되었습니다.');
+                                  }}
+                                  disabled={!newComment.trim()}
+                                  className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                  <MessageSquare className="w-4 h-4" />
+                                  댓글 작성
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 빠른 액션 버튼 - 요약 탭에서만 표시 */}
+                      {rightPanelTab === 'summary' && (
+                        <div className="p-4 border-t border-gray-200">
+                        <div className="grid grid-cols-2 gap-2">
                           <button
-                            onClick={handleAddComment}
-                            disabled={!newComment.trim()}
-                            className={`px-4 py-2 text-sm rounded-lg transition-all ${
-                              newComment.trim()
-                                ? 'bg-blue-500 text-white hover:bg-blue-600'
-                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            onClick={() => {
+                              setIsEditMode(!isEditMode);
+                              if (!isEditMode) {
+                                showInfo('편집 모드가 활성화되었습니다. 직접 텍스트를 수정할 수 있습니다.');
+                              } else {
+                                showSuccess('편집 모드가 비활성화되었습니다. 변경사항이 저장되었습니다.');
+                              }
+                            }}
+                            className={`px-3 py-2 text-xs rounded hover:bg-gray-200 flex items-center justify-center gap-1 ${
+                              isEditMode ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
                             }`}
                           >
-                            댓글 작성
+                            <Edit className="w-3 h-3" />
+                            {isEditMode ? '저장' : '편집'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              // PDF 내보내기 로직
+                              showInfo('PDF 내보내기는 개발 중입니다.');
+                            }}
+                            className="px-3 py-2 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center justify-center gap-1"
+                          >
+                            <Download className="w-3 h-3" />
+                            PDF
                           </button>
                         </div>
+                        <button
+                          onClick={async () => {
+                            if (selectedSchedule.meetingSequence?.type) {
+                              const template = getNotesTemplate(selectedSchedule.meetingSequence.type);
+                              if (template) {
+                                const newNotes = await createNotes(selectedSchedule.id, template);
+                                setSelectedMeetingNotes(newNotes);
+                                showSuccess('미팅 노트 템플릿이 생성되었습니다.');
+                              }
+                            }
+                          }}
+                          className="w-full mt-2 px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center justify-center gap-1"
+                        >
+                          <PlusCircle className="w-3 h-3" />
+                          {selectedMeetingNotes ? '새 버전 생성' : '노트 작성 시작'}
+                        </button>
                       </div>
+                      )}
                     </>
                   ) : (
                     <div className="flex items-center justify-center h-full">
@@ -2014,7 +2740,7 @@ export default function ProjectDetail() {
         isOpen={showScheduleModal}
         onClose={() => {
           setShowScheduleModal(false);
-          setSelectedSchedule(null);
+          // setSelectedSchedule(null); // 선택을 유지하기 위해 주석 처리
         }}
         schedule={selectedSchedule || undefined}
         mode={scheduleModalMode}

@@ -14,33 +14,41 @@ export async function loadKPIData() {
   
   try {
     console.log('Loading KPI data from imported CSV files...');
-    
+
     // 직접 import된 CSV 데이터 사용
     const libraryCSV = csvData.library;
     const stageRulesCSV = csvData.stageRules;
     const inputsCSV = csvData.inputs;
-    
-    console.log('CSV data lengths:', {
-      library: libraryCSV.length,
-      stageRules: stageRulesCSV.length,
-      inputs: inputsCSV.length
-    });
+
+    // 개발 환경에서만 상세 로그 출력
+    if (import.meta.env.DEV) {
+      console.log('CSV data lengths:', {
+        library: libraryCSV.length,
+        stageRules: stageRulesCSV.length,
+        inputs: inputsCSV.length
+      });
+    }
     
     cachedKPIData = parseCSVToKPIData(libraryCSV, stageRulesCSV, inputsCSV);
     
-    console.log('KPI data loaded successfully:', {
-      libraries: cachedKPIData.libraries.length,
-      stageRules: cachedKPIData.stageRules.size,
-      inputFields: cachedKPIData.inputFields.size
-    });
-    
-    // 첫 번째 KPI의 stageRules 확인
-    if (cachedKPIData.libraries.length > 0) {
-      const firstKPI = cachedKPIData.libraries[0];
-      console.log('First KPI:', firstKPI.kpi_id, firstKPI.input_type);
-      const rules = cachedKPIData.stageRules.get(firstKPI.kpi_id);
-      if (rules) {
-        console.log('Rules for', firstKPI.kpi_id, ':', Array.from(rules.entries()));
+    console.log(`✅ KPI data loaded: ${cachedKPIData.libraries.length} KPIs, ${cachedKPIData.stageRules.size} rules`);
+
+    // 상세 디버그 정보는 개발 환경에서만
+    if (import.meta.env.DEV && import.meta.env.VITE_DEBUG_KPI) {
+      console.log('KPI data loaded successfully:', {
+        libraries: cachedKPIData.libraries.length,
+        stageRules: cachedKPIData.stageRules.size,
+        inputFields: cachedKPIData.inputFields.size
+      });
+
+      // 첫 번째 KPI의 stageRules 확인
+      if (cachedKPIData.libraries.length > 0) {
+        const firstKPI = cachedKPIData.libraries[0];
+        console.log('First KPI:', firstKPI.kpi_id, firstKPI.input_type);
+        const rules = cachedKPIData.stageRules.get(firstKPI.kpi_id);
+        if (rules) {
+          console.log('Rules for', firstKPI.kpi_id, ':', Array.from(rules.entries()));
+        }
       }
     }
     
