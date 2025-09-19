@@ -137,12 +137,13 @@ const StartupLayout = () => {
                     e.preventDefault();
                     navigate(item.path);
                   }}
-                  className={`w-full flex items-center gap-3 px-6 py-3.5 mx-3 rounded-xl text-sm font-medium
+                  className={`flex items-center gap-3 px-6 py-3.5 mx-3 rounded-xl text-sm font-medium
                              transition-all duration-300 ease-out relative overflow-hidden group/main ${
                     isActive
                       ? 'bg-gradient-to-r from-primary-main to-primary-main/90 text-white shadow-lg shadow-primary-main/25 scale-[1.02]'
                       : 'text-neutral-lighter hover:bg-gradient-to-r hover:from-neutral-gray hover:to-neutral-gray/80 hover:text-white hover:scale-[1.02] hover:shadow-md'
                   }`}
+                  style={{ width: 'calc(100% - 1.5rem)' }}
                   title={collapsed ? item.label : ''}
                 >
                   {/* Hover effect background */}
@@ -176,11 +177,12 @@ const StartupLayout = () => {
                             e.stopPropagation();
                             navigate(subItem.path);
                           }}
-                          className="w-full group/item flex items-center px-4 py-2.5 mx-2 text-sm text-neutral-lighter
+                          className="group/item flex items-center px-4 py-2.5 mx-2 text-sm text-neutral-lighter
                                      hover:bg-primary-main/10 hover:text-white transition-all duration-200 ease-out
                                      rounded-md border-l-2 border-transparent hover:border-primary-main
                                      transform hover:translate-x-1 hover:scale-[1.02]"
                           style={{
+                            width: 'calc(100% - 1rem)',
                             transitionDelay: `${index * 50}ms`
                           }}
                         >
@@ -235,12 +237,13 @@ const StartupLayout = () => {
               </p>
             </div>
           )}
-          <Link
-            to="/startup/mentor"
+          <button
+            onClick={() => navigate('/startup/mentor')}
             className={`flex items-center gap-3 px-6 py-3.5 mx-3 rounded-xl text-sm font-medium
                        transition-all duration-300 ease-out relative overflow-hidden group/main
                        text-neutral-lighter hover:bg-gradient-to-r hover:from-neutral-gray hover:to-neutral-gray/80 hover:text-white hover:scale-[1.02] hover:shadow-md
                        ${collapsed ? 'justify-center' : ''}`}
+            style={{ width: 'calc(100% - 1.5rem)' }}
             title={collapsed ? '포켓 멘토(강의/캠프)' : ''}
           >
             {/* Hover effect background */}
@@ -251,14 +254,15 @@ const StartupLayout = () => {
             <span className={`${collapsed ? 'hidden' : 'block'} truncate relative z-10 transition-all duration-200`}>
               포켓 멘토(강의/캠프)
             </span>
-          </Link>
+          </button>
 
-          <Link
-            to="/startup/pocket-day"
+          <button
+            onClick={() => navigate('/startup/pocket-day')}
             className={`flex items-center gap-3 px-6 py-3.5 mx-3 rounded-xl text-sm font-medium
                        transition-all duration-300 ease-out relative overflow-hidden group/main
                        text-neutral-lighter hover:bg-gradient-to-r hover:from-neutral-gray hover:to-neutral-gray/80 hover:text-white hover:scale-[1.02] hover:shadow-md
                        ${collapsed ? 'justify-center' : ''}`}
+            style={{ width: 'calc(100% - 1.5rem)' }}
             title={collapsed ? '포켓 데이' : ''}
           >
             {/* Hover effect background */}
@@ -269,14 +273,15 @@ const StartupLayout = () => {
             <span className={`${collapsed ? 'hidden' : 'block'} truncate relative z-10 transition-all duration-200`}>
               포켓 데이
             </span>
-          </Link>
+          </button>
 
-          <Link
-            to="/startup/pocket-builder"
+          <button
+            onClick={() => navigate('/startup/pocket-builder')}
             className={`flex items-center gap-3 px-6 py-3.5 mx-3 rounded-xl text-sm font-medium
                        transition-all duration-300 ease-out relative overflow-hidden group/main
                        text-neutral-lighter hover:bg-gradient-to-r hover:from-neutral-gray hover:to-neutral-gray/80 hover:text-white hover:scale-[1.02] hover:shadow-md
                        ${collapsed ? 'justify-center' : ''}`}
+            style={{ width: 'calc(100% - 1.5rem)' }}
             title={collapsed ? '포켓 빌더(다음 버전/이번 X)' : ''}
           >
             {/* Hover effect background */}
@@ -287,14 +292,15 @@ const StartupLayout = () => {
             <span className={`${collapsed ? 'hidden' : 'block'} truncate relative z-10 transition-all duration-200`}>
               포켓 빌더(다음 버전/이번 X)
             </span>
-          </Link>
+          </button>
 
-          <Link
-            to="/startup/connect-ai"
+          <button
+            onClick={() => navigate('/startup/connect-ai')}
             className={`flex items-center gap-3 px-6 py-3.5 mx-3 rounded-xl text-sm font-medium
                        transition-all duration-300 ease-out relative overflow-hidden group/main
                        text-neutral-lighter hover:bg-gradient-to-r hover:from-neutral-gray hover:to-neutral-gray/80 hover:text-white hover:scale-[1.02] hover:shadow-md
                        ${collapsed ? 'justify-center' : ''}`}
+            style={{ width: 'calc(100% - 1.5rem)' }}
             title={collapsed ? '커넥트AI' : ''}
           >
             {/* Hover effect background */}
@@ -305,18 +311,19 @@ const StartupLayout = () => {
             <span className={`${collapsed ? 'hidden' : 'block'} truncate relative z-10 transition-all duration-200`}>
               커넥트AI
             </span>
-          </Link>
+          </button>
         </div>
 
         <div className="p-6 border-t border-neutral-gray space-y-3">
           {/* Settings - moved to bottom */}
-          <Link
-            to="/startup/settings"
+          <button
+            onClick={() => navigate('/startup/settings')}
             className={`flex items-center gap-3 text-sm text-neutral-lighter hover:text-white transition-colors ${collapsed ? 'justify-center' : ''}`}
+            style={{ width: '100%' }}
           >
             <Settings size={18} className="flex-shrink-0" />
             <span className={`${collapsed ? 'hidden' : 'block'}`}>설정</span>
-          </Link>
+          </button>
           
           {/* Logout */}
           <button className={`flex items-center gap-3 text-sm text-neutral-lighter hover:text-white transition-colors w-full ${collapsed ? 'justify-center' : ''}`}>
