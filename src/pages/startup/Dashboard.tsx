@@ -7,19 +7,19 @@
  * - 사이드바: 성장 레벨 + 숨은 기회
  */
 
-import React, { Suspense, useState } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart3, X } from 'lucide-react';
 import { DashboardProvider } from '../../contexts/DashboardContext';
 
-// 컴포넌트 지연 로딩
-const TodaysActionCompact = React.lazy(() => import('../../components/dashboard/TodaysActionCompact'));
-const GrowthCalendarPremium = React.lazy(() => import('../../components/dashboard/GrowthCalendarPremium'));
-const GrowthInsights = React.lazy(() => import('../../components/dashboard/GrowthInsights'));
-const KPIRadarPremium = React.lazy(() => import('../../components/dashboard/KPIRadarPremium'));
-const ActionErrorBoundary = React.lazy(() => import('../../components/dashboard/ActionErrorBoundary'));
-const ProfileCard = React.lazy(() => import('../../components/dashboard/ProfileCard'));
-const WeeklyVCRecommendation = React.lazy(() => import('../../components/dashboard/WeeklyVCRecommendation'));
+// 컴포넌트 직접 import (lazy loading 제거)
+import TodaysActionCompact from '../../components/dashboard/TodaysActionCompact';
+import GrowthCalendarPremium from '../../components/dashboard/GrowthCalendarPremium';
+import GrowthInsights from '../../components/dashboard/GrowthInsights';
+import KPIRadarPremium from '../../components/dashboard/KPIRadarPremium';
+import ActionErrorBoundary from '../../components/dashboard/ActionErrorBoundary';
+import ProfileCard from '../../components/dashboard/ProfileCard';
+import WeeklyVCRecommendation from '../../components/dashboard/WeeklyVCRecommendation';
 
 // 로딩 컴포넌트
 const LoadingSkeleton: React.FC<{ className?: string }> = ({ className }) => (
@@ -76,11 +76,9 @@ const Dashboard: React.FC = () => {
         {/* 오늘의 액션 - 상단 고정 알림바 */}
         <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
           <div className="max-w-7xl mx-auto px-6 py-3">
-            <Suspense fallback={<LoadingSkeleton className="h-12" />}>
-              <ActionErrorBoundary>
-                <TodaysActionCompact />
-              </ActionErrorBoundary>
-            </Suspense>
+            <ActionErrorBoundary>
+              <TodaysActionCompact />
+            </ActionErrorBoundary>
           </div>
         </div>
 
@@ -92,9 +90,7 @@ const Dashboard: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            <Suspense fallback={<LoadingSkeleton className="h-24" />}>
-              <ProfileCard />
-            </Suspense>
+            <ProfileCard />
           </motion.section>
 
           {/* 메인 캘린더 - 전체 폭 */}
@@ -104,9 +100,7 @@ const Dashboard: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <Suspense fallback={<LoadingSkeleton className="h-[700px]" />}>
-              <GrowthCalendarPremium />
-            </Suspense>
+            <GrowthCalendarPremium />
           </motion.section>
 
           {/* 숨은 기회 발견 - 전체 폭 */}
@@ -116,9 +110,7 @@ const Dashboard: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
           >
-            <Suspense fallback={<LoadingSkeleton className="h-48" />}>
-              <GrowthInsights />
-            </Suspense>
+            <GrowthInsights />
           </motion.section>
 
           {/* 주간 VC 추천 - 하단 배치 */}
@@ -128,9 +120,7 @@ const Dashboard: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.5 }}
           >
-            <Suspense fallback={<LoadingSkeleton className="h-64" />}>
-              <WeeklyVCRecommendation />
-            </Suspense>
+            <WeeklyVCRecommendation />
           </motion.section>
         </div>
 
@@ -179,9 +169,7 @@ const Dashboard: React.FC = () => {
                   </div>
 
                   {/* KPI 레이더 컴포넌트 */}
-                  <Suspense fallback={<LoadingSkeleton className="h-80" />}>
-                    <KPIRadarPremium />
-                  </Suspense>
+                  <KPIRadarPremium />
                 </div>
               </motion.div>
             </>
