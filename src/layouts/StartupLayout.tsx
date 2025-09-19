@@ -132,9 +132,12 @@ const StartupLayout = () => {
                 key={item.path}
                 className="relative group"
               >
-                <Link
-                  to={item.path}
-                  className={`flex items-center gap-3 px-6 py-3.5 mx-3 rounded-xl text-sm font-medium
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate(item.path);
+                  }}
+                  className={`w-full flex items-center gap-3 px-6 py-3.5 mx-3 rounded-xl text-sm font-medium
                              transition-all duration-300 ease-out relative overflow-hidden group/main ${
                     isActive
                       ? 'bg-gradient-to-r from-primary-main to-primary-main/90 text-white shadow-lg shadow-primary-main/25 scale-[1.02]'
@@ -158,7 +161,7 @@ const StartupLayout = () => {
                                                 isActive ? 'text-white' : 'text-neutral-lighter'
                                               }`} />
                   )}
-                </Link>
+                </button>
 
                 {/* 아코디언 드롭다운 메뉴 - 개선된 UX */}
                 {hasSubItems && !collapsed && (
@@ -167,10 +170,13 @@ const StartupLayout = () => {
                                   rounded-lg border-l-2 border-primary-main/30 backdrop-blur-sm">
                     <div className="py-2 space-y-1">
                       {item.subItems?.map((subItem, index) => (
-                        <Link
+                        <button
                           key={subItem.path}
-                          to={subItem.path}
-                          className="group/item flex items-center px-4 py-2.5 mx-2 text-sm text-neutral-lighter
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(subItem.path);
+                          }}
+                          className="w-full group/item flex items-center px-4 py-2.5 mx-2 text-sm text-neutral-lighter
                                      hover:bg-primary-main/10 hover:text-white transition-all duration-200 ease-out
                                      rounded-md border-l-2 border-transparent hover:border-primary-main
                                      transform hover:translate-x-1 hover:scale-[1.02]"
@@ -180,11 +186,11 @@ const StartupLayout = () => {
                         >
                           <div className="w-1.5 h-1.5 bg-primary-main/60 rounded-full mr-3
                                           group-hover/item:bg-primary-main transition-colors duration-200"></div>
-                          <span className="font-medium">{subItem.label}</span>
+                          <span className="font-medium text-left">{subItem.label}</span>
                           <div className="ml-auto opacity-0 group-hover/item:opacity-100 transition-opacity duration-200">
                             <ChevronRight className="w-3 h-3 text-primary-main" />
                           </div>
-                        </Link>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -200,13 +206,16 @@ const StartupLayout = () => {
                     </div>
                     <div className="py-2">
                       {item.subItems?.map((subItem) => (
-                        <Link
+                        <button
                           key={subItem.path}
-                          to={subItem.path}
-                          className="block px-4 py-2 text-sm text-neutral-lighter hover:bg-neutral-gray hover:text-white transition-colors whitespace-nowrap"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(subItem.path);
+                          }}
+                          className="w-full text-left block px-4 py-2 text-sm text-neutral-lighter hover:bg-neutral-gray hover:text-white transition-colors whitespace-nowrap"
                         >
                           {subItem.label}
-                        </Link>
+                        </button>
                       ))}
                     </div>
                   </div>

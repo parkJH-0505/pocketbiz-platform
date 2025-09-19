@@ -190,9 +190,16 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
     kpiContext.kpiData
   ]);
 
-  // KPI 변화 감지 및 자동 알림 생성
+  // KPI 변화 감지 및 자동 알림 생성 (의존성 최적화)
   useEffect(() => {
     if (!kpiContext.axisScores || !kpiContext.previousScores) return;
+
+    // 최초 렌더링 시에는 알림 생성하지 않음
+    const isFirstRender = localStorage.getItem('dashboard_kpi_initialized') !== 'true';
+    if (isFirstRender) {
+      localStorage.setItem('dashboard_kpi_initialized', 'true');
+      return;
+    }
 
     const axes = ['GO', 'EC', 'PT', 'PF', 'TO'] as const;
 
@@ -244,7 +251,8 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
         priority: 'high'
       });
     }
-  }, [kpiContext.axisScores, kpiContext.previousScores, notificationContext]);
+    // notificationContext를 의존성에서 제거하여 무한 루프 방지
+  }, [kpiContext.axisScores, kpiContext.previousScores, notificationContext.addNotification]);
 
   // 실제 KPI 기반 성장 상태 계산
   const realGrowthStatus: GrowthStatus = useMemo(() => {
@@ -671,8 +679,10 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
         const oppInsight = generateOpportunityInsight();
         setOpportunityInsight(oppInsight);
 
-        // 시뮬레이션 지연
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // 프로덕션에서는 지연 없이, 개발 환경에서만 짧은 지연
+        if (import.meta.env.DEV) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
 
         setLastUpdated(new Date());
         setError(null);
