@@ -13,7 +13,9 @@ import type {
   BuildupCalendarEvent,
   UserCreatedEvent,
   EventTooltipData,
-  EventTransformationResult,
+  EventTransformationResult
+} from '../types/unifiedCalendar.types';
+import {
   SMART_MATCHING_CATEGORY_STYLES,
   BUILDUP_EVENT_STYLES,
   USER_CREATED_EVENT_STYLES
@@ -27,6 +29,7 @@ export function transformSmartMatchingEvent(
 ): EventTransformationResult {
   try {
     const { event, score, matchingReasons, urgencyLevel, daysUntilDeadline } = matchingResult;
+
 
     // 카테고리별 스타일 가져오기
     const categoryStyle = SMART_MATCHING_CATEGORY_STYLES[event.category];
@@ -77,8 +80,8 @@ export function transformSmartMatchingEvent(
 
     // 지원분야 정보 추출
     let supportField = '';
-    if ('supportField' in event) {
-      supportField = event.supportField;
+    if ('supportField' in event && (event as any).supportField) {
+      supportField = (event as any).supportField;
     } else if ('focusAreas' in event && event.focusAreas) {
       supportField = event.focusAreas.join(', ');
     } else if ('mentorship' in event && event.mentorship) {

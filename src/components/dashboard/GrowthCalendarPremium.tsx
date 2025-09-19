@@ -34,7 +34,8 @@ import { useScheduleContext } from '../../contexts/ScheduleContext';
 import { comprehensiveEvents } from '../../data/smartMatching/comprehensiveEvents';
 import type { CalendarEvent } from '../../types/calendar.types';
 import type { MatchingResult } from '../../types/smartMatching/types';
-import type { UnifiedCalendarEvent, SMART_MATCHING_CATEGORY_STYLES } from '../../types/unifiedCalendar.types';
+import type { UnifiedCalendarEvent, SmartMatchingCalendarEvent } from '../../types/unifiedCalendar.types';
+import { SMART_MATCHING_CATEGORY_STYLES } from '../../types/unifiedCalendar.types';
 import {
   transformSmartMatchingEvent,
   transformBuildupEvent,
@@ -79,7 +80,7 @@ const GrowthCalendarPremium: React.FC = () => {
     const events: UnifiedCalendarEvent[] = [];
 
     // 스마트매칭 이벤트 변환 (마감일 기준으로 해당 주에 표시)
-    comprehensiveEvents.forEach(matchingResult => {
+    comprehensiveEvents.forEach((matchingResult) => {
       const transformResult = transformSmartMatchingEvent(matchingResult);
       if (transformResult.success && transformResult.event) {
         events.push(transformResult.event);
@@ -142,14 +143,12 @@ const GrowthCalendarPremium: React.FC = () => {
       }
     });
 
-    console.log('Unified Events:', events);
     return events;
   }, [weeklySchedule]);
 
   // 특정 날짜의 이벤트들 가져오기 (통합 버전)
   const getEventsForDate = (date: Date) => {
     const eventsForDate = unifiedEvents.filter(event => isSameDayUtil(event.date, date));
-    console.log(`Events for ${date.toDateString()}:`, eventsForDate);
     return eventsForDate;
   };
 
@@ -198,6 +197,12 @@ const GrowthCalendarPremium: React.FC = () => {
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <ChevronRight className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => navigateWeek('today')}
+              className="ml-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
+            >
+              오늘
             </button>
           </div>
 
@@ -257,9 +262,9 @@ const GrowthCalendarPremium: React.FC = () => {
                 </div>
 
                 {/* 이벤트 목록 - 통합 버전 */}
-                <div className="p-2 space-y-1.5 max-h-[100px] overflow-y-auto">
+                <div className="p-1.5 space-y-1 overflow-hidden">
                   <AnimatePresence>
-                    {dayEvents.slice(0, 3).map((event) => {
+                    {dayEvents.slice(0, 2).map((event) => {
                       return (
                         <motion.div
                           key={event.id}
@@ -267,7 +272,7 @@ const GrowthCalendarPremium: React.FC = () => {
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, x: -10 }}
-                          className="p-1.5 rounded cursor-pointer group relative hover:shadow-sm transition-all"
+                          className="px-1.5 py-1 text-xs rounded cursor-pointer group relative hover:shadow-sm transition-all"
                           style={{
                             backgroundColor: event.bgColor,
                             borderColor: event.borderColor,
@@ -279,58 +284,47 @@ const GrowthCalendarPremium: React.FC = () => {
                           onMouseEnter={() => setHoveredEvent(event.id)}
                           onMouseLeave={() => setHoveredEvent(null)}
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-1.5 flex-1">
+                          <div className="flex items-center justify-between gap-0.5">
+                            <div className="flex items-center gap-1 flex-1 min-w-0">
                               {/* 이벤트 타입별 아이콘 */}
                               {event.sourceType === 'smart_matching' ? (
-                                <span className="text-xs">
+                                <span className="text-[10px] flex-shrink-0">
                                   {SMART_MATCHING_CATEGORY_STYLES[event.category].icon || '📋'}
                                 </span>
                               ) : event.sourceType === 'buildup_schedule' ? (
-                                <Users className="w-3 h-3" />
+                                <Users className="w-2.5 h-2.5 flex-shrink-0" />
                               ) : (
-                                <Calendar className="w-3 h-3" />
+                                <Calendar className="w-2.5 h-2.5 flex-shrink-0" />
                               )}
 
-                              <span className="text-xs font-medium truncate">
-                                {event.title}
+                              <span className="text-[10px] font-medium truncate block">
+                                {event.title.length > 15 ? event.title.substring(0, 15) + '...' : event.title}
                               </span>
                             </div>
 
                             {/* 상태 표시 */}
                             {event.sourceType === 'smart_matching' && event.deadline.urgencyLevel === 'high' && (
-                              <AlertCircle className="w-3 h-3 text-red-500" />
+                              <AlertCircle className="w-2.5 h-2.5 text-red-500 flex-shrink-0" />
                             )}
                             {event.sourceType === 'buildup_schedule' && event.status === 'completed' && (
-                              <Check className="w-3 h-3 text-green-600" />
+                              <Check className="w-2.5 h-2.5 text-green-600 flex-shrink-0" />
                             )}
                           </div>
 
-                          {/* 간단한 추가 정보 */}
-                          {event.sourceType === 'smart_matching' && (
-                            <div className="text-xs opacity-75 mt-0.5">
-                              {getDDayText(event.date)} • {event.hostOrganization}
-                            </div>
-                          )}
-                          {event.sourceType === 'buildup_schedule' && event.time && (
-                            <div className="text-xs opacity-75 mt-0.5 flex items-center gap-1">
-                              <Clock className="w-2.5 h-2.5" />
-                              {event.time}
-                            </div>
-                          )}
+                          {/* 간단한 추가 정보 - 제거 또는 매우 간소화 */}
                         </motion.div>
                       );
                     })}
                   </AnimatePresence>
 
-                  {dayEvents.length > 3 && (
-                    <span className="text-xs text-gray-500 pl-2">+{dayEvents.length - 3}개 더</span>
+                  {dayEvents.length > 2 && (
+                    <span className="text-[10px] text-gray-500 pl-1">+{dayEvents.length - 2}</span>
                   )}
 
                   {dayEvents.length === 0 && (
-                    <div className="text-center py-3 text-gray-400">
-                      <Plus className="w-4 h-4 mx-auto mb-1" />
-                      <p className="text-xs">일정 추가</p>
+                    <div className="text-center py-2 text-gray-400">
+                      <Plus className="w-3 h-3 mx-auto" />
+                      <p className="text-[10px]">일정 추가</p>
                     </div>
                   )}
                 </div>
