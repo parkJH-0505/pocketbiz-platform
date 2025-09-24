@@ -446,7 +446,11 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
                 meetingSequence: meeting.type as any,
                 projectPhase: project.phase,
                 expectedDuration: meeting.duration || 60,
-                meetingNotes: (meeting as any).meeting_notes || '',
+                meetingNotes: (meeting as any).meeting_notes ? {
+                  content: (meeting as any).meeting_notes,
+                  updatedAt: (meeting as any).completed_at || new Date(),
+                  updatedBy: 'System'
+                } : undefined,
                 completedAt: (meeting as any).completed_at || undefined,
                 createdAt: new Date(),
                 updatedAt: new Date()

@@ -1583,8 +1583,39 @@ export default function ProjectDetail() {
                             // setShowScheduleModal(true); // 모달을 열지 않음
 
                             // MeetingNotesContext에서 해당 미팅의 노트와 액션 아이템 가져오기
-                            const meetingNotes = getNotes(meeting.id);
+                            const contextNotes = getNotes(meeting.id);
                             const meetingActionItems = getActionItemsByMeeting(meeting.id);
+
+                            // 미팅 자체에 노트가 있으면 우선 사용, 없으면 context에서 가져온 것 사용
+                            const meetingNotes = meeting.meetingNotes?.content ? {
+                              id: meeting.id,
+                              meetingId: meeting.id,
+                              content: meeting.meetingNotes.content,
+                              lastModified: meeting.meetingNotes.updatedAt,
+                              modifiedBy: meeting.meetingNotes.updatedBy,
+                              createdAt: meeting.meetingNotes.updatedAt,
+                              createdBy: meeting.meetingNotes.updatedBy,
+                              version: 1,
+                              // 간단한 형식의 노트로 표시
+                              discussion: {
+                                keyPoints: [meeting.meetingNotes.content],
+                                concerns: []
+                              },
+                              outcomes: {
+                                decisions: [],
+                                actionItems: [],
+                                nextSteps: []
+                              },
+                              preparation: {
+                                agenda: meeting.agenda || []
+                              }
+                            } : contextNotes;
+
+                            console.log('📝 미팅 노트 데이터:', {
+                              meetingId: meeting.id,
+                              hasOriginalNotes: !!meeting.meetingNotes?.content,
+                              meetingNotes
+                            });
 
                             setSelectedMeetingNotes(meetingNotes);
                             setSelectedMeetingActionItems(meetingActionItems);
