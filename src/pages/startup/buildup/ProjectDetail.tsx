@@ -285,6 +285,15 @@ export default function ProjectDetail() {
   // 프로젝트 미팅 필터링
   const projectMeetings = buildupMeetings.filter(m => m.projectId === projectId);
 
+  // 디버깅 로그
+  console.log('🔍 ProjectDetail Debug:', {
+    projectId,
+    allBuildupMeetings: buildupMeetings.length,
+    projectMeetings: projectMeetings.length,
+    buildupMeetingIds: buildupMeetings.map(m => ({ id: m.id, projectId: m.projectId })),
+    filteredMeetings: projectMeetings
+  });
+
   // ✅ 다음 미팅 계산 (ScheduleContext 기반)
   const upcomingMeetings = useMemo(() => {
     const now = new Date();

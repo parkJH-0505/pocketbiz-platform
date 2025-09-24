@@ -280,6 +280,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isInitializedRef = useRef<boolean>(false);
   const syncInProgressRef = useRef<boolean>(false);
+  const hasMockDataLoadedRef = useRef<boolean>(false);
 
   // ========== localStorage 관련 함수 ==========
 
@@ -414,18 +415,34 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
   // ========== Mock Projects 동기화 ==========
 
   useEffect(() => {
-    // 초기화가 완료되고 schedules가 비어있을 때만 실행
-    if (isInitializedRef.current && !isLoading && schedules.length === 0) {
+    // 초기화가 완료되고 mock 데이터를 아직 로드하지 않았을 때만 실행
+    console.log('🔍 Mock Projects Effect Check:', {
+      isInitialized: isInitializedRef.current,
+      isLoading,
+      hasMockDataLoaded: hasMockDataLoadedRef.current,
+      shouldRun: isInitializedRef.current && !isLoading && !hasMockDataLoadedRef.current
+    });
+
+    if (isInitializedRef.current && !isLoading && !hasMockDataLoadedRef.current) {
       const initializeMockProjectMeetings = async () => {
         console.log('🔄 Initializing mock project meetings...');
+        console.log('📊 Available mockProjects:', mockProjects.map(p => ({
+          id: p.id,
+          title: p.title,
+          meetingsCount: p.meetings?.length || 0
+        })));
 
         const mockMeetings: BuildupProjectMeeting[] = [];
+        const newProjectLinks = new Map(projectScheduleLinks);
 
         mockProjects.forEach(project => {
           if (project.meetings && project.meetings.length > 0) {
+            const projectMeetingIds: string[] = [];
+
             project.meetings.forEach(meeting => {
+              // meeting.id를 그대로 사용하여 일관성 유지
               const mockMeeting: BuildupProjectMeeting = {
-                id: generateScheduleId(),
+                id: meeting.id, // generateScheduleId() 대신 기존 ID 사용
                 type: 'buildup_project',
                 title: meeting.title,
                 description: meeting.agenda || '',
@@ -447,14 +464,34 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
                 updatedAt: new Date()
               };
               mockMeetings.push(mockMeeting);
+              projectMeetingIds.push(meeting.id);
+            });
+
+            // 프로젝트-스케줄 연결 정보 설정
+            newProjectLinks.set(project.id, {
+              projectId: project.id,
+              scheduleIds: projectMeetingIds,
+              projectType: 'buildup',
+              lastUpdated: new Date()
             });
           }
         });
 
         if (mockMeetings.length > 0) {
           console.log(`📊 Adding ${mockMeetings.length} mock meetings to schedules`);
-          setSchedules(prev => [...prev, ...mockMeetings]);
-          console.log('✅ Mock project meetings synchronized');
+          console.log(`📊 Setting ${newProjectLinks.size} project-schedule links`);
+
+          setSchedules(prev => {
+            // 중복 체크 - 이미 존재하는 미팅은 추가하지 않음
+            const existingIds = new Set(prev.map(s => s.id));
+            const newMeetings = mockMeetings.filter(m => !existingIds.has(m.id));
+            console.log(`📊 Adding ${newMeetings.length} new meetings (${mockMeetings.length - newMeetings.length} duplicates filtered)`);
+            return [...prev, ...newMeetings];
+          });
+
+          setProjectScheduleLinks(newProjectLinks);
+          hasMockDataLoadedRef.current = true;
+          console.log('✅ Mock project meetings and links synchronized');
         }
       };
 
@@ -462,7 +499,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       const timer = setTimeout(initializeMockProjectMeetings, 500);
       return () => clearTimeout(timer);
     }
-  }, [isLoading, schedules.length]);
+  }, [isLoading, projectScheduleLinks]);
 
   // ========== Cleanup ==========
 

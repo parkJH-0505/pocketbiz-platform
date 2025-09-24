@@ -9,16 +9,9 @@
  */
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-
-// 스마트매칭 이벤트 타입 (임시)
-interface SmartMatchingEvent {
-  id: string;
-  title: string;
-  daysUntilDeadline: number;
-  matchingScore?: number;
-  urgencyLevel?: string;
-  [key: string]: any;
-}
+import { useScheduleContext } from './ScheduleContext';
+import type { GeneralSchedule } from '../types/schedule.types';
+import type { SmartMatchingEvent } from '../types/smartMatching';
 
 interface DashboardInteractionContextType {
   // 드래그&드롭 상태 관리
@@ -58,6 +51,9 @@ interface DashboardInteractionProviderProps {
 }
 
 export const DashboardInteractionProvider: React.FC<DashboardInteractionProviderProps> = ({ children }) => {
+  // ScheduleContext 가져오기
+  const scheduleContext = useScheduleContext();
+
   // 드래그&드롭 상태
   const [draggedEvent, setDraggedEvent] = useState<SmartMatchingEvent | null>(null);
   const [hoveredDay, setHoveredDay] = useState<string | null>(null);
@@ -87,13 +83,52 @@ export const DashboardInteractionProvider: React.FC<DashboardInteractionProvider
   // 액션 함수들
   const addEventToCalendar = async (event: SmartMatchingEvent, targetDate: Date): Promise<boolean> => {
     try {
-      // TODO: Phase 2에서 실제 transformSmartMatchingEvent 함수 연동
-      console.log('Adding event to calendar:', { event, targetDate });
+      // SmartMatchingEvent를 GeneralSchedule로 변환
+      const newSchedule: Omit<GeneralSchedule, 'id' | 'createdAt' | 'updatedAt'> = {
+        type: 'external_meeting', // 스마트매칭 이벤트를 외부 미팅으로 분류
+        title: event.title,
+        date: targetDate,
+        time: '10:00', // 기본 시간 설정
+        location: event.hostOrganization || '온라인',
+        participants: ['나'],
+        status: 'scheduled',
+        priority: event.urgencyLevel === 'high' ? 'high' : event.urgencyLevel === 'medium' ? 'medium' : 'low',
+        description: event.description,
+        createdBy: 'current-user',
 
-      // 성공 시뮬레이션
-      showToast('일정이 추가되었습니다!', 'success');
+        // 스마트매칭 관련 메타데이터 저장
+        metadata: {
+          source: 'smart_matching',
+          originalEventId: event.id,
+          category: event.category,
+          programType: event.programType,
+          hostOrganization: event.hostOrganization,
+          applicationDeadline: event.applicationEndDate?.toISOString(),
+          fundingAmount: event.fundingAmount,
+          matchingScore: event.matchingScore,
+          daysUntilDeadline: event.daysUntilDeadline
+        },
+
+        // 마감일이 있으면 리마인더 설정
+        reminder: event.applicationEndDate ? {
+          enabled: true,
+          time: new Date(event.applicationEndDate.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3일 전 리마인더
+          type: 'email'
+        } : undefined
+      };
+
+      // ScheduleContext를 통해 일정 추가
+      const createdSchedule = await scheduleContext.createSchedule(newSchedule);
+
+      console.log('Schedule created successfully:', createdSchedule);
+      showToast(`'${event.title}' 일정이 캘린더에 추가되었습니다!`, 'success');
+
+      // 관심 이벤트로 자동 마킹
+      markEventInterested(event.id);
+
       return true;
     } catch (error) {
+      console.error('Failed to add event to calendar:', error);
       showToast('일정 추가 중 오류가 발생했습니다.', 'error');
       return false;
     }

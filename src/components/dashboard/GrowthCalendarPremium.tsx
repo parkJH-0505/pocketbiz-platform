@@ -66,10 +66,12 @@ const EVENT_CATEGORIES = {
 const GrowthCalendarPremium: React.FC = () => {
   const { weeklySchedule, currentWeek, navigateWeek, markEventCompleted } = useDashboard();
   const { progress } = useKPIDiagnosis();
+  const { schedules } = useScheduleContext(); // ScheduleContext에서 스케줄 가져오기
   const [selectedEvent, setSelectedEvent] = useState<UnifiedCalendarEvent | null>(null);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [quickAddType, setQuickAddType] = useState<string>('kpi');
   const [hoveredEvent, setHoveredEvent] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0); // 캘린더 리프레시용
 
   // 필터 상태 관리
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
@@ -78,11 +80,46 @@ const GrowthCalendarPremium: React.FC = () => {
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
+  // calendar-refresh 이벤트 리스너 추가
+  useEffect(() => {
+    const handleCalendarRefresh = () => {
+      console.log('📅 Calendar refresh event received');
+      setRefreshKey(prev => prev + 1); // 컴포넌트 리렌더링 트리거
+    };
+
+    window.addEventListener('calendar-refresh', handleCalendarRefresh);
+    return () => {
+      window.removeEventListener('calendar-refresh', handleCalendarRefresh);
+    };
+  }, []);
+
   // 통합된 캘린더 이벤트 생성
   const unifiedEvents = useMemo(() => {
     const events: UnifiedCalendarEvent[] = [];
 
-    // 스마트매칭 이벤트 변환 (마감일 기준으로 해당 주에 표시)
+    // ScheduleContext에서 external_meeting 타입 스케줄 추가 (드래그&드롭으로 추가된 스마트매칭 이벤트)
+    schedules
+      .filter(schedule => schedule.type === 'external_meeting' && schedule.metadata?.source === 'smart_matching')
+      .forEach(schedule => {
+        const event: UnifiedCalendarEvent = {
+          id: schedule.id,
+          sourceType: 'smart_matching',
+          title: schedule.title,
+          description: schedule.description || '',
+          date: new Date(schedule.date),
+          time: schedule.time,
+          category: schedule.metadata?.category || 'external_meeting',
+          priority: schedule.priority === 'high' ? 'high' : schedule.priority === 'medium' ? 'medium' : 'low',
+          status: schedule.status === 'completed' ? 'completed' : 'pending',
+          metadata: {
+            ...schedule.metadata,
+            addedByDragDrop: true
+          }
+        };
+        events.push(event);
+      });
+
+    // 기존 스마트매칭 이벤트 변환 (마감일 기준으로 해당 주에 표시)
     comprehensiveEvents.forEach((matchingResult) => {
       const transformResult = transformSmartMatchingEvent(matchingResult);
       if (transformResult.success && transformResult.event) {
@@ -147,7 +184,7 @@ const GrowthCalendarPremium: React.FC = () => {
     });
 
     return events;
-  }, [weeklySchedule]);
+  }, [weeklySchedule, schedules, refreshKey]);
 
   // 필터링된 이벤트 가져오기
   const getFilteredEvents = useMemo(() => {

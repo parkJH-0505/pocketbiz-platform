@@ -132,13 +132,32 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
             onDragLeave={() => {
               setHoveredDay(null);
             }}
-            onDrop={(e) => {
+            onDrop={async (e) => {
               e.preventDefault();
-              if (draggedEvent) {
-                // TODO: Milestone 4에서 실제 날짜 계산 및 이벤트 추가
-                console.log('Event dropped on calendar:', draggedEvent);
-                setDraggedEvent(null);
-                setHoveredDay(null);
+              if (draggedEvent && hoveredDay) {
+                try {
+                  // hoveredDay는 YYYY-MM-DD 형식의 문자열
+                  const targetDate = new Date(hoveredDay);
+
+                  // DashboardInteractionContext의 addEventToCalendar 호출
+                  const success = await addEventToCalendar(draggedEvent, targetDate);
+
+                  if (success) {
+                    console.log('✅ Event successfully added to calendar:', {
+                      event: draggedEvent.title,
+                      date: targetDate.toLocaleDateString()
+                    });
+
+                    // 캘린더 리프레시 이벤트 발생 (GrowthCalendarPremium이 감지)
+                    window.dispatchEvent(new CustomEvent('calendar-refresh'));
+                  }
+                } catch (error) {
+                  console.error('Failed to add event to calendar:', error);
+                } finally {
+                  // 드래그 상태 초기화
+                  setDraggedEvent(null);
+                  setHoveredDay(null);
+                }
               }
             }}
           >
