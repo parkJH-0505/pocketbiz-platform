@@ -50,6 +50,7 @@ import {
   formatScheduleDate,
   formatScheduleTime
 } from '../types/schedule.types';
+import { mockProjects } from '../data/mockProjects';
 
 // ============================================================================
 // Constants
@@ -395,6 +396,9 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isInitializedRef.current) {
       loadFromLocalStorage();
+
+      // mockProjects의 미팅 데이터를 초기화 (나중에 별도 useEffect에서 처리)
+
       isInitializedRef.current = true;
     }
   }, [loadFromLocalStorage]);
@@ -406,6 +410,59 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       saveToLocalStorage();
     }
   }, [schedules, projectScheduleLinks, isLoading, saveToLocalStorage]);
+
+  // ========== Mock Projects 동기화 ==========
+
+  useEffect(() => {
+    // 초기화가 완료되고 schedules가 비어있을 때만 실행
+    if (isInitializedRef.current && !isLoading && schedules.length === 0) {
+      const initializeMockProjectMeetings = async () => {
+        console.log('🔄 Initializing mock project meetings...');
+
+        const mockMeetings: BuildupProjectMeeting[] = [];
+
+        mockProjects.forEach(project => {
+          if (project.meetings && project.meetings.length > 0) {
+            project.meetings.forEach(meeting => {
+              const mockMeeting: BuildupProjectMeeting = {
+                id: generateScheduleId(),
+                type: 'buildup_project',
+                title: meeting.title,
+                description: meeting.agenda || '',
+                date: meeting.date.toISOString(),
+                startDateTime: meeting.date,
+                endDateTime: new Date(meeting.date.getTime() + (meeting.duration || 60) * 60 * 1000),
+                location: meeting.location || '',
+                status: meeting.status === 'completed' ? 'completed' : 'scheduled',
+                priority: 'medium',
+                participants: meeting.attendees || [],
+                tags: ['buildup', 'mock-data'],
+                projectId: project.id,
+                meetingSequence: meeting.type as any,
+                projectPhase: project.phase,
+                expectedDuration: meeting.duration || 60,
+                meetingNotes: (meeting as any).meeting_notes || '',
+                completedAt: (meeting as any).completed_at || undefined,
+                createdAt: new Date(),
+                updatedAt: new Date()
+              };
+              mockMeetings.push(mockMeeting);
+            });
+          }
+        });
+
+        if (mockMeetings.length > 0) {
+          console.log(`📊 Adding ${mockMeetings.length} mock meetings to schedules`);
+          setSchedules(prev => [...prev, ...mockMeetings]);
+          console.log('✅ Mock project meetings synchronized');
+        }
+      };
+
+      // 약간의 지연 후 실행
+      const timer = setTimeout(initializeMockProjectMeetings, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, schedules.length]);
 
   // ========== Cleanup ==========
 
