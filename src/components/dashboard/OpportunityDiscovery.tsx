@@ -12,7 +12,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles,
   Clock,
-  TrendingUp,
   Filter,
   ChevronRight,
   AlertCircle,
@@ -271,56 +270,6 @@ const OpportunityDiscovery: React.FC<OpportunityDiscoveryProps> = ({
           </AnimatePresence>
         </div>
 
-        {/* 시장 트렌드 */}
-        {insights.trends.length > 0 && (
-          <div className="mt-6">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
-              <TrendingUp className="w-4 h-4 mr-1" />
-              시장 트렌드
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {insights.trends.map((trend, index) => (
-                <motion.div
-                  key={index}
-                  className="p-3 bg-gray-50 rounded-lg border border-gray-200"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.5 + index * 0.1 }}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-900">
-                      {trend.category}
-                    </span>
-                    <span className={`text-xs px-2 py-0.5 rounded ${
-                      trend.trend === 'rising'
-                        ? 'bg-green-100 text-green-600'
-                        : trend.trend === 'declining'
-                        ? 'bg-red-100 text-red-600'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {trend.trend === 'rising' ? '상승' : trend.trend === 'declining' ? '하락' : '안정'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-600">
-                    {trend.description}
-                  </p>
-                  <div className="mt-2 flex items-center space-x-2">
-                    <span className="text-xs text-gray-500">관련성</span>
-                    <div className="flex-1 bg-gray-200 rounded-full h-1.5">
-                      <div
-                        className="bg-blue-500 h-1.5 rounded-full"
-                        style={{ width: `${trend.relevance * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-gray-700 font-medium">
-                      {Math.round(trend.relevance * 100)}%
-                    </span>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

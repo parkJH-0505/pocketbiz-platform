@@ -33,6 +33,10 @@ import type {
   ScheduleEvent
 } from '../types/schedule.types';
 
+import { contextReadyEmitter } from '../utils/contextReadyEmitter';
+import { useContextRegistration } from '../hooks/useContextRegistration';
+import { CONTEXT_METADATA } from '../utils/contextMetadata';
+
 import {
   generateScheduleId,
   validateSchedule,
@@ -349,7 +353,11 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(STORAGE_KEYS.LAST_SYNC, now.toISOString());
         setLastSync(now);
 
-        console.log('✅ Saved to localStorage successfully');
+        console.log('📢 [Sprint 5] Step 8: ✅ Saved to localStorage successfully', {
+          schedules: schedules.length,
+          projectLinks: projectScheduleLinks.size,
+          lastSync: now.toISOString()
+        });
       } catch (err) {
         console.error('❌ Failed to save to localStorage:', err);
         setError('스케줄 데이터 저장에 실패했습니다.');
@@ -478,20 +486,66 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       }
 
       // 5. ⚡ 이벤트 발생 (가장 중요!)
+      console.log('📢 [Sprint 5] Step 1: Emitting SCHEDULE_CREATED event');
       emitScheduleEvent(SCHEDULE_EVENTS.CREATED, newSchedule);
 
       // 빌드업 미팅인 경우 특별 이벤트 발생
       if (isBuildupProjectMeeting(newSchedule)) {
         const buildupMeeting = newSchedule as BuildupProjectMeeting;
+        console.log('📢 [Sprint 5] Step 2: Detected Buildup Meeting:', {
+          projectId: buildupMeeting.projectId,
+          meetingSequence: buildupMeeting.meetingSequence,
+          meetingType: buildupMeeting.type
+        });
 
         // Phase Transition 트리거 정보 확인 (직접 전달된 것 우선, 없으면 자동 계산)
         const phaseTransition = buildupMeeting.phaseTransitionTrigger ||
                                 getPhaseTransitionTrigger(buildupMeeting.meetingSequence);
 
         if (phaseTransition) {
-          console.log('🎯 Triggering phase transition:', phaseTransition);
+          console.log('📢 [Sprint 5] Step 3: Phase Transition Trigger Found:', phaseTransition);
 
-          // BuildupContext가 감지할 이벤트 발생
+          // PhaseTransitionManager를 통한 직접 전환 시도
+          import('../utils/phaseTransitionManager').then(async ({ phaseTransitionManager }) => {
+            console.log('📢 [Sprint 5] Step 4: Loading PhaseTransitionManager...');
+            try {
+              console.log('📢 [Sprint 5] Step 5: Calling phaseTransitionManager.transition()');
+
+              // 현재 프로젝트의 단계로 PhaseTransitionManager 초기화
+              const fromPhaseEnum = phaseTransition.fromPhase.toUpperCase().replace(/-/g, '_') as any;
+              const toPhaseEnum = phaseTransition.toPhase.toUpperCase().replace(/-/g, '_') as any;
+
+              // 현재 단계로 초기화
+              phaseTransitionManager.setState({
+                current: fromPhaseEnum,
+                completionRate: 100, // 이전 단계 완료
+                startedAt: new Date(Date.now() - 60000), // 1분 전 시작
+                history: []
+              });
+
+              await phaseTransitionManager.transition(
+                toPhaseEnum,
+                {
+                  mode: 'auto' as any,
+                  metadata: {
+                    projectId: buildupMeeting.projectId,
+                    trigger: 'meeting_scheduled',
+                    meetingId: newSchedule.id,
+                    meetingType: buildupMeeting.type,
+                    meetingSequence: buildupMeeting.meetingSequence
+                  }
+                }
+              );
+              console.log('📢 [Sprint 5] Step 6: ✅ Phase transition triggered successfully!');
+            } catch (error) {
+              console.error('📢 [Sprint 5] Step 6: ❌ Phase transition failed:', error);
+            }
+          }).catch(error => {
+            console.error('📢 [Sprint 5] Step 4: ❌ PhaseTransitionManager not available:', error);
+          });
+
+          // BuildupContext가 감지할 이벤트 발생 (백업 메커니즘)
+          console.log('📢 [Sprint 5] Step 7: Emitting BUILDUP_MEETING_CREATED event (backup)');
           emitScheduleEvent(SCHEDULE_EVENTS.BUILDUP_MEETING_CREATED, newSchedule, {
             projectId: buildupMeeting.projectId,
             meetingSequence: buildupMeeting.meetingSequence,
@@ -1102,6 +1156,93 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     isSyncInProgress
   ]);
 
+  // Window 객체에 ScheduleContext 노출 (Phase 전환 및 크로스 컨텍스트 통신용)
+  // GlobalContextManager와 window 객체 둘 다 지원 (통합 시스템을 위해)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Context 객체 정의
+      const scheduleContextObj = {
+        // State
+        schedules,
+        isLoading,
+        error,
+
+        // Methods
+        createSchedule,
+        updateSchedule,
+        deleteSchedule,
+        getScheduleById,
+        getSchedulesByProject,
+        createSchedulesBatch,
+
+        // Utils
+        validateSchedule,
+        clearError: () => setError(null),
+        clearAllSchedules: () => {
+          setSchedules([]);
+          setProjectScheduleLinks(new Map());
+          localStorage.removeItem(STORAGE_KEYS.SCHEDULES);
+          localStorage.removeItem(STORAGE_KEYS.PROJECT_LINKS);
+          console.log('🗑️ All schedules cleared via window interface');
+        }
+      };
+
+      // Window 객체에 노출 (통합 스케줄 시스템을 위해)
+      window.scheduleContext = scheduleContextObj;
+
+      // GlobalContextManager에 등록
+      import('../utils/globalContextManager').then(({ contextManager }) => {
+        contextManager.register('schedule', scheduleContextObj, {
+          name: 'schedule',
+          version: '1.0.0',
+          description: 'Schedule management context',
+          isReady: true
+        });
+        console.log('✅ ScheduleContext registered to GlobalContextManager');
+      }).catch(error => {
+        console.warn('GlobalContextManager registration failed:', error);
+      });
+
+      // Event Emitter는 나중에 필요시 추가
+
+      // Debug utilities 초기화
+      if (!window.__DEBUG_CONTEXTS__) {
+        window.__DEBUG_CONTEXTS__ = {
+          list: () => Object.keys(window).filter(k => k.endsWith('Context')),
+          get: (name: string) => window[`${name}Context`],
+          test: (name: string) => !!window[`${name}Context`],
+          status: () => {
+            const contexts = ['schedule', 'buildup', 'dashboard'];
+            return contexts.reduce((acc, name) => {
+              acc[name] = !!window[`${name}Context`];
+              return acc;
+            }, {} as Record<string, boolean>);
+          }
+        };
+      }
+
+      console.log('✅ ScheduleContext registered to window');
+
+      // Context ready 이벤트 발송
+      contextReadyEmitter.markReady('schedule', [
+        'createSchedule',
+        'updateSchedule',
+        'deleteSchedule',
+        'getScheduleById',
+        'getSchedulesByProject',
+        'createSchedulesBatch'
+      ]);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete window.scheduleContext;
+        contextReadyEmitter.markUnready('schedule');
+        console.log('🧹 ScheduleContext removed from window');
+      }
+    };
+  }, []); // Empty dependency - register once on mount
+
   // ✅ Step 3: 실시간 양방향 동기화 시스템
   useEffect(() => {
     console.log('🚀 ScheduleContext: Initializing bidirectional sync system (Step 3)');
@@ -1530,6 +1671,32 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('buildup:data_changed', handleBuildupDataChanged);
     };
   }, [getSchedulesByProject, createSchedule, updateSchedule, deleteSchedule, getScheduleById]);
+
+  // GlobalContextManager에 자동 등록
+  const { isRegistered, status } = useContextRegistration({
+    name: 'schedule',
+    context: contextValue,
+    metadata: CONTEXT_METADATA.schedule,
+    dependencies: ['toast'], // Toast에 의존
+    autoRegister: true,
+    onReady: () => {
+      console.log('✅ ScheduleContext registered with GlobalContextManager');
+    },
+    onError: (error) => {
+      console.error('❌ Failed to register ScheduleContext:', error);
+    }
+  });
+
+  // 등록 상태 디버그 (개발 환경)
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log('ScheduleContext registration status:', {
+        isRegistered,
+        status: status.status,
+        errorCount: status.errorCount
+      });
+    }
+  }, [isRegistered, status]);
 
   return (
     <ScheduleContext.Provider value={contextValue}>

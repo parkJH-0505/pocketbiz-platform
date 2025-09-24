@@ -18,5 +18,14 @@ export default defineConfig({
         }
       }
     }
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom'],
+    exclude: ['@vite/client', '@vite/env']
+  },
+  server: {
+    hmr: {
+      overlay: false
+    }
   }
 })

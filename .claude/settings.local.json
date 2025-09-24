@@ -25,7 +25,17 @@
       "Bash(npx eslint:*)",
       "Bash(timeout 10 npx tsc --noEmit)",
       "Bash(echo:*)",
-      "Bash(clear)"
+      "Bash(clear)",
+      "Bash(node:*)",
+      "Bash(taskkill:*)",
+      "Bash(tasklist)",
+      "Bash(powershell:*)",
+      "Bash(findstr:*)",
+      "Bash(dir:*)",
+      "Read(//c/**)",
+      "Bash(wmic:*)",
+      "WebFetch(domain:pocketbiz-platform.vercel.app)",
+      "WebFetch(domain:localhost)"
     ],
     "deny": [],
     "ask": []

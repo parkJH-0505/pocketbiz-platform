@@ -10,6 +10,7 @@ import type { UnifiedSchedule } from './schedule.types';
 import type { PhaseTransitionQueue } from '../utils/phaseTransitionQueue';
 import type { StateSnapshotManager } from '../utils/stateSnapshot';
 import type { MockDataMigrator } from '../utils/dataMigration';
+import type { EventEmitter } from 'events';
 
 declare global {
   interface Window {
@@ -39,6 +40,19 @@ declare global {
       getScheduleById: (id: string) => UnifiedSchedule | undefined;
       getSchedulesByProject: (projectId: string) => UnifiedSchedule[];
       createSchedulesBatch: <T extends UnifiedSchedule>(schedules: Array<Omit<T, 'id' | 'createdAt' | 'updatedAt'>>, options?: { skipDuplicateCheck?: boolean; suppressEvents?: boolean; source?: string; }) => Promise<T[]>;
+    };
+
+    // Event Emitters for cross-context communication
+    scheduleEventEmitter?: EventEmitter;
+    buildupEventEmitter?: EventEmitter;
+    dashboardEventEmitter?: EventEmitter;
+
+    // Debug utilities for contexts
+    __DEBUG_CONTEXTS__?: {
+      list: () => string[];
+      get: (name: string) => any;
+      test: (name: string) => boolean;
+      status: () => Record<string, boolean>;
     };
 
     // 기존 테스트 도구 확장

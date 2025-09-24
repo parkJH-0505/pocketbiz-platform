@@ -77,6 +77,9 @@ export class PhaseTransitionQueue {
   private processing: Set<string> = new Set(); // 현재 처리 중인 projectId들
   private globalLock: boolean = false;
   private statistics: QueueStatistics;
+  private contextWaitRetries = 0;
+  private readonly maxContextWaitRetries = 20; // 20 * 500ms = 10초 대기
+  private readonly contextWaitDelay = 500; // 500ms
 
   constructor() {
     this.statistics = {
@@ -274,8 +277,14 @@ export class PhaseTransitionQueue {
   private async executeMeetingCreation(item: TransitionQueueItem): Promise<any> {
     const { scheduleData, phaseTransition } = item.payload;
 
+    // ScheduleContext 대기
+    const contextAvailable = await this.waitForContext('schedule');
+    if (!contextAvailable) {
+      throw new Error('ScheduleContext not available after waiting');
+    }
+
     // ScheduleContext를 통한 미팅 생성
-    if (window.scheduleContext) {
+    if (window.scheduleContext?.createSchedule) {
       const schedule = await window.scheduleContext.createSchedule(scheduleData);
 
       // Phase transition 트리거
@@ -288,7 +297,7 @@ export class PhaseTransitionQueue {
       return schedule;
     }
 
-    throw new Error('ScheduleContext not available');
+    throw new Error('ScheduleContext.createSchedule method not available');
   }
 
   /**
@@ -296,6 +305,12 @@ export class PhaseTransitionQueue {
    */
   private async executePhaseTransition(item: TransitionQueueItem): Promise<any> {
     const { projectId, fromPhase, toPhase, trigger } = item.payload;
+
+    // BuildupContext 대기
+    const contextAvailable = await this.waitForContext('buildup');
+    if (!contextAvailable) {
+      throw new Error('BuildupContext not available after waiting');
+    }
 
     // BuildupContext를 통한 phase transition
     if (window.buildupContext?.executePhaseTransition) {
@@ -334,12 +349,18 @@ export class PhaseTransitionQueue {
   private async executeMeetingUpdate(item: TransitionQueueItem): Promise<any> {
     const { scheduleId, updates } = item.payload;
 
+    // ScheduleContext 대기
+    const contextAvailable = await this.waitForContext('schedule');
+    if (!contextAvailable) {
+      throw new Error('ScheduleContext not available after waiting');
+    }
+
     if (window.scheduleContext?.updateSchedule) {
       await window.scheduleContext.updateSchedule(scheduleId, updates);
       return { scheduleId, updates };
     }
 
-    throw new Error('ScheduleContext not available');
+    throw new Error('ScheduleContext.updateSchedule method not available');
   }
 
   /**
@@ -348,12 +369,43 @@ export class PhaseTransitionQueue {
   private async executeMeetingDeletion(item: TransitionQueueItem): Promise<any> {
     const { scheduleId } = item.payload;
 
+    // ScheduleContext 대기
+    const contextAvailable = await this.waitForContext('schedule');
+    if (!contextAvailable) {
+      throw new Error('ScheduleContext not available after waiting');
+    }
+
     if (window.scheduleContext?.deleteSchedule) {
       await window.scheduleContext.deleteSchedule(scheduleId);
       return { scheduleId };
     }
 
-    throw new Error('ScheduleContext not available');
+    throw new Error('ScheduleContext.deleteSchedule method not available');
+  }
+
+  /**
+   * Context가 사용 가능할 때까지 대기
+   */
+  private async waitForContext(contextName: 'schedule' | 'buildup'): Promise<boolean> {
+    for (let i = 0; i < this.maxContextWaitRetries; i++) {
+      const context = contextName === 'schedule' ? window.scheduleContext : window.buildupContext;
+
+      if (context) {
+        if (i > 0) {
+          console.log(`✅ ${contextName}Context available after ${i} retries`);
+        }
+        return true;
+      }
+
+      if (i === 0) {
+        console.log(`⏳ Waiting for ${contextName}Context to be available...`);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, this.contextWaitDelay));
+    }
+
+    console.warn(`⚠️ ${contextName}Context not available after ${this.maxContextWaitRetries} retries`);
+    return false;
   }
 
   /**
@@ -362,12 +414,18 @@ export class PhaseTransitionQueue {
   private async executeMockMigration(item: TransitionQueueItem): Promise<any> {
     const { mockMeetings } = item.payload;
 
+    // ScheduleContext 대기
+    const contextAvailable = await this.waitForContext('schedule');
+    if (!contextAvailable) {
+      throw new Error('ScheduleContext not available after waiting');
+    }
+
     if (window.scheduleContext?.createSchedulesBatch) {
       const results = await window.scheduleContext.createSchedulesBatch(mockMeetings);
       return { migrated: results.length };
     }
 
-    throw new Error('ScheduleContext not available');
+    throw new Error('ScheduleContext.createSchedulesBatch method not available');
   }
 
   /**

@@ -174,23 +174,27 @@ export const mockProjects: Project[] = [
       {
         id: 'MTG-001',
         title: 'IR 콘텐츠 검토 미팅',
-        type: 'pm_meeting',
+        type: 'guide_3rd',  // 가이드 3차 미팅 (실행 단계에 맞춤)
         date: threeDaysLater, // 3일 후 (🟡 주의)
         duration: 60,
         attendees: ['정대표', '김수민 PM', '최디자인'],
         agenda: '1. 실행 단계 진행률 점검\n2. 콘텐츠 작업 결과 검토\n3. 다음 주 디자인 작업 계획',
         location: '줌',
-        meeting_link: 'https://zoom.us/j/123456789'
+        meeting_link: 'https://zoom.us/j/123456789',
+        projectId: 'PRJ-001',
+        status: 'scheduled' as const
       },
       {
         id: 'MTG-002',
         title: 'IR 덱 중간 점검',
-        type: 'project_meeting',
+        type: 'guide_4th',  // 가이드 4차 미팅
         date: oneWeekLater, // 1주일 후 (🟡 주의)
         duration: 45,
         attendees: ['정대표', '김수민 PM', '이작가', '최디자인'],
         agenda: '1. 주간 진행 현황\n2. 클라이언트 피드백 반영\n3. 리스크 및 이슈 논의',
-        location: '포켓 내방'
+        location: '포켓 내방',
+        projectId: 'PRJ-001',
+        status: 'scheduled' as const
       }
     ],
     files: [],
@@ -353,25 +357,41 @@ export const mockProjects: Project[] = [
     ],
     meetings: [
       {
-        id: 'MTG-001',
-        title: '기술 스택 확정 미팅',
-        type: 'pm_meeting',
-        date: dayAfterTomorrow, // 2일 후
+        id: 'MTG-003',
+        title: '가이드 1차 - 킥오프 미팅',
+        type: 'guide_1st',  // 가이드 1차 미팅 (이미 완료됨)
+        date: new Date(oneWeekAgo.getTime() + 1 * 24 * 60 * 60 * 1000), // 6일 전
         duration: 90,
         attendees: ['김창업', '박준영 PM'],
-        agenda: '1. 최종 기술 스택 결정\n2. 인프라 구성 논의\n3. 보안 요구사항 검토',
+        agenda: '1. 프로젝트 목표 정의\n2. 기술 스택 초기 논의\n3. 일정 수립',
         location: '줌',
-        meeting_link: 'https://meet.google.com/abc-defg-hij'
+        meeting_link: 'https://meet.google.com/abc-defg-hij',
+        projectId: 'PRJ-002',
+        status: 'completed' as const
       },
       {
-        id: 'MTG-002',
-        title: '개발 스프린트 리뷰',
-        type: 'project_meeting',
+        id: 'MTG-004',
+        title: '가이드 2차 - 설계 검토',
+        type: 'guide_2nd',  // 가이드 2차 미팅 (예정)
+        date: dayAfterTomorrow, // 2일 후
+        duration: 90,
+        attendees: ['김창업', '박준영 PM', '김백엔드', '이프론트'],
+        agenda: '1. 상세 설계 검토\n2. API 명세 확정\n3. DB 스키마 최종 확인',
+        location: '포켓 내방',
+        projectId: 'PRJ-002',
+        status: 'scheduled' as const
+      },
+      {
+        id: 'MTG-005',
+        title: '가이드 3차 - 개발 진행 점검',
+        type: 'guide_3rd',  // 가이드 3차 미팅
         date: tenDaysLater, // 10일 후
         duration: 90,
         attendees: ['김창업', '박준영 PM', '김백엔드', '이프론트', '최풀스택'],
-        agenda: '1. 스프린트 진행 상황\n2. 코드 리뷰\n3. 다음 스프린트 계획',
-        location: '포켓 내방'
+        agenda: '1. 개발 진행 상황\n2. 코드 리뷰\n3. 테스트 계획',
+        location: '포켓 내방',
+        projectId: 'PRJ-002',
+        status: 'scheduled' as const
       }
     ],
     files: [],
@@ -385,6 +405,77 @@ export const mockProjects: Project[] = [
       },
       total_messages: 23,
       response_time_avg: 2.1 // 평균 응답시간 (시간)
+    }
+  },
+  {
+    id: 'PRJ-TEST',
+    title: '[테스트] 스타트업 웹사이트 개발',
+    service_id: 'SVC-DEV-002',
+    category: '개발',
+    status: 'active',
+    phase: 'contract_pending' as ProjectPhase,  // 1단계: 계약 대기 중 (초기 상태)
+    created_from: 'catalog',
+    contract: {
+      id: 'CNT-TEST',
+      value: 15000000,
+      signed_date: null,
+      start_date: today,
+      end_date: new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000)
+    },
+    progress: {
+      overall: 0,
+      milestones_completed: 0,
+      milestones_total: 5,
+      deliverables_submitted: 0,
+      deliverables_total: 8
+    },
+    timeline: {
+      kickoff_date: null,
+      phase_updated_at: today,
+      phase_updated_by: 'pm-business-support',
+      start_date: today,
+      end_date: new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000)
+    },
+    workstreams: [],
+    deliverables: [],
+    team: {
+      pm: defaultBusinessSupportPM,  // 초기에는 경영지원팀이 담당
+      members: [],
+      client_contact: {
+        id: 'client-test',
+        name: '테스트사용자',
+        role: 'CEO',
+        email: 'test@startup-test.com',
+        company: '테스트스타트업'
+      }
+    },
+    risks: [],
+    meetings: [
+      {
+        id: 'MTG-TEST-001',
+        title: '사전 미팅 - 초기 상담',
+        type: 'pre_meeting',  // 사전 미팅
+        date: tomorrow, // 내일
+        duration: 60,
+        attendees: ['테스트사용자', '경영지원팀'],
+        agenda: '1. 프로젝트 요구사항 파악\n2. 예산 및 일정 논의\n3. 계약 조건 협의',
+        location: '줌',
+        meeting_link: 'https://zoom.us/j/test123',
+        projectId: 'PRJ-TEST',
+        status: 'scheduled' as const
+      }
+    ],
+    files: [],
+    communication: {
+      unread_messages: 1,
+      last_activity: today,
+      last_message: {
+        from: '경영지원팀',
+        content: '내일 사전 미팅 준비 자료 첨부드립니다. 확인 부탁드려요.',
+        timestamp: today
+      },
+      total_messages: 3,
+      response_time_avg: 1.5
     }
   },
   {

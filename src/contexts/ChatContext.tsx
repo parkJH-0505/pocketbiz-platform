@@ -278,6 +278,28 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return newRoom;
   }, [profile]);
 
+  // 메시지 읽음 처리
+  const markMessagesAsRead = useCallback((roomId: string) => {
+    setChatRooms(prev => {
+      const room = prev[roomId];
+      if (!room) return prev;
+
+      const updatedMessages = room.messages.map(msg => ({
+        ...msg,
+        isRead: true
+      }));
+
+      return {
+        ...prev,
+        [roomId]: {
+          ...room,
+          messages: updatedMessages,
+          unreadCount: 0
+        }
+      };
+    });
+  }, []);
+
   // 프로젝트 채팅방 열기
   const openChatForProject = useCallback((projectId: string) => {
     if (chatRooms[projectId]) {
@@ -287,7 +309,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         markMessagesAsRead(projectId);
       }, 100);
     }
-  }, [chatRooms]);
+  }, [chatRooms, markMessagesAsRead]);
 
   // 채팅방 닫기
   const closeChat = useCallback(() => {
@@ -379,21 +401,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [chatRooms]);
 
-  // 메시지 읽음 처리
-  const markMessagesAsRead = useCallback((roomId: string) => {
-    setChatRooms(prev => ({
-      ...prev,
-      [roomId]: {
-        ...prev[roomId],
-        messages: prev[roomId].messages.map(msg => ({
-          ...msg,
-          isRead: true
-        })),
-        unreadCount: 0,
-        updatedAt: new Date()
-      }
-    }));
-  }, []);
 
   // 전체 읽지 않은 메시지 수
   const totalUnreadCount = Object.values(chatRooms).reduce(

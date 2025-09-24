@@ -22,3 +22,16 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Test files (temporary)
+src/pages/startup/*Test*.tsx
+
+# Migration files (temporary)
+src/utils/migration*.ts
+
+# Performance logs
+*.perf.log
+
+# Temp files
+cleanup.bat
+nul

@@ -42,7 +42,8 @@ const StartupLayout = () => {
   // 대시보드 페이지인지 확인
   const isDashboardPage = location.pathname === '/startup/dashboard';
 
-  if (import.meta.env.DEV) {
+  // Sprint 5 완료 후 제거 예정 - 과도한 로깅 방지
+  if (import.meta.env.DEV && Math.random() > 0.95) {
     console.log('StartupLayout rendering, location:', location.pathname);
   }
 

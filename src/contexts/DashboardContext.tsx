@@ -29,6 +29,9 @@ import { generateTodaysAction, type KPIAnalysisData } from '../utils/dashboard/a
 // 인사이트 생성 로직
 import { generateOpportunityInsight } from '../services/dashboard/opportunityService';
 
+// Mock 빌드업 스케줄 데이터 import
+import { generateMockBuildupSchedule } from '../data/mockBuildupSchedule';
+
 // 스케줄 데이터 변환 함수
 function convertSchedulesToCalendarEvents(schedules: any[]): CalendarEvent[] {
   return schedules.map(schedule => ({
@@ -406,7 +409,7 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
     };
   }, [kpiContext.axisScores, kpiContext.previousScores]);
 
-  // 폴백용 Mock 데이터
+  // 폴백용 Mock 데이터 - 빌드업 일정 포함
   const mockFallbackSchedule: CalendarEvent[] = useMemo(() => [
     // 오늘
     {
@@ -432,6 +435,25 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
       priority: 'high',
       isCompleted: true
     },
+    // 빌드업 일정 - 오늘
+    {
+      id: 'buildup-001',
+      date: new Date(),
+      type: 'checkup',
+      title: 'PM 정기 미팅',
+      description: '프로젝트 진행상황 점검 및 다음 단계 논의',
+      estimatedTime: '60분',
+      tone: 'PM과 함께 프로젝트를 점검해보세요',
+      priority: 'critical',
+      isCompleted: false,
+      actionUrl: '/startup/buildup',
+      time: '14:00',
+      projectId: 'project-001',
+      projectTitle: 'AI 기반 스타트업 성장 플랫폼',
+      pmName: '김성장 PM',
+      meetingType: 'progress_check',
+      status: 'scheduled'
+    },
 
     // 내일
     {
@@ -445,6 +467,25 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
       priority: 'high',
       isCompleted: false,
       actionUrl: '/startup/buildup'
+    },
+    // 빌드업 일정 - 내일
+    {
+      id: 'buildup-002',
+      date: addDays(new Date(), 1),
+      type: 'planning',
+      title: '기술 멘토링 세션',
+      description: '아키텍처 설계 리뷰 및 기술 스택 최적화',
+      estimatedTime: '90분',
+      tone: '멘토와 함께 기술적 난제를 해결해보세요',
+      priority: 'high',
+      isCompleted: false,
+      actionUrl: '/startup/buildup',
+      time: '10:00',
+      projectId: 'project-001',
+      projectTitle: 'AI 기반 스타트업 성장 플랫폼',
+      pmName: '이개발 멘토',
+      meetingType: 'mentoring',
+      status: 'scheduled'
     },
 
     // 모레
@@ -488,6 +529,25 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
       priority: 'low',
       isCompleted: false
     },
+    // 빌드업 일정 - 3일 후
+    {
+      id: 'buildup-003',
+      date: addDays(new Date(), 3),
+      type: 'checkup',
+      title: '프로젝트 중간 점검',
+      description: 'MVP 개발 진행사항 확인 및 품질 검토',
+      estimatedTime: '45분',
+      tone: '목표를 향해 잘 가고 있는지 확인해보세요',
+      priority: 'medium',
+      isCompleted: false,
+      actionUrl: '/startup/buildup',
+      time: '15:00',
+      projectId: 'project-001',
+      projectTitle: 'AI 기반 스타트업 성장 플랫폼',
+      pmName: '김성장 PM',
+      meetingType: 'milestone_review',
+      status: 'scheduled'
+    },
 
     // 4일 후
     {
@@ -500,6 +560,25 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
       tone: '작은 성취도 모두 소중해요. 축하해요!',
       priority: 'medium',
       isCompleted: false
+    },
+    // 빌드업 일정 - 4일 후
+    {
+      id: 'buildup-004',
+      date: addDays(new Date(), 4),
+      type: 'planning',
+      title: '투자 전략 워크샵',
+      description: 'IR 자료 준비 및 투자 유치 전략 수립',
+      estimatedTime: '120분',
+      tone: '투자 유치를 위한 전략을 함께 고민해보세요',
+      priority: 'high',
+      isCompleted: false,
+      actionUrl: '/startup/buildup',
+      time: '13:00',
+      projectId: 'project-002',
+      projectTitle: '시리즈 A 투자 유치',
+      pmName: '박투자 PM',
+      meetingType: 'strategy_session',
+      status: 'scheduled'
     },
 
     // 5일 후
@@ -566,9 +645,11 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
         return realEvents;
       }
 
-      // 폴백: Mock 데이터 사용
-      console.log('Mock 스케줄 데이터 사용');
-      return mockFallbackSchedule;
+      // 폴백: Mock 데이터 사용 (기존 fallback + 빌드업 스케줄)
+      const buildupSchedule = generateMockBuildupSchedule();
+      const combinedSchedule = [...mockFallbackSchedule, ...buildupSchedule];
+      console.log('Mock 스케줄 데이터 사용 (빌드업 포함):', combinedSchedule.length, '개');
+      return combinedSchedule;
     } catch (error) {
       console.error('스케줄 데이터 변환 오류:', error);
       return mockFallbackSchedule;

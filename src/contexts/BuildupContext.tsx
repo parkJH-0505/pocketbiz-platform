@@ -14,7 +14,7 @@
  * @since 2024
  */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import type {
   BuildupService,
   CartItem,
@@ -26,6 +26,10 @@ import type {
   PhaseTransitionApprovalRequest
 } from '../types/buildup.types';
 import { useScheduleContext } from './ScheduleContext';
+import { useSafeToast } from '../hooks/useSafeToast';
+import { contextReadyEmitter } from '../utils/contextReadyEmitter';
+import { useContextRegistration } from '../hooks/useContextRegistration';
+import { CONTEXT_METADATA } from '../utils/contextMetadata';
 import {
   loadBuildupServices,
   calculateBundleDiscount
@@ -39,6 +43,7 @@ import {
   logEvent
 } from '../types/events.types';
 import { mockProjects, defaultBusinessSupportPM } from '../data/mockProjects';
+import { mockMeetingRecords } from '../data/mockMeetingData';
 import {
   calculatePhaseProgress,
   PHASE_INFO,
@@ -49,6 +54,9 @@ import { globalTransitionQueue } from '../utils/phaseTransitionQueue';
 import { globalSnapshotManager } from '../utils/stateSnapshot';
 import { globalMigrator } from '../utils/dataMigration';
 import { EdgeCaseLogger } from '../utils/edgeCaseScenarios';
+import { MigrationManager } from '../utils/migrationManager';
+import { migrationRetryManager } from '../utils/migrationRetryManager';
+import { validateMigrationPrerequisites } from '../utils/migrationValidator';
 import { ValidationManager, type ValidationResult } from '../utils/dataValidation';
 // Sprint 4 Phase 4-4: Edge Case Systems
 import { ScheduleConflictResolver, type ScheduleConflict } from '../utils/conflictResolver';
@@ -172,6 +180,16 @@ const BuildupContext = createContext<BuildupContextType | undefined>(undefined);
 export function BuildupProvider({ children }: { children: ReactNode }) {
   // ScheduleContext 접근
   const scheduleContext = useScheduleContext();
+
+  // Safe Toast hooks (with fallback)
+  const { showSuccess, showError, showInfo, showWarning, isUsingFallback } = useSafeToast();
+
+  // Log if using fallback (for debugging)
+  useEffect(() => {
+    if (isUsingFallback && import.meta.env.DEV) {
+      console.warn('BuildupContext: Using toast fallback mechanism');
+    }
+  }, [isUsingFallback]);
 
   const [services, setServices] = useState<BuildupService[]>([]);
   const [loadingServices, setLoadingServices] = useState(true);
@@ -1048,6 +1066,7 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
     // Phase 4: Listen for Schedule Events from ScheduleContext (Refactored with EventSourceTracker)
     const handleBuildupMeetingCreated = (event: CustomEvent) => {
+      console.log('📢 [Sprint 5] BuildupContext: Received buildup_meeting_created event', event.detail);
       const { schedule, metadata } = event.detail;
 
       // Step 3-4: Apply EventSourceTracker for circular reference prevention
@@ -1125,15 +1144,17 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
             // Handle phase transition if needed
             if (metadata.phaseTransition?.toPhase) {
+              const fromPhase = project.phase;
               project = {
                 ...project,
                 phase: metadata.phaseTransition.toPhase
               };
 
-              console.log('✅ Phase transition completed:', {
+              console.log('📢 [Sprint 5] BuildupContext: ✅ Phase transition completed!', {
                 projectId: metadata.projectId,
-                fromPhase: project.phase,
-                toPhase: metadata.phaseTransition.toPhase
+                fromPhase: fromPhase,
+                toPhase: metadata.phaseTransition.toPhase,
+                trigger: 'buildup_meeting_created'
               });
             }
 
@@ -2207,9 +2228,66 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     getProjectMeetings
   };
 
-  // Development: Store context for testing
+  // Window 객체에 BuildupContext 노출 (Phase 전환 및 크로스 컨텍스트 통신용)
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+    if (typeof window !== 'undefined') {
+      // Context 객체 정의
+      const buildupContextObj = {
+        projects,
+        setProjects,
+        phaseTransitionEvents,
+        setPhaseTransitionEvents,
+        executePhaseTransition: async (projectId: string, toPhase: string, trigger: string, metadata?: any) => {
+          // triggerPhaseTransition 함수 호출
+          return triggerPhaseTransition(projectId, toPhase, trigger, metadata);
+        }
+      };
+
+      // Window 객체에 노출 (Phase Transition 시스템과의 연동을 위해)
+      window.buildupContext = buildupContextObj;
+      console.log('✅ BuildupContext registered to window');
+
+      // GlobalContextManager에 등록
+      import('../utils/globalContextManager').then(({ contextManager }) => {
+        contextManager.register('buildup', buildupContextObj, {
+          name: 'buildup',
+          version: '1.0.0',
+          description: 'Buildup project management context',
+          dependencies: ['schedule'],
+          isReady: true
+        });
+        console.log('✅ BuildupContext registered to GlobalContextManager');
+      }).catch(error => {
+        console.warn('GlobalContextManager registration failed:', error);
+      });
+
+      // Context ready 이벤트 발송
+      contextReadyEmitter.markReady('buildup', [
+        'projects',
+        'setProjects',
+        'phaseTransitionEvents',
+        'setPhaseTransitionEvents',
+        'executePhaseTransition'
+      ]);
+    }
+
+    // Cleanup when unmounting
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete window.buildupContext;
+        contextReadyEmitter.markUnready('buildup');
+        console.log('🧹 BuildupContext removed from window');
+      }
+    };
+  }, []); // Empty dependency - register once on mount
+
+  // Migration 실행 플래그 (한 번만 실행하도록)
+  const migrationAttemptedRef = useRef(false);
+
+  // Development 테스트 도구 및 로그 (마운트 시 한 번만 실행)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      // Development 환경에서는 전체 context도 노출
       // @ts-ignore
       if (window.testBuildupSync) {
         // @ts-ignore
@@ -2218,36 +2296,73 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
         window.testBuildupSync.getContext = () => value;
       }
 
-      // Step 5: Integration Testing Tools
-      // @ts-ignore
-      // Phase 4-2: Setup global context references for queue system
-      window.buildupContext = {
-        projects,
-        setProjects,
-        phaseTransitionEvents,
-        setPhaseTransitionEvents,
-        executePhaseTransition: executePhaseTransition // Use main function for queue
-      };
+      // Phase 4-2: Setup global context references for queue system (중복 제거됨)
+      // BuildupContext는 이미 위쪽 useEffect에서 window에 노출됨
 
-      // Phase 4-2: Automatic mock data migration
+      // Sprint 3 - Stage 1: Use MigrationManager instead of direct migration
+      const migrationManager = MigrationManager.getInstance();
+
       const runMockDataMigration = async () => {
-        console.log('🔄 Starting automatic mock data migration...');
-        try {
-          const results = await globalMigrator.migrateAllMockMeetings();
-          const totalMigrated = results.reduce((sum, result) => sum + result.migrated, 0);
+        // Sprint 5: Migration 임시 비활성화
+        console.log('📌 Migration temporarily disabled for Sprint 5 testing');
+        return;
 
-          if (totalMigrated > 0) {
-            console.log(`✅ Mock data migration completed: ${totalMigrated} meetings migrated`);
-            showSuccess(`📋 ${totalMigrated}개의 미팅 데이터가 마이그레이션되었습니다`);
+        // 아래 코드는 Sprint 5 완료 후 재활성화 예정
+        /*
+        console.log('🔄 Checking mock data migration with MigrationManager...');
+
+        try {
+          // Check if migration is needed
+          const shouldMigrate = await migrationManager.shouldMigrate();
+
+          if (!shouldMigrate) {
+            console.log('ℹ️ Migration not needed at this time');
+            return;
           }
+
+          // Run migration with progress tracking
+          const results = await migrationManager.migrate({
+            mode: 'auto',
+            onProgress: (progress, message) => {
+              console.log(`📊 Migration progress: ${progress}% - ${message || ''}`);
+            },
+            onComplete: (results) => {
+              const totalMigrated = results.reduce((sum, r) => sum + r.migrated, 0);
+              if (totalMigrated > 0) {
+                showSuccess(`📋 ${totalMigrated}개의 미팅 데이터가 마이그레이션되었습니다`);
+              }
+            },
+            onError: (error) => {
+              showError('미팅 데이터 마이그레이션 중 오류가 발생했습니다');
+              console.error('Migration error:', error);
+            }
+          });
+
+          const totalMigrated = results.reduce((sum, result) => sum + result.migrated, 0);
+          console.log(`✅ Migration completed: ${totalMigrated} meetings migrated`);
+
         } catch (error) {
-          console.error('❌ Mock data migration failed:', error);
-          showError('미팅 데이터 마이그레이션 중 오류가 발생했습니다');
+          console.error('❌ Migration failed:', error);
+          // MigrationManager handles retries internally
         }
+        */
       };
 
-      // Run migration after initial sync
-      setTimeout(runMockDataMigration, 2000);
+      // Schedule migration check after initial load (only once)
+      if (!migrationAttemptedRef.current) {
+        migrationAttemptedRef.current = true;
+
+        setTimeout(async () => {
+          // Only run if contexts are ready
+          if (projects.length > 0) {
+            await runMockDataMigration();
+          } else {
+            // Retry later if projects not loaded yet
+            console.log('⏳ Projects not loaded, will retry migration later');
+            setTimeout(runMockDataMigration, 5000);
+          }
+        }, 3000);
+      }
 
       window.syncTest = {
         // 초기 동기화 재실행
@@ -2256,8 +2371,19 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
           performInitialSync();
         },
 
-        // Phase 4-2: Manual migration trigger
+        // Sprint 3: Manual migration trigger using MigrationManager
         runMockMigration: runMockDataMigration,
+
+        // Migration Manager controls
+        migrationManager: {
+          pause: () => migrationManager.pause(),
+          resume: () => migrationManager.resume(),
+          cancel: () => migrationManager.cancel(),
+          getState: () => migrationManager['state'],
+          getProgress: () => migrationManager['progress'],
+          getHistory: () => migrationManager.getHistory(),
+          getStatistics: () => migrationManager.getStatistics()
+        },
 
         // Phase 4-2: Queue status check
         getQueueStatus: () => {
@@ -2276,10 +2402,12 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
         // 동기화 상태 확인
         getSyncStatus: () => {
+          const windowScheduleContext = (window as any).scheduleContext;
           return {
-            isInProgress: scheduleContext.isSyncInProgress(),
-            scheduleCount: scheduleContext.schedules.length,
-            buildupMeetingCount: scheduleContext.buildupMeetings.length,
+            isInProgress: windowScheduleContext?.isLoading || false,
+            scheduleCount: windowScheduleContext?.schedules?.length || 0,
+            buildupMeetingCount: windowScheduleContext?.schedules?.filter((s: any) =>
+              s.type === 'buildup_project' || s.tags?.includes('buildup')).length || 0,
             projectCount: projects.length,
             totalMeetings: projects.reduce((acc, p) => acc + (p.meetings?.length || 0), 0)
           };
@@ -2287,8 +2415,11 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
         // 프로젝트별 스케줄 확인
         checkProjectSchedules: (projectId: string) => {
-          const hasSchedules = scheduleContext.hasSchedulesForProject(projectId);
-          const projectSchedules = scheduleContext.getSchedulesByProject(projectId);
+          const windowScheduleContext = (window as any).scheduleContext;
+          const projectSchedules = windowScheduleContext?.schedules?.filter((s: any) =>
+            s.projectId === projectId
+          ) || [];
+          const hasSchedules = projectSchedules.length > 0;
           const project = projects.find(p => p.id === projectId);
 
           return {
@@ -2311,13 +2442,14 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
         // 전체 동기화 검증
         validateSync: () => {
           const results: any = {};
+          const windowScheduleContext = (window as any).scheduleContext;
 
           projects.forEach(project => {
             const check = window.syncTest.checkProjectSchedules(project.id);
             // ✅ 올바른 검증: 프로젝트별 buildup_project 스케줄만 카운트
-            const projectBuildupSchedules = scheduleContext.schedules.filter(s =>
+            const projectBuildupSchedules = windowScheduleContext?.schedules?.filter((s: any) =>
               s.type === 'buildup_project' && s.projectId === project.id
-            ).length;
+            ).length || 0;
 
             results[project.id] = {
               projectTitle: project.title,
@@ -2339,8 +2471,11 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
         forcePurgeAndResync: async () => {
           console.log('🧪 [Test] Force purge and resync...');
 
-          // ScheduleContext 클리어
-          scheduleContext.clearAllSchedules();
+          // ScheduleContext 클리어 (window에서 접근)
+          const windowScheduleContext = (window as any).scheduleContext;
+          if (windowScheduleContext?.clearAllSchedules) {
+            windowScheduleContext.clearAllSchedules();
+          }
 
           // 잠시 대기
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -2387,7 +2522,33 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
         window.syncTest.validateSync();
       }, 2000);
     }
-  }, [value]);
+  }, []); // 빈 배열 - 마운트 시 한 번만 실행
+
+  // GlobalContextManager에 자동 등록
+  const { isRegistered, status } = useContextRegistration({
+    name: 'buildup',
+    context: value,
+    metadata: CONTEXT_METADATA.buildup,
+    dependencies: ['toast', 'schedule'], // Toast와 Schedule에 의존
+    autoRegister: true,
+    onReady: () => {
+      console.log('✅ BuildupContext registered with GlobalContextManager');
+    },
+    onError: (error) => {
+      console.error('❌ Failed to register BuildupContext:', error);
+    }
+  });
+
+  // 등록 상태 디버그 (개발 환경)
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log('BuildupContext registration status:', {
+        isRegistered,
+        status: status.status,
+        errorCount: status.errorCount
+      });
+    }
+  }, [isRegistered, status]);
 
   return (
     <BuildupContext.Provider value={value}>

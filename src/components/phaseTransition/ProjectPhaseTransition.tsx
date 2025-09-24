@@ -87,14 +87,23 @@ export default function ProjectPhaseTransition({
     }
   };
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('ko-KR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(new Date(date));
+  const formatDate = (date: Date | string | number) => {
+    try {
+      const validDate = new Date(date);
+      if (isNaN(validDate.getTime())) {
+        return '유효하지 않은 날짜';
+      }
+      return new Intl.DateTimeFormat('ko-KR', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(validDate);
+    } catch (error) {
+      console.error('Date formatting error:', error, date);
+      return '날짜 오류';
+    }
   };
 
   return (

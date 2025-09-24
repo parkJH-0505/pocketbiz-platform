@@ -96,7 +96,7 @@ export default function ProjectDetail() {
     getUnreadCountByProject,
     createChatRoomForProject
   } = useChatContext();
-  const { buildupMeetings } = useScheduleContext();
+  const { buildupMeetings, createSchedule } = useScheduleContext();
   const { showSuccess, showError, showInfo } = useToast();
   const {
     notes,
@@ -139,6 +139,50 @@ export default function ProjectDetail() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleModalMode, setScheduleModalMode] = useState<'create' | 'edit' | 'view'>('create');
   const [selectedSchedule, setSelectedSchedule] = useState<BuildupProjectMeeting | null>(null);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false); // Sprint 5 추가
+
+  // Sprint 5: Phase별 미팅 타입 매핑
+  const PHASE_TO_MEETING = {
+    'contract_pending': 'pre_meeting',     // 계약 대기 → 사전 미팅
+    'contract_signed': 'guide_1st',        // 계약 완료 → 가이드 1차
+    'planning': 'guide_2nd',               // 기획 → 가이드 2차
+    'design': 'guide_3rd',                 // 설계 → 가이드 3차
+    'execution': 'guide_4th',              // 실행 → 가이드 4차
+    'review': 'post_meeting',              // 검토 → 사후 미팅
+    'completed': 'post_meeting'            // 완료 → 사후 미팅
+  };
+
+  // Sprint 5: 다음 미팅 타입 결정 함수
+  const getNextMeetingType = (currentPhase: string): string => {
+    return PHASE_TO_MEETING[currentPhase as keyof typeof PHASE_TO_MEETING] || 'general_meeting';
+  };
+
+  // Sprint 5: 미팅 예약 핸들러
+  const handleScheduleMeeting = async (scheduleData: any) => {
+    try {
+      // 1. 미팅 생성 (이벤트 자동 발생)
+      const newMeeting = await createSchedule({
+        ...scheduleData,
+        type: 'buildup_project',
+        projectId: project?.id,
+        meetingSequence: getNextMeetingType(project?.phase || 'contract_pending')
+      });
+
+      console.log('✅ 미팅 예약 성공:', newMeeting);
+      showSuccess('미팅이 성공적으로 예약되었습니다.');
+
+      // 2. UI 닫기
+      setIsScheduleModalOpen(false);
+      setShowScheduleModal(false);
+
+      // 3. Phase 전환은 이벤트 시스템이 자동 처리
+      // ScheduleContext → Event → PhaseTransitionManager
+
+    } catch (error) {
+      console.error('❌ 미팅 예약 실패:', error);
+      showError('미팅 예약에 실패했습니다.');
+    }
+  };
 
   // 🚀 Sprint 6 Phase 6-3: 키보드 단축키
   useEffect(() => {
@@ -415,17 +459,21 @@ export default function ProjectDetail() {
     window.addEventListener('schedule:phase_transition_error', handleSyncError);
     window.addEventListener('schedule:buildup_change_error', handleSyncError);
 
-    // 컴포넌트 마운트 시 현재 상태 로깅
-    console.log('📊 ProjectDetail mounted with:', {
-      projectId,
-      projectMeetingsCount: projectMeetings.length,
-      hasProject: !!project,
-      scheduleContextConnected: !!buildupMeetings
-    });
+    // 컴포넌트 마운트 시 현재 상태 로깅 (Sprint 5 완료 후 제거 예정)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📊 ProjectDetail mounted with:', {
+        projectId,
+        projectMeetingsCount: projectMeetings.length,
+        hasProject: !!project,
+        scheduleContextConnected: !!buildupMeetings
+      });
+    }
 
     // 클린업
     return () => {
-      console.log('🧹 ProjectDetail: Cleaning up event listeners');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🧹 ProjectDetail: Cleaning up event listeners');
+      }
       window.removeEventListener('schedule:changed', handleScheduleChanged);
       window.removeEventListener('schedule:created', handleScheduleChanged);
       window.removeEventListener('schedule:updated', handleScheduleChanged);
@@ -1220,9 +1268,18 @@ export default function ProjectDetail() {
                     <div className="flex items-center gap-2 mb-3">
                       <Calendar className="w-5 h-5 text-blue-600" />
                       <h3 className="font-semibold text-blue-900">다음 미팅</h3>
-                      <span className="ml-auto px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
-                        ScheduleContext 연동
-                      </span>
+                      {/* Sprint 5: 미팅 예약 버튼 추가 */}
+                      <button
+                        onClick={() => {
+                          setIsScheduleModalOpen(true);
+                          setShowScheduleModal(true);
+                          setScheduleModalMode('create');
+                        }}
+                        className="ml-auto px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md font-medium flex items-center gap-1.5 transition-colors"
+                      >
+                        <PlusCircle className="w-4 h-4" />
+                        미팅 예약
+                      </button>
                     </div>
                     <div className="space-y-2">
                       <p className="font-semibold text-gray-900">
@@ -1279,13 +1336,32 @@ export default function ProjectDetail() {
                     <div className="flex items-center gap-2 mb-3">
                       <Calendar className="w-5 h-5 text-gray-400" />
                       <h3 className="font-semibold text-gray-700">다음 미팅</h3>
-                      <span className="ml-auto px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
-                        ScheduleContext 연동
-                      </span>
+                      {/* Sprint 5: 미팅 예약 버튼 추가 */}
+                      <button
+                        onClick={() => {
+                          setIsScheduleModalOpen(true);
+                          setShowScheduleModal(true);
+                          setScheduleModalMode('create');
+                        }}
+                        className="ml-auto px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md font-medium flex items-center gap-1.5 transition-colors"
+                      >
+                        <PlusCircle className="w-4 h-4" />
+                        미팅 예약
+                      </button>
                     </div>
                     <div className="text-center py-4">
-                      <p className="text-gray-500 text-sm mb-2">예정된 미팅이 없습니다.</p>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-gray-500 text-sm mb-3">예정된 미팅이 없습니다.</p>
+                      <button
+                        onClick={() => {
+                          setIsScheduleModalOpen(true);
+                          setShowScheduleModal(true);
+                          setScheduleModalMode('create');
+                        }}
+                        className="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors"
+                      >
+                        첫 미팅 예약하기
+                      </button>
+                      <p className="text-xs text-gray-400 mt-3">
                         총 {projectMeetings.length}개 미팅 중 {upcomingMeetings.length}개 예정
                       </p>
                     </div>
@@ -2737,15 +2813,23 @@ export default function ProjectDetail() {
 
       {/* Universal Schedule Modal */}
       <UniversalScheduleModal
-        isOpen={showScheduleModal}
+        isOpen={showScheduleModal || isScheduleModalOpen}
         onClose={() => {
           setShowScheduleModal(false);
+          setIsScheduleModalOpen(false);
           // setSelectedSchedule(null); // 선택을 유지하기 위해 주석 처리
         }}
         schedule={selectedSchedule || undefined}
         mode={scheduleModalMode}
         defaultType="buildup_project"
         projectId={projectId}
+        initialData={scheduleModalMode === 'create' ? {
+          projectId: projectId,
+          title: `${project?.title || ''} - ${getNextMeetingType(project?.phase || 'contract_pending')} 미팅`,
+          type: 'buildup_project',
+          meetingSequence: getNextMeetingType(project?.phase || 'contract_pending')
+        } : undefined}
+        onSubmit={scheduleModalMode === 'create' ? handleScheduleMeeting : undefined}  // Sprint 5: 생성 모드일 때만 사용
         onSuccess={(schedule) => {
           console.log('✅ ProjectDetail: Schedule saved successfully:', schedule);
 

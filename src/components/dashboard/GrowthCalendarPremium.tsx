@@ -71,6 +71,9 @@ const GrowthCalendarPremium: React.FC = () => {
   const [quickAddType, setQuickAddType] = useState<string>('kpi');
   const [hoveredEvent, setHoveredEvent] = useState<string | null>(null);
 
+  // 필터 상태 관리
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+
   // 주간 날짜 생성
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -146,9 +149,36 @@ const GrowthCalendarPremium: React.FC = () => {
     return events;
   }, [weeklySchedule]);
 
+  // 필터링된 이벤트 가져오기
+  const getFilteredEvents = useMemo(() => {
+    if (activeFilters.length === 0) return unifiedEvents;
+
+    return unifiedEvents.filter(event => {
+      if (event.sourceType === 'smart_matching') {
+        // 스마트매칭 이벤트 필터링
+        if (activeFilters.includes('kpi')) {
+          // KPI 체크와 관련된 카테고리
+          return ['tips_program', 'accelerator', 'batch_program'].includes(event.category);
+        }
+        if (activeFilters.includes('funding')) {
+          // 자금 조달과 관련된 카테고리
+          return ['government_support', 'vc_opportunity', 'loan_program'].includes(event.category);
+        }
+        if (activeFilters.includes('meeting')) {
+          // 미팅과 관련된 카테고리
+          return ['open_innovation', 'conference', 'seminar'].includes(event.category);
+        }
+      } else if (event.sourceType === 'buildup_schedule') {
+        // 빌드업 일정은 meeting으로 분류
+        return activeFilters.includes('meeting');
+      }
+      return false;
+    });
+  }, [unifiedEvents, activeFilters]);
+
   // 특정 날짜의 이벤트들 가져오기 (통합 버전)
   const getEventsForDate = (date: Date) => {
-    const eventsForDate = unifiedEvents.filter(event => isSameDayUtil(event.date, date));
+    const eventsForDate = getFilteredEvents.filter(event => isSameDayUtil(event.date, date));
     return eventsForDate;
   };
 
@@ -208,12 +238,34 @@ const GrowthCalendarPremium: React.FC = () => {
 
           {/* 카테고리 필터 */}
           <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setActiveFilters([])}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeFilters.length === 0
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              전체
+            </button>
             {Object.entries(EVENT_CATEGORIES).map(([key, category]) => {
               const Icon = category.icon;
+              const isActive = activeFilters.includes(key);
               return (
                 <button
                   key={key}
-                  className="flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                  onClick={() => {
+                    if (isActive) {
+                      setActiveFilters(activeFilters.filter(f => f !== key));
+                    } else {
+                      setActiveFilters([...activeFilters, key]);
+                    }
+                  }}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
                 >
                   <Icon className="w-4 h-4" />
                   <span>{category.label}</span>
@@ -391,17 +443,19 @@ const GrowthCalendarPremium: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 text-sm text-gray-600">
             <div>
-              스마트매칭 {unifiedEvents.filter(e => e.sourceType === 'smart_matching').length}개
+              스마트매칭 {getFilteredEvents.filter(e => e.sourceType === 'smart_matching').length}개
             </div>
             <div className="h-4 w-px bg-gray-300" />
             <div>
-              빌드업 일정 {unifiedEvents.filter(e => e.sourceType === 'buildup_schedule').length}개
+              빌드업 일정 {getFilteredEvents.filter(e => e.sourceType === 'buildup_schedule').length}개
             </div>
             <div className="h-4 w-px bg-gray-300" />
             <div>
-              완료 {unifiedEvents.filter(e =>
-                e.sourceType === 'buildup_schedule' && e.status === 'completed'
-              ).length}개
+              {activeFilters.length > 0 ? (
+                <span className="text-blue-600 font-medium">필터 적용 중</span>
+              ) : (
+                <>전체 {unifiedEvents.length}개</>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-4">

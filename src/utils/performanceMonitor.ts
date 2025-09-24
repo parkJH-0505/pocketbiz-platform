@@ -200,7 +200,7 @@ export class PerformanceMonitor {
   /**
    * 직접 메트릭 기록
    */
-  static recordMetric(
+  static recordDirectMetric(
     type: MetricType,
     name: string,
     value: number,
@@ -446,7 +446,7 @@ export class PerformanceMonitor {
       memoryUsage = this.estimateMemoryUsage();
     }
 
-    return this.recordMetric(
+    return this.recordDirectMetric(
       'memory_usage',
       'JavaScript Heap Size',
       memoryUsage,

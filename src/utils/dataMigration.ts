@@ -11,6 +11,11 @@ import { dataConverter } from './dataConverters';
 import { mockMeetingRecords } from '../data/mockMeetingData';
 import { globalTransitionQueue } from './phaseTransitionQueue';
 import { EdgeCaseLogger } from './edgeCaseScenarios';
+import {
+  validateMigrationPrerequisites,
+  getSafeProjectId,
+  isValidProjectId
+} from './migrationValidator';
 
 /**
  * 마이그레이션 결과
@@ -66,7 +71,24 @@ export class MockDataMigrator {
     const allResults: MigrationResult[] = [];
     const projectIds = Object.keys(mockMeetingRecords);
 
-    for (const projectId of projectIds) {
+    // ProjectId 유효성 검증
+    const validProjectIds = projectIds.filter(id => isValidProjectId(id));
+    const invalidProjectIds = projectIds.filter(id => !isValidProjectId(id));
+
+    if (invalidProjectIds.length > 0) {
+      console.warn('⚠️ Skipping invalid project IDs:', invalidProjectIds);
+      EdgeCaseLogger.log('EC_VALIDATION_001', {
+        invalidProjectIds,
+        reason: 'Invalid project IDs detected during migration'
+      });
+    }
+
+    if (validProjectIds.length === 0) {
+      console.log('❌ No valid project IDs found for migration');
+      return [];
+    }
+
+    for (const projectId of validProjectIds) {
       try {
         const result = await this.migrateMockMeetingsForProject(projectId);
         allResults.push(result);
@@ -431,14 +453,31 @@ export class MockDataMigrator {
    * 배치로 스케줄 생성
    */
   private async createSchedulesBatch(schedules: BuildupProjectMeeting[]): Promise<void> {
+    if (schedules.length === 0) {
+      console.log('No schedules to create in batch');
+      return;
+    }
+
+    // 유효한 projectId 확인
+    const projectId = schedules[0]?.projectId;
+    if (!isValidProjectId(projectId)) {
+      console.error('Invalid projectId for batch creation:', projectId);
+      EdgeCaseLogger.log('EC_VALIDATION_002', {
+        projectId,
+        scheduleCount: schedules.length,
+        reason: 'Invalid projectId in batch creation'
+      });
+      return; // unknown projectId로 진행하지 않음
+    }
+
     if (window.scheduleContext?.createSchedulesBatch) {
       await window.scheduleContext.createSchedulesBatch(schedules, {
         skipDuplicateCheck: true // 이미 중복 검사 완료
       });
     } else {
-      // 큐를 통한 생성
+      // 큐를 통한 생성 (유효한 projectId만)
       await globalTransitionQueue.enqueue({
-        projectId: schedules[0]?.projectId || 'unknown',
+        projectId: projectId,
         operation: 'mock_migration',
         payload: { mockMeetings: schedules },
         priority: 5, // 낮은 우선순위

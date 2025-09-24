@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>localStorage 초기화</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4F46E5;
+            padding-bottom: 10px;
+        }
+        button {
+            background: #4F46E5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #4338CA;
+        }
+        .danger {
+            background: #DC2626;
+        }
+        .danger:hover {
+            background: #B91C1C;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            background: #EFF6FF;
+            border: 1px solid #BFDBFE;
+        }
+        .log {
+            margin-top: 20px;
+            padding: 10px;
+            background: #F3F4F6;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Sprint 5 - localStorage 관리 도구</h1>
+
+        <p>이 도구를 사용하여 개발 중 localStorage를 관리할 수 있습니다.</p>
+
+        <div>
+            <button onclick="viewStorage()">📋 현재 저장된 데이터 보기</button>
+            <button onclick="clearMigration()">🔄 Migration 데이터만 삭제</button>
+            <button onclick="clearAll()" class="danger">⚠️ 모든 데이터 삭제</button>
+        </div>
+
+        <div class="status" id="status">
+            준비됨. 버튼을 클릭하여 작업을 시작하세요.
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logEl.textContent += `[${timestamp}] ${message}\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function updateStatus(message, isError = false) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.style.background = isError ? '#FEE2E2' : '#EFF6FF';
+            statusEl.style.borderColor = isError ? '#FECACA' : '#BFDBFE';
+        }
+
+        function viewStorage() {
+            log('=== localStorage 데이터 ===');
+            const keys = Object.keys(localStorage);
+
+            if (keys.length === 0) {
+                log('저장된 데이터가 없습니다.');
+                updateStatus('localStorage가 비어있습니다.');
+                return;
+            }
+
+            keys.forEach(key => {
+                const value = localStorage.getItem(key);
+                const size = new Blob([value || '']).size;
+                log(`📦 ${key}: ${size} bytes`);
+
+                // Migration 관련 키 표시
+                if (key.includes('migration') || key.includes('Migration')) {
+                    log(`  └─ Migration 관련 데이터`);
+                }
+            });
+
+            updateStatus(`총 ${keys.length}개의 항목이 저장되어 있습니다.`);
+        }
+
+        function clearMigration() {
+            const keys = Object.keys(localStorage);
+            const migrationKeys = keys.filter(key =>
+                key.toLowerCase().includes('migration') ||
+                key.toLowerCase().includes('sync')
+            );
+
+            if (migrationKeys.length === 0) {
+                log('삭제할 Migration 데이터가 없습니다.');
+                updateStatus('Migration 데이터가 없습니다.');
+                return;
+            }
+
+            migrationKeys.forEach(key => {
+                localStorage.removeItem(key);
+                log(`🗑️ 삭제됨: ${key}`);
+            });
+
+            updateStatus(`✅ ${migrationKeys.length}개의 Migration 데이터가 삭제되었습니다.`);
+        }
+
+        function clearAll() {
+            if (!confirm('정말로 모든 localStorage 데이터를 삭제하시겠습니까?')) {
+                log('작업이 취소되었습니다.');
+                return;
+            }
+
+            const count = Object.keys(localStorage).length;
+            localStorage.clear();
+
+            log(`🗑️ 모든 데이터가 삭제되었습니다 (${count}개 항목)`);
+            updateStatus(`✅ localStorage가 초기화되었습니다.`);
+        }
+
+        // 페이지 로드 시 자동으로 현재 상태 표시
+        window.onload = () => {
+            log('도구가 로드되었습니다.');
+            viewStorage();
+        };
+    </script>
+</body>
+</html>

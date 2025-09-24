@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -22,9 +23,13 @@ import { LoadingProvider } from './contexts/LoadingContext';
 import { MeetingNotesProvider } from './contexts/MeetingNotesContext';
 import type { UserRole } from './types';
 
-// Development only: Calendar storage test utilities
+// Development only: Test utilities
 if (import.meta.env.DEV) {
   import('./utils/testCalendarStorage').catch(console.error);
+  // Sprint 5 Integration Tests
+  import('./tests/sprint5Integration.test').then(() => {
+    console.log('✅ Sprint 5 tests loaded. Run: window.sprint5Tests.runAll()');
+  }).catch(console.error);
 }
 
 // Layouts
@@ -63,6 +68,16 @@ import PocketBuilder from './pages/startup/PocketBuilder';
 import ConnectAI from './pages/startup/ConnectAI';
 import NotificationCenterPage from './pages/startup/NotificationCenter';
 import VDR from './pages/startup/VDR';
+import Sprint1Verification from './pages/startup/Sprint1Verification';
+import ContextManagerTest from './pages/startup/ContextManagerTest';
+import ContextRegistryTest from './pages/startup/ContextRegistryTest';
+import ContextBridgeTest from './pages/startup/ContextBridgeTest';
+import MigrationStatusTest from './pages/startup/MigrationStatusTest';
+import MigrationManagerTest from './pages/startup/MigrationManagerTest';
+import MigrationStage2Test from './pages/startup/MigrationStage2Test';
+import MigrationDashboard from './pages/startup/MigrationDashboard';
+import PhaseTransitionTest from './pages/startup/PhaseTransitionTest';
+import Sprint5TestRunner from './pages/startup/Sprint5TestRunner';
 
 // Admin Pages
 import AdminKPILibrary from './pages/admin/KPILibrary';
@@ -197,6 +212,26 @@ function App() {
                             {/* 기타 페이지 */}
                             <Route path="history" element={<StartupHistory />} />
                             <Route path="settings" element={<StartupSettings />} />
+
+                            {/* Sprint 1 검증 페이지 */}
+                            <Route path="verify" element={<Sprint1Verification />} />
+
+                            {/* Sprint 2 - Context Manager 테스트 페이지 */}
+                            <Route path="context-test" element={<ContextManagerTest />} />
+                            <Route path="registry-test" element={<ContextRegistryTest />} />
+                            <Route path="bridge-test" element={<ContextBridgeTest />} />
+
+                            {/* Sprint 3 - Migration 상태 확인 */}
+                            <Route path="migration-test" element={<MigrationStatusTest />} />
+                            <Route path="migration-manager" element={<MigrationManagerTest />} />
+                            <Route path="migration-stage2" element={<MigrationStage2Test />} />
+                            <Route path="migration-dashboard" element={<MigrationDashboard />} />
+
+                            {/* Sprint 4 - Phase Transition */}
+                            <Route path="phase-transition" element={<PhaseTransitionTest />} />
+
+                            {/* Sprint 5 - Integration Test Runner */}
+                            <Route path="sprint5-test" element={<Sprint5TestRunner />} />
 
                             {/* 리다이렉션 - 기존 경로를 새 경로로 */}
                             <Route path="assessments" element={<Navigate to="/startup/kpi?tab=assess" replace />} />

@@ -71,6 +71,20 @@ export {
   usePhaseTransitionModule
 } from './phaseTransition/PhaseTransitionModule';
 
+export {
+  PhaseTransitionManager,
+  phaseTransitionManager
+} from './phaseTransition/PhaseTransitionManager';
+
+export type {
+  PhaseDefinition,
+  PhaseMilestoneDefinition,
+  PhaseMilestoneState,
+  ProjectPhaseState,
+  ProjectPhaseSummary,
+  MilestoneStatus
+} from './phaseTransition/PhaseTransitionManager';
+
 // Utilities and Constants
 export const CORE_VERSION = '1.0.0';
 export const CORE_BUILD_DATE = new Date().toISOString();

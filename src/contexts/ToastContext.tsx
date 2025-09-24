@@ -5,8 +5,10 @@
  * 앱 전체에서 일관된 토스트 메시지를 제공
  */
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import Toast, { type ToastType } from '../components/ui/Toast';
+import { useContextRegistration } from '../hooks/useContextRegistration';
+import { CONTEXT_METADATA } from '../utils/contextMetadata';
 
 interface ToastItem {
   id: string;
@@ -99,6 +101,32 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     showInfo,
     showDebug
   };
+
+  // GlobalContextManager에 자동 등록
+  const { isRegistered, status } = useContextRegistration({
+    name: 'toast',
+    context: contextValue,
+    metadata: CONTEXT_METADATA.toast,
+    dependencies: [],
+    autoRegister: true,
+    onReady: () => {
+      console.log('✅ ToastContext registered with GlobalContextManager');
+    },
+    onError: (error) => {
+      console.error('❌ Failed to register ToastContext:', error);
+    }
+  });
+
+  // 등록 상태 디버그 (개발 환경)
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log('ToastContext registration status:', {
+        isRegistered,
+        status: status.status,
+        errorCount: status.errorCount
+      });
+    }
+  }, [isRegistered, status]);
 
   return (
     <ToastContext.Provider value={contextValue}>

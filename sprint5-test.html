@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sprint 5 Integration Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .test-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        #results {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            min-height: 100px;
+            white-space: pre-wrap;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-green { background: #4CAF50; }
+        .status-red { background: #f44336; }
+        .status-yellow { background: #ff9800; }
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 Sprint 5 Integration Test Suite</h1>
+    <p>미팅 예약 → Phase 자동 전환 시스템 통합 테스트</p>
+
+    <div class="test-panel">
+        <h2>📊 현재 상태</h2>
+        <div id="status">
+            <p><span class="status-indicator status-yellow"></span> 로딩 중...</p>
+        </div>
+    </div>
+
+    <div class="test-panel">
+        <h2>🧪 테스트 실행</h2>
+        <div>
+            <button class="btn btn-primary" onclick="checkStatus()">상태 확인</button>
+            <button class="btn btn-primary" onclick="runAllTests()">모든 테스트 실행</button>
+            <button class="btn btn-warning" onclick="runUnitTests()">단위 테스트만</button>
+            <button class="btn btn-warning" onclick="runScenarioTests()">시나리오 테스트만</button>
+            <button class="btn btn-danger" onclick="clearResults()">결과 초기화</button>
+        </div>
+
+        <div class="info-box">
+            <strong>참고:</strong> 테스트를 실행하기 전에 앱이 http://localhost:5174/pocketbiz-platform/startup/sprint5-test 에서 실행 중인지 확인하세요.
+        </div>
+    </div>
+
+    <div class="test-panel">
+        <h2>📋 테스트 결과</h2>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const resultsDiv = document.getElementById('results');
+        const statusDiv = document.getElementById('status');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            let prefix = '';
+            if (type === 'success') prefix = '✅ ';
+            else if (type === 'error') prefix = '❌ ';
+            else if (type === 'warning') prefix = '⚠️  ';
+            else if (type === 'info') prefix = 'ℹ️  ';
+
+            resultsDiv.innerHTML += `[${timestamp}] ${prefix}${message}\n`;
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        function clearResults() {
+            resultsDiv.innerHTML = '';
+            log('결과 초기화됨', 'info');
+        }
+
+        async function checkStatus() {
+            log('상태 확인 중...', 'info');
+
+            // 실제 앱 페이지 접근 시도
+            try {
+                const response = await fetch('http://localhost:5174/pocketbiz-platform/');
+                if (response.ok) {
+                    statusDiv.innerHTML = '<p><span class="status-indicator status-green"></span> 앱 실행 중 (포트 5174)</p>';
+                    log('앱이 정상적으로 실행 중입니다.', 'success');
+
+                    // Console에서 테스트 가능 여부 확인
+                    log('브라우저 콘솔에서 다음 명령어를 실행할 수 있습니다:', 'info');
+                    log('  window.sprint5Tests.runAll()', 'info');
+                    log('  window.testBasicFlow()', 'info');
+                    log('  window.testSequentialMeetings()', 'info');
+                } else {
+                    throw new Error('앱이 응답하지 않습니다');
+                }
+            } catch (error) {
+                statusDiv.innerHTML = '<p><span class="status-indicator status-red"></span> 앱에 연결할 수 없습니다</p>';
+                log('앱에 연결할 수 없습니다. 개발 서버가 실행 중인지 확인하세요.', 'error');
+                log('터미널에서 "npm run dev"를 실행하세요.', 'warning');
+            }
+        }
+
+        async function runAllTests() {
+            log('========================================', 'info');
+            log('Sprint 5 통합 테스트 시작', 'info');
+            log('========================================', 'info');
+
+            log('주의: 실제 테스트는 앱 내에서 실행되어야 합니다.', 'warning');
+            log('http://localhost:5174/pocketbiz-platform/startup/sprint5-test 접속', 'info');
+            log('또는 브라우저 콘솔에서 window.sprint5Tests.runAll() 실행', 'info');
+
+            // 앱 페이지로 이동할지 확인
+            if (confirm('테스트 페이지로 이동하시겠습니까?')) {
+                window.open('http://localhost:5174/pocketbiz-platform/startup/sprint5-test', '_blank');
+            }
+        }
+
+        async function runUnitTests() {
+            log('단위 테스트 실행...', 'info');
+            log('브라우저 콘솔에서 실행:', 'info');
+            log('  window.sprint5Tests.unitTests.contextConnection()', 'info');
+            log('  window.sprint5Tests.unitTests.meetingCreation()', 'info');
+            log('  window.sprint5Tests.unitTests.eventEmission()', 'info');
+            log('  window.sprint5Tests.unitTests.phaseTransitionCapability()', 'info');
+        }
+
+        async function runScenarioTests() {
+            log('시나리오 테스트 실행...', 'info');
+            log('브라우저 콘솔에서 실행:', 'info');
+            log('  window.sprint5Tests.scenarioTests.basicMeetingToPhase()', 'info');
+            log('  window.sprint5Tests.scenarioTests.sequentialMeetings()', 'info');
+            log('  window.sprint5Tests.scenarioTests.calendarIntegration()', 'info');
+        }
+
+        // 페이지 로드 시 상태 확인
+        window.onload = () => {
+            checkStatus();
+        };
+    </script>
+</body>
+</html>
