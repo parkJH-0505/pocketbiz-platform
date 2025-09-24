@@ -416,21 +416,9 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // 초기화가 완료되고 mock 데이터를 아직 로드하지 않았을 때만 실행
-    console.log('🔍 Mock Projects Effect Check:', {
-      isInitialized: isInitializedRef.current,
-      isLoading,
-      hasMockDataLoaded: hasMockDataLoadedRef.current,
-      shouldRun: isInitializedRef.current && !isLoading && !hasMockDataLoadedRef.current
-    });
-
     if (isInitializedRef.current && !isLoading && !hasMockDataLoadedRef.current) {
       const initializeMockProjectMeetings = async () => {
         console.log('🔄 Initializing mock project meetings...');
-        console.log('📊 Available mockProjects:', mockProjects.map(p => ({
-          id: p.id,
-          title: p.title,
-          meetingsCount: p.meetings?.length || 0
-        })));
 
         const mockMeetings: BuildupProjectMeeting[] = [];
         const newProjectLinks = new Map(projectScheduleLinks);
