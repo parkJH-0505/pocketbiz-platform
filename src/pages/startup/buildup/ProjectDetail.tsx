@@ -1613,8 +1613,12 @@ export default function ProjectDetail() {
 
                             console.log('📝 미팅 노트 데이터:', {
                               meetingId: meeting.id,
+                              meetingTitle: meeting.title,
+                              meetingObject: meeting,
                               hasOriginalNotes: !!meeting.meetingNotes?.content,
-                              meetingNotes
+                              meetingNotesField: meeting.meetingNotes,
+                              contextNotes,
+                              finalMeetingNotes: meetingNotes
                             });
 
                             setSelectedMeetingNotes(meetingNotes);

@@ -428,6 +428,13 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
             const projectMeetingIds: string[] = [];
 
             project.meetings.forEach(meeting => {
+              console.log('🔍 Processing meeting:', {
+                meetingId: meeting.id,
+                meetingTitle: meeting.title,
+                hasMeetingNotes: !!(meeting as any).meeting_notes,
+                meetingNotesContent: (meeting as any).meeting_notes
+              });
+
               // meeting.id를 그대로 사용하여 일관성 유지
               const mockMeeting: BuildupProjectMeeting = {
                 id: meeting.id, // generateScheduleId() 대신 기존 ID 사용
@@ -455,6 +462,14 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
                 createdAt: new Date(),
                 updatedAt: new Date()
               };
+
+              console.log('✅ Created mockMeeting:', {
+                id: mockMeeting.id,
+                title: mockMeeting.title,
+                hasNotes: !!mockMeeting.meetingNotes,
+                notesContent: mockMeeting.meetingNotes?.content
+              });
+
               mockMeetings.push(mockMeeting);
               projectMeetingIds.push(meeting.id);
             });

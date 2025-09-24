@@ -73,11 +73,17 @@ git push
 - [Sprint 15: 빌드업 프로그램](./iteration-15-buildup-programs.md)
 - [Sprint 16: 사용자 기능 고도화 + **PRD v4.0 전면 재설계**](./iteration-16-user-features.md) 🔄
 
-## Phase 5: 2025 Q1 로드맵 (Sprint 17-20) 🆕
+## Phase 5: 2025 Q1 로드맵 (Sprint 17-26) 🆕
 - [Sprint 17: KPI 진단 통합 페이지](./17.md)
 - [Sprint 18: 신규 페이지 구현 (포켓빌드업, VDR/마이프로필)](./18.md)
-- Sprint 19: 빌더 환경 구축 (예정)
-- Sprint 20: 백엔드 API 연동 (예정)
+- [Sprint 19: 스마트매칭 고도화](./iteration-19-smart-matching.md)
+- [Sprint 20: 프로젝트 상세 개선](./iteration-20-project-detail-enhancement.md)
+- [Sprint 21: 통합 단계 전환 시스템](./iteration-21-integrated-phase-transition-system-revised.md)
+- [Sprint 22: 통합 스케줄 수정](./iteration-22-unified-schedule-fixes.md)
+- [Sprint 23: 사용자 인터페이스 개선](./23.md)
+- [Sprint 24: 통합 사용자 구조](./iteration-24-unified-user-structure.md)
+- [Sprint 25: 인터랙티브 대시보드 재설계](./iteration-25-interactive-dashboard-redesign.md) ✅
+- [Sprint 26: 대시보드 단순화 및 재구성](./iteration-26-dashboard-simplification.md) 🚧
 
 ## 우선순위 가이드
 - 🔴 **Critical**: 핵심 기능
