@@ -8,8 +8,11 @@
  * - 실제 diagnosticHistory 데이터 활용
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TrendingUp, Target, Award, BarChart3 } from 'lucide-react';
+import { useKPIDiagnosis } from '../../contexts/KPIDiagnosisContext';
+import { useBuildupContext } from '../../contexts/BuildupContext';
+import type { AxisKey } from '../../types';
 
 interface GrowthMomentumTrackerProps {
   className?: string;
