@@ -645,10 +645,6 @@ const CustomRecommendation: React.FC = () => {
 
           {/* 오른쪽: 이벤트 카드 리스트 */}
           <div className="col-span-7 space-y-6">
-            {/* Debug info */}
-            <div className="text-xs text-gray-400 p-2 bg-gray-100 rounded">
-              Debug: Loading: {isLoading ? 'true' : 'false'}, Recommendations: {recommendations.length}, UserScores: {JSON.stringify(userScores)}
-            </div>
 
             {/* Loading state */}
             {isLoading && (
