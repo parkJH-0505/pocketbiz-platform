@@ -589,7 +589,7 @@ export default function ProjectDetail() {
         setMeetingComments(sampleComments);
       }
     }
-  }, [projectId, projectMeetings]);
+  }, [projectId, projectMeetings.length]); // projectMeetings 대신 length만 체크
 
   // 댓글 데이터 저장 (로컬스토리지에)
   useEffect(() => {
