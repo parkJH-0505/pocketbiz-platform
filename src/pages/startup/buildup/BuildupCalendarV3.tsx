@@ -522,10 +522,7 @@ export default function BuildupCalendarV3() {
       return [];
     }
 
-    console.log('🔄 BuildupCalendarV3: Converting schedules to events', {
-      schedulesCount: schedules.length,
-      source: 'ScheduleContext'
-    });
+    // 로그 제거 - 너무 자주 호출됨
 
     const validatedSchedules = schedules.filter(schedule => {
       // ✅ 강화된 유효성 검사
@@ -535,25 +532,16 @@ export default function BuildupCalendarV3() {
         const isValidDate = !isNaN(startDate.getTime()) && !isNaN(endDate.getTime());
         const hasRequiredFields = schedule.id && schedule.title;
 
-        if (!isValidDate) {
-          console.warn('❌ Invalid date in schedule:', schedule.id, schedule.title);
-        }
-        if (!hasRequiredFields) {
-          console.warn('❌ Missing required fields in schedule:', schedule);
-        }
+        // 로그 제거 - 너무 자주 호출됨
 
         return isValidDate && hasRequiredFields;
       } catch (error) {
-        console.warn('❌ Error validating schedule:', schedule, error);
+        // 로그 제거 - 너무 자주 호출됨
         return false;
       }
     });
 
-    console.log('✅ Schedule validation completed', {
-      originalCount: schedules.length,
-      validCount: validatedSchedules.length,
-      filteredOut: schedules.length - validatedSchedules.length
-    });
+    // 로그 제거 - 너무 자주 호출됨
 
     const convertedEvents = validatedSchedules.map(schedule => {
       try {

@@ -487,7 +487,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       const timer = setTimeout(initializeMockProjectMeetings, 500);
       return () => clearTimeout(timer);
     }
-  }, [isLoading, projectScheduleLinks]);
+  }, [isLoading]); // projectScheduleLinks 제거 - 무한 루프 방지
 
   // ========== Cleanup ==========
 
