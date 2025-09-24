@@ -93,6 +93,7 @@ const CustomRecommendation: React.FC = () => {
   const [recommendations, setRecommendations] = useState<MatchingResult[]>([]);
   const [buildupRecommendations, setBuildupRecommendations] = useState<BuildupService[]>([]);
   const [theOneCandidate, setTheOneCandidate] = useState<MatchingResult | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [showChatModal, setShowChatModal] = useState(false);
   const [chatEventData, setChatEventData] = useState<any>(null);
   const [chatMessage, setChatMessage] = useState('');
@@ -165,8 +166,11 @@ const CustomRecommendation: React.FC = () => {
   useEffect(() => {
     console.log('🔄 Processing recommendations...', {
       extendedEventsCount: extendedEvents.length,
-      userScores
+      userScores,
+      isLoading
     });
+
+    setIsLoading(true);
 
     try {
       // 모든 이벤트에 실제 매칭 점수 계산
@@ -213,7 +217,12 @@ const CustomRecommendation: React.FC = () => {
         titles: recommendedEvents.map(r => r.event.title)
       });
 
-      setRecommendations(recommendedEvents);
+      // Force re-render by setting recommendations
+      setRecommendations([]);
+      setTimeout(() => {
+        setRecommendations(recommendedEvents);
+        setIsLoading(false);
+      }, 50);
 
       // THE ONE 후보 선별 (21일 이상 남은 이벤트 중 최고 점수)
       const candidate = getTheOneCandidate(recommendedEvents);
@@ -238,6 +247,7 @@ const CustomRecommendation: React.FC = () => {
         recommendedActions: ['더미 액션']
       }));
       setRecommendations(dummyEvents);
+      setIsLoading(false);
     }
   }, [userScores]);
 
@@ -635,8 +645,30 @@ const CustomRecommendation: React.FC = () => {
 
           {/* 오른쪽: 이벤트 카드 리스트 */}
           <div className="col-span-7 space-y-6">
+            {/* Debug info */}
+            <div className="text-xs text-gray-400 p-2 bg-gray-100 rounded">
+              Debug: Loading: {isLoading ? 'true' : 'false'}, Recommendations: {recommendations.length}, UserScores: {JSON.stringify(userScores)}
+            </div>
+
+            {/* Loading state */}
+            {isLoading && (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">이벤트 매칭 중...</p>
+                </div>
+              </div>
+            )}
+
+            {/* No recommendations */}
+            {!isLoading && recommendations.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-600">매칭되는 이벤트가 없습니다.</p>
+              </div>
+            )}
+
             {/* THE ONE 후보가 없을 때 안내 메시지 */}
-            {!theOneCandidate && recommendations.length > 0 && (
+            {!isLoading && !theOneCandidate && recommendations.length > 0 && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
                 <div className="flex items-center gap-2 text-red-700">
                   <span className="text-sm font-medium">⚠️ 준비 시간이 충분한 기회가 없습니다</span>
@@ -647,7 +679,13 @@ const CustomRecommendation: React.FC = () => {
               </div>
             )}
 
-            {recommendations.map((rec, index) => {
+            {/* Event cards */}
+            {!isLoading && recommendations.map((rec, index) => {
+              console.log('🎨 Rendering event card:', {
+                id: rec.event.id,
+                title: rec.event.title,
+                index
+              });
               const compatibility = calculateCompatibility(
                 userScores,
                 categoryRequirements[rec.event.category]?.requirements || {
