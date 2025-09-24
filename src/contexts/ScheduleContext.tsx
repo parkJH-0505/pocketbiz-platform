@@ -506,7 +506,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
           console.log('📢 [Sprint 5] Step 3: Phase Transition Trigger Found:', phaseTransition);
 
           // PhaseTransitionManager를 통한 직접 전환 시도
-          import('../utils/phaseTransitionManager').then(async ({ phaseTransitionManager }) => {
+          import('../core/phaseTransition/PhaseTransitionManager').then(async ({ phaseTransitionManager }) => {
             console.log('📢 [Sprint 5] Step 4: Loading PhaseTransitionManager...');
             try {
               console.log('📢 [Sprint 5] Step 5: Calling phaseTransitionManager.transition()');
@@ -531,6 +531,21 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
                 }
               );
               console.log('📢 [Sprint 5] Step 6: ✅ Phase transition triggered successfully!');
+
+              // BuildupContext에 phase 변경 알림
+              if (window.buildupContext?.executePhaseTransition) {
+                try {
+                  window.buildupContext.executePhaseTransition(buildupMeeting.projectId, toPhase);
+                  console.log('📢 [Sprint 5] Step 6.1: ✅ BuildupContext phase updated:', {
+                    projectId: buildupMeeting.projectId,
+                    newPhase: toPhase
+                  });
+                } catch (syncError) {
+                  console.error('📢 [Sprint 5] Step 6.1: ❌ Failed to sync with BuildupContext:', syncError);
+                }
+              } else {
+                console.warn('📢 [Sprint 5] Step 6.1: ⚠️ BuildupContext.executePhaseTransition not available');
+              }
             } catch (error) {
               console.error('📢 [Sprint 5] Step 6: ❌ Phase transition failed:', error);
             }
@@ -1664,7 +1679,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('project:phase_transition_requested', handlePhaseTransitionRequested);
       window.removeEventListener('buildup:data_changed', handleBuildupDataChanged);
     };
-  }, [getSchedulesByProject, createSchedule, updateSchedule, deleteSchedule, getScheduleById]);
+  }, []); // 빈 배열로 변경해서 한 번만 실행
 
   // GlobalContextManager에 자동 등록
   const { isRegistered, status } = useContextRegistration({

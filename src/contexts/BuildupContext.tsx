@@ -54,9 +54,7 @@ import { globalTransitionQueue } from '../utils/phaseTransitionQueue';
 import { globalSnapshotManager } from '../utils/stateSnapshot';
 import { globalMigrator } from '../utils/dataMigration';
 import { EdgeCaseLogger } from '../utils/edgeCaseScenarios';
-import { MigrationManager } from '../utils/migrationManager';
-import { migrationRetryManager } from '../utils/migrationRetryManager';
-import { validateMigrationPrerequisites } from '../utils/migrationValidator';
+import { unifiedMigrationManager } from '../utils/unifiedMigrationManager';
 import { ValidationManager, type ValidationResult } from '../utils/dataValidation';
 // Sprint 4 Phase 4-4: Edge Case Systems
 import { ScheduleConflictResolver, type ScheduleConflict } from '../utils/conflictResolver';
@@ -2299,8 +2297,8 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       // Phase 4-2: Setup global context references for queue system (중복 제거됨)
       // BuildupContext는 이미 위쪽 useEffect에서 window에 노출됨
 
-      // Sprint 3 - Stage 1: Use MigrationManager instead of direct migration
-      const migrationManager = MigrationManager.getInstance();
+      // Sprint 3 - Refactored: Use UnifiedMigrationManager
+      const migrationManager = unifiedMigrationManager;
 
       const runMockDataMigration = async () => {
         // Sprint 5: Migration 임시 비활성화
@@ -2309,25 +2307,22 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
         // 아래 코드는 Sprint 5 완료 후 재활성화 예정
         /*
-        console.log('🔄 Checking mock data migration with MigrationManager...');
+        console.log('🔄 Checking mock data migration with UnifiedMigrationManager...');
 
         try {
-          // Check if migration is needed
-          const shouldMigrate = await migrationManager.shouldMigrate();
-
-          if (!shouldMigrate) {
-            console.log('ℹ️ Migration not needed at this time');
+          // Check if migration is already completed
+          if (migrationManager.isCompleted()) {
+            console.log('✅ Migration already completed');
             return;
           }
 
           // Run migration with progress tracking
-          const results = await migrationManager.migrate({
-            mode: 'auto',
+          const success = await migrationManager.runMigration({
             onProgress: (progress, message) => {
               console.log(`📊 Migration progress: ${progress}% - ${message || ''}`);
             },
             onComplete: (results) => {
-              const totalMigrated = results.reduce((sum, r) => sum + r.migrated, 0);
+              const totalMigrated = results.reduce((sum, r) => sum + (r.migrated || 0), 0);
               if (totalMigrated > 0) {
                 showSuccess(`📋 ${totalMigrated}개의 미팅 데이터가 마이그레이션되었습니다`);
               }
@@ -2374,15 +2369,13 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
         // Sprint 3: Manual migration trigger using MigrationManager
         runMockMigration: runMockDataMigration,
 
-        // Migration Manager controls
+        // Unified Migration Manager controls (simplified)
         migrationManager: {
-          pause: () => migrationManager.pause(),
-          resume: () => migrationManager.resume(),
-          cancel: () => migrationManager.cancel(),
-          getState: () => migrationManager['state'],
-          getProgress: () => migrationManager['progress'],
-          getHistory: () => migrationManager.getHistory(),
-          getStatistics: () => migrationManager.getStatistics()
+          getState: () => migrationManager.getState(),
+          isCompleted: () => migrationManager.isCompleted(),
+          isInProgress: () => migrationManager.isInProgress(),
+          reset: () => migrationManager.reset(),
+          forceMigration: () => migrationManager.forceMigration()
         },
 
         // Phase 4-2: Queue status check
@@ -2516,11 +2509,11 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       console.log('  • guide_4th → review (검토)');
       console.log('');
 
-      // 자동으로 초기 상태 검증 실행
-      setTimeout(() => {
-        console.log('🔍 Running automatic validation...');
-        window.syncTest.validateSync();
-      }, 2000);
+      // 자동 검증 비활성화 (테스트 환경 최적화)
+      // setTimeout(() => {
+      //   console.log('🔍 Running automatic validation...');
+      //   window.syncTest.validateSync();
+      // }, 2000);
     }
   }, []); // 빈 배열 - 마운트 시 한 번만 실행
 

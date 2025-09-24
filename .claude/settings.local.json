@@ -36,7 +36,19 @@
       "Bash(wmic:*)",
       "WebFetch(domain:pocketbiz-platform.vercel.app)",
       "WebFetch(domain:localhost)",
-      "Bash(start http://localhost:5174/pocketbiz-platform/)"
+      "Bash(start http://localhost:5174/pocketbiz-platform/)",
+      "WebFetch(domain:vercel.com)",
+      "Bash(copy migrationValidatorEnhanced.ts migration_backup )",
+      "Bash(copy migrationErrorHandler.ts migration_backup )",
+      "Bash(copy migrationMonitor.ts migration_backup )",
+      "Bash(copy migrationConditions.ts migration_backup )",
+      "Bash(copy migrationModes.ts migration_backup )",
+      "Bash(copy migrationEventTrigger.ts migration_backup )",
+      "Bash(copy migrationScope.ts migration_backup)",
+      "Bash(timeout 10 npm run dev)",
+      "Bash(copy:*)",
+      "Bash(rm:*)",
+      "Bash(netstat:*)"
     ],
     "deny": [],
     "ask": []

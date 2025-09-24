@@ -1,10 +1,11 @@
 /**
- * Dashboard Page
+ * Dashboard Page - 캘린더 중심 레이아웃
  *
- * "매일 만나고 싶은 성장 동반자" 메인 대시보드
- * - 오늘의 액션 (상단 미니 알림바)
- * - 성장 캘린더 (메인 중앙)
- * - 사이드바: 성장 레벨 + 숨은 기회
+ * "이벤트 발견 → 액션 → 트래킹" 중심의 인터랙티브 대시보드
+ * - 상단: 확장된 인터랙티브 캘린더 + 통합 이벤트 센터 (70%)
+ * - 하단: 성장 모멘텀 트래커 + 투자자 추천 (30%) - 50:50 비율
+ * - 플로팅 버튼: 회사 생체신호 (기존 KPI + 새로운 기능 통합)
+ * - 드래그&드롭 기반 직관적 일정 관리
  */
 
 import React, { useState } from 'react';
@@ -12,14 +13,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart3, X } from 'lucide-react';
 import { DashboardProvider } from '../../contexts/DashboardContext';
 
-// 컴포넌트 직접 import (lazy loading 제거)
-import TodaysActionCompact from '../../components/dashboard/TodaysActionCompact';
-import GrowthCalendarPremium from '../../components/dashboard/GrowthCalendarPremium';
-import GrowthInsights from '../../components/dashboard/GrowthInsights';
-import KPIRadarPremium from '../../components/dashboard/KPIRadarPremium';
-import ActionErrorBoundary from '../../components/dashboard/ActionErrorBoundary';
-import ProfileCard from '../../components/dashboard/ProfileCard';
+// 새로운 대시보드 컴포넌트들
+import InteractiveCalendarCenter from '../../components/dashboard/InteractiveCalendarCenter';
+import GrowthMomentumTracker from '../../components/dashboard/GrowthMomentumTracker';
+import CompanyVitalSigns from '../../components/dashboard/CompanyVitalSigns'; // 플로팅 버튼용
 import WeeklyVCRecommendation from '../../components/dashboard/WeeklyVCRecommendation';
+import ActionErrorBoundary from '../../components/dashboard/ActionErrorBoundary';
+import { DashboardInteractionProvider } from '../../contexts/DashboardInteractionContext';
 
 // 로딩 컴포넌트
 const LoadingSkeleton: React.FC<{ className?: string }> = ({ className }) => (
@@ -73,59 +73,38 @@ const Dashboard: React.FC = () => {
     <DashboardErrorBoundary>
       <DashboardProvider>
         <div className="min-h-screen bg-gray-50">
-        {/* 오늘의 액션 - 상단 고정 알림바 */}
-        <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
-          <div className="max-w-7xl mx-auto px-6 py-3">
-            <ActionErrorBoundary>
-              <TodaysActionCompact />
-            </ActionErrorBoundary>
+        <DashboardInteractionProvider>
+          <div className="max-w-7xl mx-auto p-6">
+            {/* 상단: 확장된 인터랙티브 캘린더 + 이벤트 센터 (70%) */}
+            <motion.section
+              className="mb-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              <ActionErrorBoundary>
+                <InteractiveCalendarCenter />
+              </ActionErrorBoundary>
+            </motion.section>
+
+            {/* 하단: 2개 컴포넌트 그리드 (50:50 비율) */}
+            <motion.section
+              className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              <ActionErrorBoundary>
+                <GrowthMomentumTracker />
+              </ActionErrorBoundary>
+              <ActionErrorBoundary>
+                <WeeklyVCRecommendation />
+              </ActionErrorBoundary>
+            </motion.section>
           </div>
-        </div>
+        </DashboardInteractionProvider>
 
-        <div className="max-w-7xl mx-auto p-6">
-          {/* 프로필 카드 */}
-          <motion.section
-            className="mb-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            <ProfileCard />
-          </motion.section>
-
-          {/* 메인 캘린더 - 전체 폭 */}
-          <motion.section
-            className="mb-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <GrowthCalendarPremium />
-          </motion.section>
-
-          {/* 숨은 기회 발견 - 전체 폭 */}
-          <motion.section
-            className="mb-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-          >
-            <GrowthInsights />
-          </motion.section>
-
-          {/* 주간 VC 추천 - 하단 배치 */}
-          <motion.section
-            className="mb-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.5 }}
-          >
-            <WeeklyVCRecommendation />
-          </motion.section>
-        </div>
-
-
-        {/* KPI 레이더 플로팅 버튼 */}
+        {/* 회사 생체신호 플로팅 버튼 (기존 KPI + 새로운 생체신호 통합) */}
         <motion.button
           className="fixed bottom-6 right-6 w-16 h-16 bg-primary-main hover:bg-primary-dark text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center z-50"
           whileHover={{ scale: 1.05 }}
@@ -135,7 +114,7 @@ const Dashboard: React.FC = () => {
           <BarChart3 className="w-6 h-6" />
         </motion.button>
 
-        {/* KPI 레이더 사이드 패널 */}
+        {/* 회사 생체신호 사이드 패널 */}
         <AnimatePresence>
           {showKPIPanel && (
             <>
@@ -159,7 +138,7 @@ const Dashboard: React.FC = () => {
                 <div className="p-6">
                   {/* 패널 헤더 */}
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-gray-900">KPI 대시보드</h2>
+                    <h2 className="text-xl font-bold text-gray-900">회사 생체신호</h2>
                     <button
                       onClick={() => setShowKPIPanel(false)}
                       className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -168,8 +147,8 @@ const Dashboard: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* KPI 레이더 컴포넌트 */}
-                  <KPIRadarPremium />
+                  {/* 회사 생체신호 컴포넌트 */}
+                  <CompanyVitalSigns />
                 </div>
               </motion.div>
             </>

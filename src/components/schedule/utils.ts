@@ -176,7 +176,7 @@ export function getPhaseTransitionTrigger(
 ): { fromPhase: ProjectPhase; toPhase: ProjectPhase } | undefined {
   const TRANSITION_MAP: Record<string, { fromPhase: ProjectPhase; toPhase: ProjectPhase }> = {
     'pre_meeting': { fromPhase: 'contract_pending', toPhase: 'contract_signed' },
-    'guide_1': { fromPhase: 'contract_signed', toPhase: 'planning' },
+    'guide_1': { fromPhase: 'contract_pending', toPhase: 'planning' },
     'guide_2': { fromPhase: 'planning', toPhase: 'design' },
     'guide_3': { fromPhase: 'design', toPhase: 'execution' },
     'guide_4': { fromPhase: 'execution', toPhase: 'review' }

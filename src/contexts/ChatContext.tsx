@@ -581,6 +581,34 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     archiveChatRoom
   };
 
+  // GlobalContextManager에 등록
+  useEffect(() => {
+    // Window 객체에 노출
+    if (typeof window !== 'undefined') {
+      window.chatContext = value;
+
+      // GlobalContextManager에 등록
+      import('../utils/globalContextManager').then(({ contextManager }) => {
+        contextManager.register('chat', value, {
+          name: 'chat',
+          version: '1.0.0',
+          description: 'Chat and messaging context',
+          dependencies: ['user'],
+          isReady: true
+        });
+        console.log('✅ ChatContext registered to GlobalContextManager');
+      }).catch(error => {
+        console.warn('GlobalContextManager registration failed:', error);
+      });
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete window.chatContext;
+      }
+    };
+  }, [value]);
+
   return (
     <ChatContext.Provider value={value}>
       {children}

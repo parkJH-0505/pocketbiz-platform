@@ -930,6 +930,34 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
     preferences
   ]);
 
+  // GlobalContextManager에 등록
+  useEffect(() => {
+    // Window 객체에 노출
+    if (typeof window !== 'undefined') {
+      window.dashboardContext = contextValue;
+
+      // GlobalContextManager에 등록
+      import('../utils/globalContextManager').then(({ contextManager }) => {
+        contextManager.register('dashboard', contextValue, {
+          name: 'dashboard',
+          version: '1.0.0',
+          description: 'Dashboard data and interaction context',
+          dependencies: ['schedule', 'kpi'],
+          isReady: true
+        });
+        console.log('✅ DashboardContext registered to GlobalContextManager');
+      }).catch(error => {
+        console.warn('GlobalContextManager registration failed:', error);
+      });
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete window.dashboardContext;
+      }
+    };
+  }, [contextValue]);
+
   return (
     <DashboardContext.Provider value={contextValue}>
       {children}

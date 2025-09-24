@@ -72,10 +72,7 @@ import Sprint1Verification from './pages/startup/Sprint1Verification';
 import ContextManagerTest from './pages/startup/ContextManagerTest';
 import ContextRegistryTest from './pages/startup/ContextRegistryTest';
 import ContextBridgeTest from './pages/startup/ContextBridgeTest';
-import MigrationStatusTest from './pages/startup/MigrationStatusTest';
-import MigrationManagerTest from './pages/startup/MigrationManagerTest';
-import MigrationStage2Test from './pages/startup/MigrationStage2Test';
-import MigrationDashboard from './pages/startup/MigrationDashboard';
+// Migration test pages removed - no longer needed in production
 import PhaseTransitionTest from './pages/startup/PhaseTransitionTest';
 import Sprint5TestRunner from './pages/startup/Sprint5TestRunner';
 
@@ -222,10 +219,7 @@ function App() {
                             <Route path="bridge-test" element={<ContextBridgeTest />} />
 
                             {/* Sprint 3 - Migration 상태 확인 */}
-                            <Route path="migration-test" element={<MigrationStatusTest />} />
-                            <Route path="migration-manager" element={<MigrationManagerTest />} />
-                            <Route path="migration-stage2" element={<MigrationStage2Test />} />
-                            <Route path="migration-dashboard" element={<MigrationDashboard />} />
+                            {/* Migration test routes removed - no longer needed in production */}
 
                             {/* Sprint 4 - Phase Transition */}
                             <Route path="phase-transition" element={<PhaseTransitionTest />} />
