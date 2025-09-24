@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Sprint 5 Test</title>
+    <style>
+        body {
+            font-family: 'Consolas', monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        .test-section {
+            background: #2d2d2d;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn:hover { background: #45a049; }
+        .log {
+            background: #1a1a1a;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            font-family: 'Consolas', monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .warning { color: #ff9800; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Simple Sprint 5 Test</h1>
+    <p>URL: <span id="current-url"></span></p>
+
+    <div class="test-section">
+        <h3>Step 1: Context 확인</h3>
+        <button class="btn" onclick="checkContexts()">Context 상태 확인</button>
+        <div id="context-log" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 2: 간단한 미팅 생성</h3>
+        <button class="btn" onclick="createSimpleMeeting()">미팅 생성 테스트</button>
+        <div id="meeting-log" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 3: 원본 테스트 실행</h3>
+        <button class="btn" onclick="runOriginalTest()">원본 테스트 실행</button>
+        <div id="original-log" class="log"></div>
+    </div>
+
+    <script>
+        document.getElementById('current-url').textContent = window.location.href;
+
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            let className = type;
+            let prefix = '';
+
+            if (type === 'success') prefix = '✅ ';
+            else if (type === 'error') prefix = '❌ ';
+            else if (type === 'warning') prefix = '⚠️  ';
+            else prefix = 'ℹ️  ';
+
+            element.innerHTML += `<span class="${className}">[${timestamp}] ${prefix}${message}</span>\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        function checkContexts() {
+            const contextLog = document.getElementById('context-log');
+            contextLog.innerHTML = '';
+
+            log('context-log', 'Context 확인 시작...', 'info');
+
+            // 기본 확인
+            const hasWindow = typeof window !== 'undefined';
+            log('context-log', `Window 객체: ${hasWindow}`, hasWindow ? 'success' : 'error');
+
+            // ScheduleContext 확인
+            const scheduleContext = window.scheduleContext;
+            log('context-log', `ScheduleContext 존재: ${!!scheduleContext}`, scheduleContext ? 'success' : 'error');
+
+            if (scheduleContext) {
+                log('context-log', `  schedules 배열: ${Array.isArray(scheduleContext.schedules)}`, 'info');
+                log('context-log', `  schedules 길이: ${scheduleContext.schedules?.length || 0}`, 'info');
+                log('context-log', `  createSchedule 타입: ${typeof scheduleContext.createSchedule}`, 'info');
+                log('context-log', `  isLoading: ${scheduleContext.isLoading}`, 'info');
+
+                // 메서드 목록
+                const methods = Object.keys(scheduleContext).filter(key =>
+                    typeof scheduleContext[key] === 'function'
+                );
+                log('context-log', `  사용 가능한 메서드: ${methods.join(', ')}`, 'info');
+            }
+
+            // BuildupContext 확인
+            const buildupContext = window.buildupContext;
+            log('context-log', `BuildupContext 존재: ${!!buildupContext}`, buildupContext ? 'success' : 'error');
+
+            if (buildupContext) {
+                log('context-log', `  projects 배열: ${Array.isArray(buildupContext.projects)}`, 'info');
+                log('context-log', `  projects 길이: ${buildupContext.projects?.length || 0}`, 'info');
+
+                // PRJ-TEST 확인
+                const testProject = buildupContext.projects?.find(p => p.id === 'PRJ-TEST');
+                log('context-log', `  PRJ-TEST 프로젝트: ${testProject ? '존재' : '없음'}`, testProject ? 'success' : 'warning');
+                if (testProject) {
+                    log('context-log', `    PRJ-TEST phase: ${testProject.phase}`, 'info');
+                    log('context-log', `    PRJ-TEST meetings: ${testProject.meetings?.length || 0}개`, 'info');
+                }
+            }
+
+            // Sprint5Tests 확인
+            const sprint5Tests = window.sprint5Tests;
+            log('context-log', `Sprint5Tests 존재: ${!!sprint5Tests}`, sprint5Tests ? 'success' : 'error');
+        }
+
+        async function createSimpleMeeting() {
+            const meetingLog = document.getElementById('meeting-log');
+            meetingLog.innerHTML = '';
+
+            log('meeting-log', '간단한 미팅 생성 시작...', 'info');
+
+            const scheduleContext = window.scheduleContext;
+            if (!scheduleContext) {
+                log('meeting-log', 'ScheduleContext를 찾을 수 없습니다', 'error');
+                return;
+            }
+
+            if (typeof scheduleContext.createSchedule !== 'function') {
+                log('meeting-log', 'createSchedule 메서드가 함수가 아닙니다', 'error');
+                log('meeting-log', `실제 타입: ${typeof scheduleContext.createSchedule}`, 'error');
+                return;
+            }
+
+            const initialCount = scheduleContext.schedules?.length || 0;
+            log('meeting-log', `초기 스케줄 수: ${initialCount}`, 'info');
+
+            try {
+                const meetingData = {
+                    type: 'buildup_project',
+                    title: '[Simple Test] 기본 미팅',
+                    description: '간단 테스트',
+                    date: new Date(Date.now() + 60000), // 1분 후
+                    startDateTime: new Date(Date.now() + 60000),
+                    endDateTime: new Date(Date.now() + 120000), // 2분 후
+                    projectId: 'PRJ-TEST',
+                    meetingSequence: 'pre_meeting',
+                    location: 'Test Room'
+                };
+
+                log('meeting-log', 'createSchedule 호출 중...', 'info');
+                log('meeting-log', `데이터: ${JSON.stringify(meetingData, null, 2)}`, 'info');
+
+                const result = await scheduleContext.createSchedule(meetingData);
+
+                log('meeting-log', '미팅 생성 성공!', 'success');
+                log('meeting-log', `생성된 ID: ${result?.id}`, 'success');
+
+                const finalCount = scheduleContext.schedules?.length || 0;
+                log('meeting-log', `최종 스케줄 수: ${finalCount}`, 'info');
+                log('meeting-log', `증가량: ${finalCount - initialCount}`, finalCount > initialCount ? 'success' : 'warning');
+
+            } catch (error) {
+                log('meeting-log', '미팅 생성 실패!', 'error');
+                log('meeting-log', `오류 메시지: ${error.message}`, 'error');
+                log('meeting-log', `오류 스택: ${error.stack}`, 'error');
+
+                if (error.cause) {
+                    log('meeting-log', `원인: ${JSON.stringify(error.cause, null, 2)}`, 'error');
+                }
+            }
+        }
+
+        async function runOriginalTest() {
+            const originalLog = document.getElementById('original-log');
+            originalLog.innerHTML = '';
+
+            log('original-log', '원본 테스트 실행...', 'info');
+
+            if (!window.sprint5Tests) {
+                log('original-log', 'sprint5Tests를 찾을 수 없습니다', 'error');
+                return;
+            }
+
+            if (!window.sprint5Tests.unitTests) {
+                log('original-log', 'unitTests를 찾을 수 없습니다', 'error');
+                return;
+            }
+
+            if (!window.sprint5Tests.unitTests.meetingCreation) {
+                log('original-log', 'meetingCreation 테스트를 찾을 수 없습니다', 'error');
+                return;
+            }
+
+            try {
+                log('original-log', 'meetingCreation 테스트 실행 중...', 'info');
+                const result = await window.sprint5Tests.unitTests.meetingCreation();
+                log('original-log', `테스트 결과: ${result ? 'PASSED' : 'FAILED'}`, result ? 'success' : 'error');
+            } catch (error) {
+                log('original-log', '테스트 실행 중 오류 발생', 'error');
+                log('original-log', `오류: ${error.message}`, 'error');
+                log('original-log', `스택: ${error.stack}`, 'error');
+            }
+        }
+
+        // 페이지 로드 시 자동으로 Context 확인
+        setTimeout(checkContexts, 1000);
+    </script>
+</body>
+</html>

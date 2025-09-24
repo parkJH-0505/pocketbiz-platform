@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart Matching Debug</title>
+</head>
+<body>
+    <h1>Smart Matching Debug Console</h1>
+    <p>브라우저 콘솔에서 다음 명령어들을 실행해보세요:</p>
+
+    <h2>Debug Commands:</h2>
+    <pre>
+// 1. 추천 결과 확인
+console.log('Recommendations:', window.recommendations);
+
+// 2. 사용자 점수 확인
+console.log('User Scores:', window.userScores);
+
+// 3. Extended Events 확인
+console.log('Extended Events:', window.extendedEvents);
+
+// 4. 매칭 점수 계산 확인
+if (window.extendedEvents && window.extendedEvents.length > 0) {
+    const userScores = { GO: 75, EC: 61, PT: 27, PF: 78, TO: 68 };
+    window.extendedEvents.forEach((event, i) => {
+        const score = window.calculateRealMatchingScore ?
+            window.calculateRealMatchingScore(userScores, event.event) : 0;
+        console.log(`Event ${i}: ${event.event.title} - Score: ${score}`);
+    });
+}
+
+// 5. 컴포넌트 렌더링 상태 확인
+console.log('Component State:', {
+    recommendations: window.recommendations?.length || 0,
+    theOneCandidate: window.theOneCandidate,
+    selectedEvent: window.selectedEvent
+});
+    </pre>
+
+    <script>
+        // 페이지 로드 시 자동으로 이 스크립트들을 window에 노출
+        window.debugSmartMatching = () => {
+            console.log('=== Smart Matching Debug ===');
+
+            // CustomRecommendation 컴포넌트의 상태 확인
+            const recommendations = document.querySelector('[data-recommendations]');
+            const radarChart = document.querySelector('.recharts-surface');
+            const eventCards = document.querySelectorAll('.col-span-7 > div');
+
+            console.log('UI Elements:', {
+                hasRadarChart: !!radarChart,
+                recommendationsElement: !!recommendations,
+                eventCardsCount: eventCards.length,
+                rightColumnEmpty: document.querySelector('.col-span-7').children.length === 0
+            });
+        };
+
+        // 자동 실행
+        setTimeout(() => {
+            if (typeof window.debugSmartMatching === 'function') {
+                window.debugSmartMatching();
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

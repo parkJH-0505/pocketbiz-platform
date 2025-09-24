@@ -35,7 +35,8 @@
       "Read(//c/**)",
       "Bash(wmic:*)",
       "WebFetch(domain:pocketbiz-platform.vercel.app)",
-      "WebFetch(domain:localhost)"
+      "WebFetch(domain:localhost)",
+      "Bash(start http://localhost:5174/pocketbiz-platform/)"
     ],
     "deny": [],
     "ask": []

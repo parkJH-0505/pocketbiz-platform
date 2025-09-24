@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sprint 5 Test Runner</title>
+    <style>
+        body {
+            font-family: 'Consolas', monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        .test-section {
+            background: #2d2d2d;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn:hover { background: #45a049; }
+        .log {
+            background: #1a1a1a;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            font-family: 'Consolas', monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .warning { color: #ff9800; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Sprint 5 Test Runner</h1>
+    <p>URL: <span id="current-url"></span></p>
+
+    <div class="test-section">
+        <h3>Test Results</h3>
+        <button class="btn" onclick="runAllTests()">모든 테스트 실행</button>
+        <button class="btn" onclick="runBasicTest()">BasicMeetingToPhase만 실행</button>
+        <button class="btn" onclick="runCalendarTest()">CalendarIntegration만 실행</button>
+        <button class="btn" onclick="clearLog()">로그 초기화</button>
+        <div id="test-log" class="log"></div>
+    </div>
+
+    <script>
+        document.getElementById('current-url').textContent = window.location.href;
+
+        function log(message, type = 'info') {
+            const element = document.getElementById('test-log');
+            const timestamp = new Date().toLocaleTimeString();
+            let className = type;
+            let prefix = '';
+
+            if (type === 'success') prefix = '✅ ';
+            else if (type === 'error') prefix = '❌ ';
+            else if (type === 'warning') prefix = '⚠️  ';
+            else prefix = 'ℹ️  ';
+
+            element.innerHTML += `<span class="${className}">[${timestamp}] ${prefix}${message}</span>\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('test-log').innerHTML = '';
+        }
+
+        async function runAllTests() {
+            clearLog();
+            log('Sprint 5 통합 테스트 시작...', 'info');
+
+            if (!window.sprint5Tests) {
+                log('sprint5Tests를 찾을 수 없습니다. 앱을 새로고침하고 다시 시도해주세요.', 'error');
+                return;
+            }
+
+            try {
+                const result = await window.sprint5Tests.runAll();
+                log(`전체 테스트 완료! 성공률: ${result.successRate}%`, 'success');
+                log(`통과: ${result.passed}, 실패: ${result.failed}`, 'info');
+            } catch (error) {
+                log(`테스트 실행 오류: ${error.message}`, 'error');
+            }
+        }
+
+        async function runBasicTest() {
+            clearLog();
+            log('BasicMeetingToPhase 테스트 실행...', 'info');
+
+            if (!window.sprint5Tests?.scenarioTests?.basicMeetingToPhase) {
+                log('basicMeetingToPhase 테스트를 찾을 수 없습니다', 'error');
+                return;
+            }
+
+            try {
+                const result = await window.sprint5Tests.scenarioTests.basicMeetingToPhase();
+                log(`BasicMeetingToPhase 결과: ${result ? 'PASSED' : 'FAILED'}`, result ? 'success' : 'error');
+            } catch (error) {
+                log(`테스트 오류: ${error.message}`, 'error');
+                log(`스택: ${error.stack}`, 'error');
+            }
+        }
+
+        async function runCalendarTest() {
+            clearLog();
+            log('CalendarIntegration 테스트 실행...', 'info');
+
+            if (!window.sprint5Tests?.scenarioTests?.calendarIntegration) {
+                log('calendarIntegration 테스트를 찾을 수 없습니다', 'error');
+                return;
+            }
+
+            try {
+                const result = await window.sprint5Tests.scenarioTests.calendarIntegration();
+                log(`CalendarIntegration 결과: ${result ? 'PASSED' : 'FAILED'}`, result ? 'success' : 'error');
+            } catch (error) {
+                log(`테스트 오류: ${error.message}`, 'error');
+                log(`스택: ${error.stack}`, 'error');
+            }
+        }
+
+        // 페이지 로드 시 자동으로 Context 확인
+        setTimeout(() => {
+            if (window.scheduleContext && window.buildupContext) {
+                log('Contexts 확인됨 ✅', 'success');
+            } else {
+                log('Contexts가 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.', 'warning');
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

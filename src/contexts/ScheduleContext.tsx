@@ -511,29 +511,23 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
             try {
               console.log('📢 [Sprint 5] Step 5: Calling phaseTransitionManager.transition()');
 
-              // 현재 프로젝트의 단계로 PhaseTransitionManager 초기화
-              const fromPhaseEnum = phaseTransition.fromPhase.toUpperCase().replace(/-/g, '_') as any;
-              const toPhaseEnum = phaseTransition.toPhase.toUpperCase().replace(/-/g, '_') as any;
+              // PhaseTransitionManager를 사용한 단계 전환
+              const toPhase = phaseTransition.toPhase.toLowerCase().replace(/_/g, '_') as any;
 
-              // 현재 단계로 초기화
-              phaseTransitionManager.setState({
-                current: fromPhaseEnum,
-                completionRate: 100, // 이전 단계 완료
-                startedAt: new Date(Date.now() - 60000), // 1분 전 시작
-                history: []
-              });
+              // 프로젝트 초기화 (등록되지 않은 경우)
+              phaseTransitionManager.initializeProject(
+                buildupMeeting.projectId,
+                phaseTransition.fromPhase.toLowerCase().replace(/_/g, '_') as any
+              );
 
-              await phaseTransitionManager.transition(
-                toPhaseEnum,
+              // 단계 전환 실행
+              phaseTransitionManager.changePhase(
+                buildupMeeting.projectId,
+                toPhase,
                 {
-                  mode: 'auto' as any,
-                  metadata: {
-                    projectId: buildupMeeting.projectId,
-                    trigger: 'meeting_scheduled',
-                    meetingId: newSchedule.id,
-                    meetingType: buildupMeeting.type,
-                    meetingSequence: buildupMeeting.meetingSequence
-                  }
+                  reason: `Meeting scheduled: ${buildupMeeting.type}`,
+                  trigger: 'meeting_completed',
+                  triggeredBy: 'schedule_context'
                 }
               );
               console.log('📢 [Sprint 5] Step 6: ✅ Phase transition triggered successfully!');

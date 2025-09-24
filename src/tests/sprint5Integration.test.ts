@@ -68,7 +68,13 @@ const unitTests = {
         projectId: 'PRJ-TEST',
         meetingSequence: 'pre_meeting',
         participants: ['테스트 사용자'],
-        location: '온라인'
+        location: '온라인',
+        // PM 정보 추가 (필수)
+        pmInfo: {
+          id: 'pm-test-001',
+          name: '테스트 PM',
+          email: 'test.pm@pocketcompany.co.kr'
+        }
       };
 
       console.log('  📝 Meeting data to create:', meetingData);
@@ -154,7 +160,12 @@ const unitTests = {
           endDateTime: new Date(Date.now() + 120000),
           projectId: 'PRJ-TEST',
           meetingSequence: 'pre_meeting',
-          location: '테스트 룸'
+          location: '테스트 룸',
+          pmInfo: {
+            id: 'pm-event-001',
+            name: '이벤트 테스트 PM',
+            email: 'event.pm@pocketcompany.co.kr'
+          }
         }).catch((error: any) => {
           console.log('  ❌ Failed to trigger event:', error);
           clearTimeout(timeoutId);
@@ -215,12 +226,20 @@ const scenarioTests = {
       const meeting = await window.scheduleContext.createSchedule({
         type: 'buildup_project',
         title: '[시나리오 1] 가이드 1차 미팅',
+        description: 'Sprint 5 시나리오 1 테스트',
         date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+        startDateTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+        endDateTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 90 * 60 * 1000),
         projectId: testProjectId,
         meetingSequence: 'guide_1st',
         participants: ['PM', '클라이언트'],
         duration: 90,
-        location: '대면'
+        location: '대면',
+        pmInfo: {
+          id: 'pm-scenario1-001',
+          name: '시나리오1 PM',
+          email: 'scenario1.pm@pocketcompany.co.kr'
+        }
       });
 
       console.log('  ✅ Meeting scheduled:', meeting.id);
@@ -298,7 +317,12 @@ const scenarioTests = {
           projectId: projectId,
           meetingSequence: meetingConfig.sequence,
           participants: ['PM', '개발팀'],
-          location: '온라인'
+          location: '온라인',
+          pmInfo: {
+            id: `pm-scenario2-${i + 1}`,
+            name: `시나리오2 PM ${i + 1}`,
+            email: `scenario2.pm${i + 1}@pocketcompany.co.kr`
+          }
         });
 
         console.log(`  ✅ ${meetingConfig.sequence} scheduled: ${meeting.id}`);
