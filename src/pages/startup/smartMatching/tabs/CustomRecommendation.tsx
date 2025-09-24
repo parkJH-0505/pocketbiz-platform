@@ -104,8 +104,11 @@ const CustomRecommendation: React.FC = () => {
     timestamp: Date;
   }>>([]);
 
+  // KPI 진단 완료 여부 확인
+  const isDiagnosisCompleted = axisScores && Object.values(axisScores).some(v => v > 0);
+
   // 사용자 Core5 점수 (KPI Context에서 가져오거나 기본값)
-  const userScores: Core5Requirements = axisScores && Object.values(axisScores).some(v => v > 0)
+  const userScores: Core5Requirements = isDiagnosisCompleted
     ? axisScores as Core5Requirements
     : {
         GO: 75,
@@ -361,6 +364,59 @@ const CustomRecommendation: React.FC = () => {
     }, 2000);
   };
 
+
+  // KPI 진단 미완료 시 안내 화면
+  if (!isDiagnosisCompleted) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
+        <div className="max-w-2xl w-full bg-white rounded-2xl shadow-lg p-8 text-center">
+          <div className="mb-6">
+            <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Sparkles className="w-10 h-10 text-yellow-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              KPI 진단이 필요합니다
+            </h2>
+            <p className="text-gray-600 mb-6">
+              맞춤 추천을 받으려면 먼저 KPI 진단을 완료해주세요.<br/>
+              진단 결과를 바탕으로 최적의 기회를 추천해드립니다.
+            </p>
+          </div>
+
+          <div className="bg-blue-50 rounded-lg p-4 mb-6">
+            <h3 className="font-semibold text-blue-900 mb-2">
+              🎯 KPI 진단을 하면?
+            </h3>
+            <ul className="text-sm text-blue-800 space-y-1 text-left">
+              <li>• 5개 핵심 축(GO, EC, PT, PF, TO)의 현재 수준 파악</li>
+              <li>• AI 기반 맞춤형 기회 추천</li>
+              <li>• 부족한 역량을 채울 빌드업 서비스 추천</li>
+              <li>• 성공 가능성이 높은 THE ONE 기회 선별</li>
+            </ul>
+          </div>
+
+          <div className="flex gap-4 justify-center">
+            <button
+              onClick={() => window.location.href = '/pocketbiz-platform/startup/kpi'}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+            >
+              KPI 진단 시작하기 →
+            </button>
+            <button
+              onClick={() => window.location.href = '/pocketbiz-platform/startup/dashboard'}
+              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              대시보드로 돌아가기
+            </button>
+          </div>
+
+          <p className="text-xs text-gray-500 mt-6">
+            진단은 약 5-10분 정도 소요됩니다
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 relative">
