@@ -119,7 +119,7 @@ const GrowthMomentumTracker: React.FC<GrowthMomentumTrackerProps> = ({ className
           ></div>
         </div>
         <div className="flex justify-between items-center text-xs text-gray-500">
-          <span>현재: {Object.values(axisScores).reduce((sum, score) => sum + (score || 0), 0) / 5 || 0}점</span>
+          <span>현재: {Math.round(Object.values(axisScores).reduce((sum, score) => sum + (score || 0), 0) / 5) || 0}점</span>
           <span>목표: {momentum.targetScore}점</span>
         </div>
 
