@@ -1805,6 +1805,21 @@ export default function ProjectDetail() {
                       <div className="flex-1 overflow-y-auto p-4">
                         {selectedMeetingNotes ? (
                           <div className="prose prose-sm max-w-none">
+                            {/* 미팅 노트가 단순 텍스트일 경우 */}
+                            {typeof selectedMeetingNotes.content === 'string' && (
+                              <div className="mb-6">
+                                <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-3">
+                                  <FileText className="w-4 h-4 mr-2 text-blue-500" />
+                                  미팅 노트
+                                </h4>
+                                <div className="bg-blue-50 p-4 rounded-lg">
+                                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                                    {selectedMeetingNotes.content}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+
                             {/* 사전 준비 */}
                             {selectedMeetingNotes.preparation && (
                               <div className="mb-6">
