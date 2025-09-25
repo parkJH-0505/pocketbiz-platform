@@ -68,9 +68,10 @@ import ConnectAI from './pages/startup/ConnectAI';
 import NotificationCenterPage from './pages/startup/NotificationCenter';
 import VDR from './pages/startup/VDR';
 import Sprint1Verification from './pages/startup/Sprint1Verification';
+// Temporarily disabled for Vercel deployment issues
 // import ContextManagerTest from './pages/startup/ContextManagerTest';
-import ContextRegistryTest from './pages/startup/ContextRegistryTest';
-import ContextBridgeTest from './pages/startup/ContextBridgeTest';
+// import ContextRegistryTest from './pages/startup/ContextRegistryTest';
+// import ContextBridgeTest from './pages/startup/ContextBridgeTest';
 // Migration test pages removed - no longer needed in production
 import PhaseTransitionTest from './pages/startup/PhaseTransitionTest';
 import Sprint5TestRunner from './pages/startup/Sprint5TestRunner';
@@ -211,10 +212,10 @@ function App() {
                             {/* Sprint 1 검증 페이지 */}
                             <Route path="verify" element={<Sprint1Verification />} />
 
-                            {/* Sprint 2 - Context Manager 테스트 페이지 */}
+                            {/* Sprint 2 - Context Manager 테스트 페이지 - Temporarily disabled */}
                             {/* <Route path="context-test" element={<ContextManagerTest />} /> */}
-                            <Route path="registry-test" element={<ContextRegistryTest />} />
-                            <Route path="bridge-test" element={<ContextBridgeTest />} />
+                            {/* <Route path="registry-test" element={<ContextRegistryTest />} /> */}
+                            {/* <Route path="bridge-test" element={<ContextBridgeTest />} /> */}
 
                             {/* Sprint 3 - Migration 상태 확인 */}
                             {/* Migration test routes removed - no longer needed in production */}

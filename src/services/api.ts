@@ -141,6 +141,86 @@ export const api = {
     },
   },
   
+  // 스마트매칭 API
+  smartMatching: {
+    async getEvents(params?: {
+      search?: string;
+      category?: string;
+      priority?: string;
+      limit?: number;
+    }) {
+      const query = new URLSearchParams();
+      if (params?.search) query.append('search', params.search);
+      if (params?.category) query.append('category', params.category);
+      if (params?.priority) query.append('priority', params.priority);
+      if (params?.limit) query.append('limit', params.limit.toString());
+
+      const queryString = query.toString();
+      return apiFetch(`/smart-matching/events${queryString ? '?' + queryString : ''}`);
+    },
+
+    async markInterested(eventId: string) {
+      return apiFetch(`/smart-matching/events/${eventId}/interested`, {
+        method: 'POST',
+      });
+    },
+
+    async dismissEvent(eventId: string) {
+      return apiFetch(`/smart-matching/events/${eventId}/dismiss`, {
+        method: 'POST',
+      });
+    }
+  },
+
+  // 긴급사항 API
+  urgent: {
+    async getItems() {
+      return apiFetch('/urgent/items');
+    },
+
+    async markResolved(itemId: string) {
+      return apiFetch(`/urgent/items/${itemId}/resolve`, {
+        method: 'POST',
+      });
+    }
+  },
+
+  // 할일문서 API
+  todoDocuments: {
+    async getItems() {
+      return apiFetch('/documents/todos');
+    },
+
+    async markCompleted(docId: string) {
+      return apiFetch(`/documents/todos/${docId}/complete`, {
+        method: 'POST',
+      });
+    }
+  },
+
+  // 캘린더 API
+  calendar: {
+    async addEvent(eventData: {
+      sourceEventId: string;
+      date: string;
+      sourceType: 'smart_matching' | 'buildup' | 'external';
+      metadata?: any;
+    }) {
+      return apiFetch('/calendar/events', {
+        method: 'POST',
+        body: JSON.stringify(eventData),
+      });
+    },
+
+    async getWeeklyEvents(weekStart: string, weekEnd: string) {
+      return apiFetch(`/calendar/events/weekly?start=${weekStart}&end=${weekEnd}`);
+    },
+
+    async getMonthlyEvents(year: number, month: number) {
+      return apiFetch(`/calendar/events/monthly?year=${year}&month=${month}`);
+    }
+  },
+
   // 관리자 API
   admin: {
     async createKPI(kpiData: any) {
@@ -149,22 +229,28 @@ export const api = {
         body: JSON.stringify(kpiData),
       });
     },
-    
+
     async updateKPI(kpiId: string, kpiData: any) {
       return apiFetch(`/admin/kpis/${kpiId}`, {
         method: 'PUT',
         body: JSON.stringify(kpiData),
       });
     },
-    
+
     async deleteKPI(kpiId: string) {
       return apiFetch(`/admin/kpis/${kpiId}`, {
         method: 'DELETE',
       });
     },
-    
+
     async getStatistics() {
       return apiFetch('/admin/statistics');
     },
   },
 };
+
+// 편의를 위한 개별 export
+export const smartMatching = api.smartMatching;
+export const urgent = api.urgent;
+export const todoDocuments = api.todoDocuments;
+export const calendar = api.calendar;

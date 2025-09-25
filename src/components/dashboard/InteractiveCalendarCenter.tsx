@@ -51,7 +51,7 @@ import { useDashboardInteraction } from '../../contexts/DashboardInteractionCont
 import { useKPIDiagnosis } from '../../contexts/KPIDiagnosisContext';
 import { useBuildupContext } from '../../contexts/BuildupContext';
 import { useVDRContext } from '../../contexts/VDRContext';
-import { comprehensiveEvents } from '../../data/smartMatching/comprehensiveEvents';
+import { useCalendarAPI } from '../../hooks/useCalendarAPI';
 import type { MatchingResult } from '../../types/smartMatching/types';
 
 // 뷰 모드 정의
@@ -79,12 +79,24 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Contexts
-  const { draggedEvent, setDraggedEvent, hoveredDay, setHoveredDay, interestedEvents, dismissedEvents, addEventToCalendar } = useDashboardInteraction();
+  const { draggedEvent, setDraggedEvent, hoveredDay, setHoveredDay, interestedEvents, dismissedEvents } = useDashboardInteraction();
   const { overallScore, strongestAxis, progress } = useKPIDiagnosis();
   const { cart } = useBuildupContext();
   const { filesUploaded } = useVDRContext();
   const { weeklySchedule, currentWeek, navigateWeek } = useDashboard();
   const { schedules } = useScheduleContext();
+
+  // API 연동 훅
+  const {
+    smartMatchingEvents,
+    urgentItems,
+    todoItems,
+    isLoading: apiLoading,
+    error: apiError,
+    addEventToCalendar: addEventToCalendarAPI,
+    tabCounts: apiTabCounts,
+    refreshSmartMatching
+  } = useCalendarAPI(searchQuery);
 
   // 월간 날짜 생성
   const monthStart = startOfMonth(currentWeek);
@@ -160,8 +172,8 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
         events.push(event);
       });
 
-    // 기존 스마트매칭 이벤트 변환 (마감일 기준으로 해당 주에 표시)
-    comprehensiveEvents.forEach((matchingResult) => {
+    // 스마트매칭 이벤트 변환 (API 기반)
+    smartMatchingEvents.forEach((matchingResult) => {
       const transformResult = transformSmartMatchingEvent(matchingResult);
       if (transformResult.success && transformResult.event) {
         events.push(transformResult.event);
@@ -266,6 +278,19 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
               오늘
             </button>
 
+            {/* API 상태 표시 */}
+            {apiLoading && (
+              <div className="flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-md text-xs">
+                <div className="w-3 h-3 border border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+                로딩중
+              </div>
+            )}
+            {apiError && (
+              <div className="px-2 py-1 bg-red-100 text-red-700 rounded-md text-xs" title={apiError}>
+                오류 발생
+              </div>
+            )}
+
             {/* 뷰 모드 토글 */}
             <div className="flex bg-gray-100 rounded-lg p-1 ml-2">
               <button
@@ -363,31 +388,9 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
                       : 'border-gray-100 bg-gray-50/50 hover:border-gray-200'
                   }`}
                   whileHover={{ scale: 1.02 }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    if (draggedEvent) {
-                      setHoveredDay(dateString);
-                    }
-                  }}
-                  onDragLeave={() => {
-                    setHoveredDay(null);
-                  }}
-                  onDrop={async (e) => {
-                    e.preventDefault();
-                    if (draggedEvent) {
-                      try {
-                        const success = await addEventToCalendar(draggedEvent, date);
-                        if (success) {
-                          setRefreshKey(prev => prev + 1);
-                        }
-                      } catch (error) {
-                        console.error('Failed to add event:', error);
-                      } finally {
-                        setDraggedEvent(null);
-                        setHoveredDay(null);
-                      }
-                    }
-                  }}
+                  onDragOver={(e) => handleDragOver(e, dateString)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, date)}
                 >
                   {/* 날짜 헤더 */}
                   <div className={`px-2 py-1.5 border-b ${
@@ -893,6 +896,15 @@ const WeeklyAgenda: React.FC<WeeklyAgendaProps> = React.memo(({
   setDraggedEvent,
   setRefreshKey
 }) => {
+  // 주간 날짜별 이벤트 데이터 메모이제이션
+  const weeklyEventData = useMemo(() => {
+    return weekDates.map(date => ({
+      date,
+      events: getEventsForDate(date),
+      dateString: format(date, 'yyyy-MM-dd'),
+      isToday: isSameDay(date, new Date())
+    }));
+  }, [weekDates, getEventsForDate]);
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
       {/* 테이블 헤더 */}
@@ -905,12 +917,9 @@ const WeeklyAgenda: React.FC<WeeklyAgendaProps> = React.memo(({
         </div>
       </div>
 
-      {/* 테이블 바디 */}
-      {weekDates.map((date, dayIndex) => {
-        const dayEvents = getEventsForDate(date);
-        const dateString = format(date, 'yyyy-MM-dd');
+      {/* 테이블 바디 (최적화된 데이터 사용) */}
+      {weeklyEventData.map(({ date, events: dayEvents, dateString, isToday }, dayIndex) => {
         const isDragOver = hoveredDay === dateString;
-        const isToday = isSameDay(date, new Date());
 
         return (
           <div
@@ -918,31 +927,9 @@ const WeeklyAgenda: React.FC<WeeklyAgendaProps> = React.memo(({
             className={`flex border-b border-gray-100 hover:bg-gray-50 transition-colors ${
               isDragOver ? 'bg-blue-50' : ''
             }`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              if (draggedEvent) {
-                setHoveredDay(dateString);
-              }
-            }}
-            onDragLeave={() => {
-              setHoveredDay(null);
-            }}
-            onDrop={async (e) => {
-              e.preventDefault();
-              if (draggedEvent) {
-                try {
-                  const success = await addEventToCalendar(draggedEvent, date);
-                  if (success) {
-                    setRefreshKey(prev => prev + 1);
-                  }
-                } catch (error) {
-                  console.error('Failed to add event:', error);
-                } finally {
-                  setDraggedEvent(null);
-                  setHoveredDay(null);
-                }
-              }
-            }}
+            onDragOver={(e) => handleDragOver(e, dateString)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, date)}
           >
             {/* 왼쪽 날짜 컬럼 */}
             <div className={`w-24 px-3 py-3 border-r border-gray-200 flex-shrink-0 ${
