@@ -27,6 +27,7 @@ import {
 import { crossValidate } from '../../../utils/validation';
 import { setupCSVWatcher } from '../../../utils/csvWatcher';
 import type { AxisKey, KPIDefinition } from '../../../types';
+import QuickKPINavigator from '../../../components/kpi/QuickKPINavigator';
 
 export const AssessmentPanel = () => {
   const { cluster, updateStage, getStageInfo } = useCluster();
@@ -209,8 +210,33 @@ export const AssessmentPanel = () => {
     return colors[stage] || 'bg-gray-100 text-gray-700';
   };
 
+  // Quick Navigator를 위한 핸들러
+  const handleQuickKPISelect = (kpiId: string, axis: AxisKey) => {
+    setCurrentAxis(axis);
+    setTimeout(() => {
+      const element = document.getElementById(`kpi-card-${kpiId}`);
+      if (element) {
+        element.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+        // 하이라이트 효과
+        element.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2');
+        setTimeout(() => {
+          element.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2');
+        }, 2000);
+      }
+    }, 300);
+  };
+
   return (
     <div className="relative">
+      {/* Quick KPI Navigator - 플로팅 버튼 */}
+      <QuickKPINavigator
+        onKPISelect={handleQuickKPISelect}
+        className="z-50"
+      />
+
       <div className="space-y-6">
       {/* 헤더 섹션 */}
       <div className="mb-6">
@@ -495,23 +521,28 @@ export const AssessmentPanel = () => {
                 console.log(`StageRule for ${kpi.kpi_id} at ${cluster.stage}:`, stageRule);
                 
                 return (
-                  <CSVKPICard
+                  <div
                     key={kpi.kpi_id}
-                    kpi={kpi}
-                    stageRule={stageRule}
-                    response={responses[kpi.kpi_id]}
-                    onChange={(kpiId, value, status) => {
-                      console.log('KPI Value changed:', kpiId, value, status);
-                      updateResponse(kpiId, {
-                        run_id: 'current',
-                        kpi_id: kpiId,
-                        raw: value,
-                        status: status,
-                        timestamp: new Date().toISOString()
-                      });
-                    }}
-                    userStage={cluster.stage}
-                  />
+                    id={`kpi-card-${kpi.kpi_id}`}
+                    className="transition-all duration-300"
+                  >
+                    <CSVKPICard
+                      kpi={kpi}
+                      stageRule={stageRule}
+                      response={responses[kpi.kpi_id]}
+                      onChange={(kpiId, value, status) => {
+                        console.log('KPI Value changed:', kpiId, value, status);
+                        updateResponse(kpiId, {
+                          run_id: 'current',
+                          kpi_id: kpiId,
+                          raw: value,
+                          status: status,
+                          timestamp: new Date().toISOString()
+                        });
+                      }}
+                      userStage={cluster.stage}
+                    />
+                  </div>
                 );
               })}
             </div>
