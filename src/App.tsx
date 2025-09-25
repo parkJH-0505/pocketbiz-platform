@@ -142,7 +142,7 @@ function App() {
                                 <GrowthTrackingProvider>
                                   <RecommendationProvider>
                                     <NotificationProvider>
-                                      <Router basename={import.meta.env.BASE_URL}>
+                                      <Router basename="/">
                                   <Routes>
                           {/* Landing page or redirect based on role */}
                           <Route path="/" element={
