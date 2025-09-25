@@ -10,7 +10,7 @@
  * - 드래그&드롭 기반 직관적 일정 관리
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Calendar,
@@ -133,7 +133,7 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
     e.preventDefault();
     if (draggedEvent) {
       try {
-        const success = await addEventToCalendar(draggedEvent, date);
+        const success = await addEventToCalendarAPI(draggedEvent, date);
         if (success) {
           setRefreshKey(prev => prev + 1);
         }
@@ -144,7 +144,7 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
         setHoveredDay(null);
       }
     }
-  }, [draggedEvent, addEventToCalendar, setDraggedEvent, setHoveredDay]);
+  }, [draggedEvent, addEventToCalendarAPI, setDraggedEvent, setHoveredDay]);
 
   // 통합된 캘린더 이벤트 생성
   const unifiedEvents = useMemo(() => {
@@ -198,13 +198,13 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
 
   // 필터링된 이벤트들
   const filteredEvents = useMemo(() => {
-    return comprehensiveEvents
-      .filter(event => !dismissedEvents.has(event.event.id))
+    return smartMatchingEvents
+      .filter(event => !dismissedEvents.has(event.id))
       .filter(event =>
         searchQuery === '' ||
-        event.event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.event.keywords.some(keyword =>
-          keyword.toLowerCase().includes(searchQuery.toLowerCase())
+        event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.tags.some(tag =>
+          tag.toLowerCase().includes(searchQuery.toLowerCase())
         )
       )
       .sort((a, b) => {
@@ -213,7 +213,7 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
         if (b.urgencyLevel === 'high' && a.urgencyLevel !== 'high') return 1;
         return b.score - a.score;
       });
-  }, [searchQuery, dismissedEvents]);
+  }, [smartMatchingEvents, searchQuery, dismissedEvents]);
 
   // 탭별 카운트 업데이트
   const tabCounts = useMemo(() => {
@@ -487,7 +487,7 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
                 hoveredDay={hoveredDay}
                 setHoveredDay={setHoveredDay}
                 draggedEvent={draggedEvent}
-                addEventToCalendar={addEventToCalendar}
+                addEventToCalendar={addEventToCalendarAPI}
                 setDraggedEvent={setDraggedEvent}
                 setRefreshKey={setRefreshKey}
               />
@@ -589,7 +589,7 @@ const SmartMatchingTab: React.FC<{
   onSearchChange: (query: string) => void,
   interestedEvents: Set<string>
 }> = React.memo(({ events, searchQuery, onSearchChange, interestedEvents }) => {
-  const { setDraggedEvent, markEventInterested, addEventToCalendar } = useDashboardInteraction();
+  const { setDraggedEvent, markEventInterested } = useDashboardInteraction();
 
   const handleDragStart = (event: MatchingResult) => (e: React.DragEvent) => {
     const dragData = {
@@ -657,16 +657,10 @@ const SmartMatchingTab: React.FC<{
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        addEventToCalendar({
-                          id: event.id,
-                          title: event.title,
-                          daysUntilDeadline: matchingResult.daysUntilDeadline,
-                          matchingScore: matchingResult.score,
-                          urgencyLevel: matchingResult.urgencyLevel
-                        }, new Date());
+                        // Calendar add functionality - drag and drop to calendar instead
                       }}
                       className="w-6 h-6 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors flex items-center justify-center"
-                      title="캘린더 추가"
+                      title="드래그해서 캘린더에 추가"
                     >
                       <Plus className="w-3 h-3" />
                     </button>
