@@ -73,8 +73,9 @@ import Sprint1Verification from './pages/startup/Sprint1Verification';
 // import ContextRegistryTest from './pages/startup/ContextRegistryTest';
 // import ContextBridgeTest from './pages/startup/ContextBridgeTest';
 // Migration test pages removed - no longer needed in production
-import PhaseTransitionTest from './pages/startup/PhaseTransitionTest';
-import Sprint5TestRunner from './pages/startup/Sprint5TestRunner';
+// Test pages - not committed to git, commenting for Vercel deployment
+// import PhaseTransitionTest from './pages/startup/PhaseTransitionTest';
+// import Sprint5TestRunner from './pages/startup/Sprint5TestRunner';
 
 // Admin Pages
 import AdminKPILibrary from './pages/admin/KPILibrary';
@@ -93,12 +94,9 @@ import PartnerCandidates from './pages/partner/Candidates';
 // Auth
 import Login from './pages/Login';
 import Landing from './pages/Landing';
-import LandingV2 from './pages/LandingV2';
 import LandingV3 from './pages/LandingV3';
 import LandingV4 from './pages/LandingV4';
 import ErrorBoundary from './components/ErrorBoundary';
-// import LandingV4Enhanced from './pages/LandingV4Enhanced';
-// import LandingV4Refined from './pages/LandingV4Refined';
 
 function App() {
   // TODO: Implement auth check
@@ -221,10 +219,10 @@ function App() {
                             {/* Migration test routes removed - no longer needed in production */}
 
                             {/* Sprint 4 - Phase Transition */}
-                            <Route path="phase-transition" element={<PhaseTransitionTest />} />
+                            {/* <Route path="phase-transition" element={<PhaseTransitionTest />} /> */}
 
                             {/* Sprint 5 - Integration Test Runner */}
-                            <Route path="sprint5-test" element={<Sprint5TestRunner />} />
+                            {/* <Route path="sprint5-test" element={<Sprint5TestRunner />} /> */}
 
                             {/* 리다이렉션 - 기존 경로를 새 경로로 */}
                             <Route path="assessments" element={<Navigate to="/startup/kpi?tab=assess" replace />} />
