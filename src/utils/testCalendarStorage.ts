@@ -14,13 +14,11 @@ export function checkStorageData() {
 
   if (data) {
     const parsed = JSON.parse(data);
-    console.log('📦 Storage Data Found:');
     console.log(`- Version: ${parsed.version}`);
     console.log(`- Events Count: ${parsed.events?.length || 0}`);
     console.log(`- Last Updated: ${parsed.lastUpdated}`);
 
     if (parsed.events && parsed.events.length > 0) {
-      console.log('📅 First 3 Events:');
       parsed.events.slice(0, 3).forEach((e: any, i: number) => {
         console.log(`  ${i + 1}. ${e.title} - ${new Date(e.date).toLocaleDateString('ko-KR')}`);
       });
@@ -28,7 +26,6 @@ export function checkStorageData() {
 
     return parsed;
   } else {
-    console.log('❌ No storage data found');
     return null;
   }
 }
@@ -75,8 +72,6 @@ export function addTestEvent() {
   };
 
   const addedEvent = CalendarService.addEvent(testEvent);
-  console.log('✅ Test event added:', addedEvent.title);
-  console.log('📁 Check LocalStorage to verify persistence');
 
   return addedEvent;
 }
@@ -85,7 +80,6 @@ export function addTestEvent() {
  * LocalStorage 클리어 테스트
  */
 export function clearStorageTest() {
-  console.log('🗑️ Clearing calendar storage...');
   CalendarService.clearStorage();
   checkStorageData();
 }
@@ -94,7 +88,6 @@ export function clearStorageTest() {
  * 강제 저장 테스트
  */
 export function forceSaveTest() {
-  console.log('💾 Force saving current state...');
   CalendarService.forceSave();
   checkStorageData();
 }
@@ -103,25 +96,18 @@ export function forceSaveTest() {
  * 데이터 영속성 테스트 (페이지 리프레시 전후 비교)
  */
 export function persistenceTest() {
-  console.log('🔄 Persistence Test Started');
-  console.log('1️⃣ Current State:');
   const before = checkStorageData();
 
   if (!before) {
-    console.log('No data found, generating initial data...');
     return;
   }
 
-  console.log('2️⃣ Adding test event...');
   const testEvent = addTestEvent();
 
-  console.log('3️⃣ After adding event:');
   const after = checkStorageData();
 
-  console.log(`\n📊 Comparison:`);
   console.log(`Before: ${before.events?.length || 0} events`);
   console.log(`After: ${after?.events?.length || 0} events`);
-  console.log(`\n⚠️  Now refresh the page and run 'checkStorageData()' to verify persistence`);
 
   return { before, after, testEvent };
 }
@@ -136,11 +122,4 @@ if (typeof window !== 'undefined') {
     testPersistence: persistenceTest
   };
 
-  console.log('📝 Calendar Storage Test Utils Loaded');
-  console.log('Available commands:');
-  console.log('  calendarStorage.check()         - Check storage data');
-  console.log('  calendarStorage.addTest()       - Add test event');
-  console.log('  calendarStorage.clear()         - Clear storage');
-  console.log('  calendarStorage.forceSave()     - Force save current state');
-  console.log('  calendarStorage.testPersistence() - Test data persistence');
 }

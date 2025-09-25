@@ -28,7 +28,6 @@ if (import.meta.env.DEV) {
   import('./utils/testCalendarStorage').catch(console.error);
   // Sprint 5 Integration Tests
   import('./tests/sprint5Integration.test').then(() => {
-    console.log('✅ Sprint 5 tests loaded. Run: window.sprint5Tests.runAll()');
   }).catch(console.error);
 }
 
@@ -126,7 +125,6 @@ function App() {
 
   if (!isAuthenticated) {
     if (import.meta.env.DEV) {
-      console.log('Not authenticated, showing Login');
     }
     return <Login />;
   }

@@ -83,7 +83,6 @@ const GrowthCalendarPremium: React.FC = () => {
   // calendar-refresh 이벤트 리스너 추가
   useEffect(() => {
     const handleCalendarRefresh = () => {
-      console.log('📅 Calendar refresh event received');
       setRefreshKey(prev => prev + 1); // 컴포넌트 리렌더링 트리거
     };
 

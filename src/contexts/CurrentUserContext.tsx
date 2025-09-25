@@ -344,7 +344,6 @@ export const CurrentUserProvider: React.FC<{ children: React.ReactNode }> = ({ c
         ...authData
       });
 
-      console.log('✅ 로그인 성공:', demoUser.name);
     } catch (error) {
       console.error('❌ 로그인 실패:', error);
       setAuthState({
@@ -366,7 +365,6 @@ export const CurrentUserProvider: React.FC<{ children: React.ReactNode }> = ({ c
       isLoading: false,
       user: null
     });
-    console.log('✅ 로그아웃 완료');
   }, []);
 
   /**
@@ -399,7 +397,6 @@ export const CurrentUserProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setCurrentUser(updatedUser);
       setAuthState(prev => ({ ...prev, user: updatedUser }));
 
-      console.log('✅ 프로필 업데이트 완료');
     } catch (error) {
       console.error('❌ 프로필 업데이트 실패:', error);
       throw error;
@@ -416,7 +413,6 @@ export const CurrentUserProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const updatedSettings = { ...currentUser.settings, ...settings };
       await updateProfile({ settings: updatedSettings });
 
-      console.log('✅ 설정 업데이트 완료');
     } catch (error) {
       console.error('❌ 설정 업데이트 실패:', error);
       throw error;

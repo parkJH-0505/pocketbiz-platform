@@ -15,7 +15,6 @@ interface ScheduleData {
  * 일정을 2025년 9월로 이동
  */
 export function migrateSchedulesToSeptember2025() {
-  console.log('🔄 Starting schedule migration to September 2025...');
 
   try {
     // ScheduleContext 데이터 마이그레이션
@@ -24,7 +23,6 @@ export function migrateSchedulesToSeptember2025() {
 
     if (schedulesData) {
       const schedules: ScheduleData[] = JSON.parse(schedulesData);
-      console.log(`📅 Found ${schedules.length} schedules to migrate`);
 
       const migratedSchedules = schedules.map(schedule => {
         const originalStart = new Date(schedule.startDateTime);
@@ -56,13 +54,11 @@ export function migrateSchedulesToSeptember2025() {
           updatedAt: new Date().toISOString()
         };
 
-        console.log(`📆 Migrated: ${schedule.title} from ${originalStart.toDateString()} to ${newStart.toDateString()}`);
         return updatedSchedule;
       });
 
       // 업데이트된 데이터 저장
       localStorage.setItem(scheduleStorageKey, JSON.stringify(migratedSchedules));
-      console.log('✅ ScheduleContext data migrated successfully');
     }
 
     // CalendarContext 데이터 마이그레이션 (만약 있다면)
@@ -71,7 +67,6 @@ export function migrateSchedulesToSeptember2025() {
 
     if (calendarData) {
       const events = JSON.parse(calendarData);
-      console.log(`📅 Found ${events.length} calendar events to migrate`);
 
       const migratedEvents = events.map((event: any) => {
         if (event.date) {
@@ -93,13 +88,11 @@ export function migrateSchedulesToSeptember2025() {
       });
 
       localStorage.setItem(calendarStorageKey, JSON.stringify(migratedEvents));
-      console.log('✅ Calendar events migrated successfully');
     }
 
     // 마지막 동기화 시간 업데이트
     localStorage.setItem('pocket_biz_schedules_last_sync', new Date().toISOString());
 
-    console.log('🎉 All schedule migration completed successfully!');
 
     // ScheduleContext에 새로고침 이벤트 발생
     const finalSchedulesData = localStorage.getItem('pocket_biz_schedules');
@@ -123,7 +116,6 @@ export function migrateSchedulesToSeptember2025() {
  * 프로젝트 미팅들을 2025년 9월로 마이그레이션
  */
 export function migrateProjectMeetingsToSeptember2025() {
-  console.log('🔄 Starting project meetings migration to September 2025...');
 
   try {
     // BuildupContext의 projects 데이터에서 미팅 날짜 업데이트
@@ -132,13 +124,11 @@ export function migrateProjectMeetingsToSeptember2025() {
 
     if (projectsData) {
       const projects = JSON.parse(projectsData);
-      console.log(`📅 Found ${projects.length} projects to check for meetings`);
 
       let totalMigratedMeetings = 0;
 
       const updatedProjects = projects.map((project: any) => {
         if (project.meetings && project.meetings.length > 0) {
-          console.log(`📅 Migrating ${project.meetings.length} meetings in project: ${project.title}`);
 
           const migratedMeetings = project.meetings.map((meeting: any) => {
             const originalDate = new Date(meeting.date);
@@ -155,7 +145,6 @@ export function migrateProjectMeetingsToSeptember2025() {
               newDate.setDate(30);
             }
 
-            console.log(`📆 Migrated meeting: ${meeting.title} from ${originalDate.toDateString()} to ${newDate.toDateString()}`);
             totalMigratedMeetings++;
 
             return {
@@ -177,7 +166,6 @@ export function migrateProjectMeetingsToSeptember2025() {
 
       // 업데이트된 프로젝트 데이터 저장
       localStorage.setItem(projectsStorageKey, JSON.stringify(updatedProjects));
-      console.log(`✅ Project meetings migrated successfully. Total: ${totalMigratedMeetings} meetings`);
     }
 
     // 완료 이벤트 발송
@@ -188,7 +176,6 @@ export function migrateProjectMeetingsToSeptember2025() {
     });
     window.dispatchEvent(migrationEvent);
 
-    console.log('🎉 Project meetings migration completed successfully!');
     alert(`프로젝트 미팅 마이그레이션이 완료되었습니다!\n페이지를 새로고침하여 변경사항을 확인하세요.`);
 
     // 페이지 새로고침
@@ -204,7 +191,6 @@ export function migrateProjectMeetingsToSeptember2025() {
  * 특정 날짜 범위의 일정들을 9월로 스케줄링
  */
 export function createSampleSchedulesForSeptember() {
-  console.log('📝 Creating sample schedules for September 2025...');
 
   const sampleSchedules = [
     {
@@ -278,7 +264,6 @@ export function createSampleSchedulesForSeptember() {
   localStorage.setItem('pocket_biz_schedules', JSON.stringify(allSchedules));
   localStorage.setItem('pocket_biz_schedules_last_sync', new Date().toISOString());
 
-  console.log(`✅ Added ${sampleSchedules.length} sample schedules for September`);
 
   // 페이지 새로고침으로 변경사항 적용
   window.location.reload();

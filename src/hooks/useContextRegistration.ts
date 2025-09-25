@@ -84,7 +84,6 @@ export function useContextRegistration(options: UseContextRegistrationOptions): 
         errorCount: 0
       });
 
-      console.log(`✅ Context "${name}" registered via hook`);
 
       // Ready 콜백 호출
       if (onReady) {
@@ -123,7 +122,6 @@ export function useContextRegistration(options: UseContextRegistrationOptions): 
         errorCount: 0
       });
 
-      console.log(`✅ Context "${name}" unregistered via hook`);
     } catch (error) {
       console.error(`Failed to unregister context "${name}":`, error);
     }
@@ -152,7 +150,6 @@ export function useContextRegistration(options: UseContextRegistrationOptions): 
             }
           }
 
-          console.log(`✅ All dependencies ready for "${name}"`);
         }
 
         // 컴포넌트가 여전히 마운트되어 있는지 확인

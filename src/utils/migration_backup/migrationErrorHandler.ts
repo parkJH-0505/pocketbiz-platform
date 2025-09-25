@@ -282,7 +282,6 @@ export class MigrationErrorHandler {
   public async handleError(error: Error | MigrationError | any): Promise<RecoveryStrategy> {
     // Circuit Breaker 체크
     if (this.isCircuitOpen()) {
-      console.log('⚡ Circuit breaker is OPEN, rejecting operation');
       return RecoveryStrategy.NONE;
     }
 
@@ -385,7 +384,6 @@ export class MigrationErrorHandler {
    * 복구 실행
    */
   private async executeRecovery(error: MigrationError, strategy: RecoveryStrategy): Promise<void> {
-    console.log(`🔧 Executing recovery strategy: ${strategy} for error ${error.code}`);
 
     switch (strategy) {
       case RecoveryStrategy.RETRY:
@@ -397,7 +395,6 @@ export class MigrationErrorHandler {
         break;
 
       case RecoveryStrategy.SKIP:
-        console.log(`⏭️ Skipping failed operation for ${error.code}`);
         break;
 
       case RecoveryStrategy.ROLLBACK:
@@ -405,12 +402,10 @@ export class MigrationErrorHandler {
         break;
 
       case RecoveryStrategy.MANUAL:
-        console.log(`🤚 Manual intervention required for ${error.code}`);
         this.notifyManualIntervention(error);
         break;
 
       default:
-        console.log(`ℹ️ No recovery action for ${error.code}`);
     }
   }
 
@@ -422,11 +417,9 @@ export class MigrationErrorHandler {
     const currentRetry = error.retryCount || 0;
 
     if (currentRetry >= maxRetries) {
-      console.log(`❌ Max retries (${maxRetries}) exceeded for ${error.code}`);
       return;
     }
 
-    console.log(`🔄 Retrying operation (${currentRetry + 1}/${maxRetries})...`);
     error.retryCount = currentRetry + 1;
 
     // 실제 재시도 로직은 MigrationManager에서 처리
@@ -441,7 +434,6 @@ export class MigrationErrorHandler {
     const currentRetry = error.retryCount || 0;
 
     if (currentRetry >= maxRetries) {
-      console.log(`❌ Max retries (${maxRetries}) exceeded for ${error.code}`);
       return;
     }
 
@@ -451,7 +443,6 @@ export class MigrationErrorHandler {
     const maxDelay = 30000; // 최대 30초
     const actualDelay = Math.min(delay, maxDelay);
 
-    console.log(`⏱️ Waiting ${actualDelay}ms before retry (${currentRetry + 1}/${maxRetries})...`);
 
     await new Promise(resolve => setTimeout(resolve, actualDelay));
 
@@ -486,7 +477,6 @@ export class MigrationErrorHandler {
       this.snapshots = this.snapshots.slice(-this.maxSnapshots);
     }
 
-    console.log(`📸 Created snapshot: ${snapshot.id}`);
     return snapshot.id;
   }
 
@@ -494,7 +484,6 @@ export class MigrationErrorHandler {
    * 롤백 실행
    */
   public async rollback(snapshotId?: string): Promise<boolean> {
-    console.log(`⏮️ Initiating rollback${snapshotId ? ` to snapshot ${snapshotId}` : ''}`);
 
     let snapshot: RollbackSnapshot | undefined;
 
@@ -513,7 +502,6 @@ export class MigrationErrorHandler {
     try {
       // 실제 롤백 로직은 MigrationManager에서 처리
       // 여기서는 스냅샷 제공만
-      console.log(`✅ Rollback to snapshot ${snapshot.id} initiated`);
       return true;
 
     } catch (error) {
@@ -546,12 +534,10 @@ export class MigrationErrorHandler {
    */
   private openCircuit(): void {
     this.circuitState = CircuitState.OPEN;
-    console.log('⚡ Circuit breaker OPENED - blocking operations');
 
     // 자동 리셋 타이머
     setTimeout(() => {
       this.circuitState = CircuitState.HALF_OPEN;
-      console.log('⚡ Circuit breaker HALF-OPEN - testing recovery');
     }, this.resetTimeout);
   }
 
@@ -561,7 +547,6 @@ export class MigrationErrorHandler {
   private closeCircuit(): void {
     this.circuitState = CircuitState.CLOSED;
     this.failureCount = 0;
-    console.log('⚡ Circuit breaker CLOSED - normal operation');
   }
 
   /**
@@ -647,7 +632,6 @@ export class MigrationErrorHandler {
     this.errorHistory = [];
     this.snapshots = [];
     this.closeCircuit();
-    console.log('🔄 Error handler reset');
   }
 }
 

@@ -145,7 +145,6 @@ export class MigrationEventTrigger {
    */
   public startListening(): void {
     if (this.isListening) {
-      console.log('⚠️ Event trigger already listening');
       return;
     }
 
@@ -158,7 +157,6 @@ export class MigrationEventTrigger {
     }
 
     this.isListening = true;
-    console.log('👂 Migration event trigger started listening');
   }
 
   /**
@@ -182,7 +180,6 @@ export class MigrationEventTrigger {
     this.throttleTimers.clear();
 
     this.isListening = false;
-    console.log('🔇 Migration event trigger stopped listening');
   }
 
   /**
@@ -320,7 +317,6 @@ export class MigrationEventTrigger {
    * 이벤트 처리
    */
   private async processEvent(payload: MigrationEventPayload): Promise<void> {
-    console.log(`📨 Processing migration event: ${payload.type}`);
 
     // 이벤트 기록
     const record: EventRecord = {
@@ -347,7 +343,6 @@ export class MigrationEventTrigger {
       const canExecute = await modeManager.canExecute(context);
 
       if (!canExecute) {
-        console.log(`⏸️ Event ${payload.type} received but not executing (mode: ${currentMode})`);
         record.result = 'skipped';
         return;
       }
@@ -356,7 +351,6 @@ export class MigrationEventTrigger {
       const shouldMigrate = await this.getMigrationManager().shouldMigrate();
 
       if (shouldMigrate) {
-        console.log(`🚀 Triggering migration from event: ${payload.type}`);
         record.triggered = true;
 
         // 마이그레이션 실행
@@ -370,7 +364,6 @@ export class MigrationEventTrigger {
 
         record.result = 'success';
       } else {
-        console.log(`ℹ️ Event ${payload.type} received but conditions not met`);
         record.result = 'skipped';
       }
 
@@ -497,7 +490,6 @@ export class MigrationEventTrigger {
     this.listeners.clear();
     this.eventHistory = [];
     this.setupDefaultListeners();
-    console.log('🔄 Event trigger reset');
   }
 }
 

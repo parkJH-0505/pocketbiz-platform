@@ -158,9 +158,9 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
       const enhancedMeetingData: Partial<EnhancedMeetingData> = {
         meetingType,
         title: project.nextMeeting.type.replace('_', ' '),
-        날짜: new Date(project.nextMeeting.date),
-        시작시간: project.nextMeeting.time || '14:00',
-        종료시간: '15:00',
+        "날짜": new Date(project.nextMeeting.date),
+        "시작시간": project.nextMeeting.time || '14:00',
+        "종료시간": '15:00',
         location: 'online',
         meetingLink: project.nextMeeting.meeting_link,
         status: 'scheduled'
@@ -169,22 +169,22 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
       // PM 미팅인 경우 추가 데이터
       if (meetingType === 'pm_meeting') {
         enhancedMeetingData.pmMeetingData = {
-          담당PM: pmName,
-          PM직함: 'Senior PM',
-          세션회차: 1,
-          아젠다: project.nextMeeting.agenda
+          "담당PM": pmName,
+          "PM직함": 'Senior PM',
+          "세션회차": 1,
+          "아젠다": project.nextMeeting.agenda
         };
       }
 
       // 빌드업 프로젝트 미팅인 경우
       if (meetingType === 'buildup_project') {
         enhancedMeetingData.buildupProjectData = {
-          프로젝트명: project.title,
-          프로젝트ID: project.id,
-          미팅목적: 'progress',
-          PM명: pmName,
-          참여자목록: project.team?.members?.map(m => m.name) || [],
-          아젠다: project.nextMeeting.agenda
+          "프로젝트명": project.title,
+          "프로젝트ID": project.id,
+          "미팅목적": 'progress',
+          "PM명": pmName,
+          "참여자목록": project.team?.members?.map(m => m.name) || [],
+          "아젠다": project.nextMeeting.agenda
         };
       }
 
@@ -224,9 +224,9 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
           const enhancedMeetingData: Partial<EnhancedMeetingData> = {
             meetingType,
             title: meeting.type.replace('_', ' '),
-            날짜: meetingDate,
-            시작시간: meeting.time || '14:00',
-            종료시간: '15:00',
+            "날짜": meetingDate,
+            "시작시간": meeting.time || '14:00',
+            "종료시간": '15:00',
             location: 'online',
             meetingLink: meeting.meeting_link,
             status: 'completed',
@@ -236,24 +236,24 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
           // PM 미팅 데이터
           if (meetingType === 'pm_meeting') {
             enhancedMeetingData.pmMeetingData = {
-              담당PM: pmName,
-              PM직함: 'Senior PM',
-              세션회차: index + 1,
-              아젠다: meeting.agenda,
-              미팅노트: meeting.notes
+              "담당PM": pmName,
+              "PM직함": 'Senior PM',
+              "세션회차": index + 1,
+              "아젠다": meeting.agenda,
+              "미팅노트": meeting.notes
             };
           }
 
           // 빌드업 프로젝트 미팅 데이터
           if (meetingType === 'buildup_project') {
             enhancedMeetingData.buildupProjectData = {
-              프로젝트명: project.title,
-              프로젝트ID: project.id,
-              미팅목적: 'progress',
-              PM명: pmName,
-              참여자목록: project.team?.members?.map(m => m.name) || [],
-              아젠다: meeting.agenda,
-              결정사항: meeting.notes ? [meeting.notes] : []
+              "프로젝트명": project.title,
+              "프로젝트ID": project.id,
+              "미팅목적": 'progress',
+              "PM명": pmName,
+              "참여자목록": project.team?.members?.map(m => m.name) || [],
+              "아젠다": meeting.agenda,
+              "결정사항": meeting.notes ? [meeting.notes] : []
             };
           }
 
@@ -613,10 +613,7 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
       );
 
       if (transitionEvent) {
-        console.log(`✅ 미팅 완료 처리: ${event.title}`);
-        console.log(`🔄 단계 전환 이벤트 생성: ${transitionEvent.fromPhase} → ${transitionEvent.toPhase}`);
       } else {
-        console.log(`📝 미팅 완료 기록됨 (단계 전환 없음): ${event.title}`);
       }
 
     } catch (error) {

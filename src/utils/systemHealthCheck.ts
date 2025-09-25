@@ -61,7 +61,6 @@ export class SystemHealthChecker {
    */
   async performHealthCheck(): Promise<SystemHealthReport> {
     const startTime = Date.now();
-    console.log('🔍 Starting system health check...');
 
     const checks: HealthCheck[] = [];
 
@@ -90,7 +89,6 @@ export class SystemHealthChecker {
     const recommendations = this.generateRecommendations(checks);
 
     const duration = Date.now() - startTime;
-    console.log(`✅ Health check completed in ${duration}ms`);
 
     return {
       overall,
@@ -569,5 +567,4 @@ export async function performSystemHealthCheck(): Promise<SystemHealthReport> {
  */
 if (typeof window !== 'undefined') {
   (window as any).systemHealthCheck = performSystemHealthCheck;
-  console.log('🔧 System health check available: window.systemHealthCheck()');
 }

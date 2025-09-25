@@ -6,7 +6,6 @@ export function setupCSVWatcher() {
   if (import.meta.hot) {
     // Vite HMR을 사용한 CSV 파일 감시
     import.meta.hot.accept(['../data/csvData.ts'], () => {
-      console.log('CSV files changed, clearing cache...');
       clearKPICache();
       
       // 페이지 리로드 또는 컴포넌트 재렌더링 트리거

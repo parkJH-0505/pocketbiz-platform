@@ -209,12 +209,10 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
   const performInitialSync = useCallback(async () => {
     // ✅ 이중 실행 방지: 이미 진행 중이면 중단
     if (scheduleContext.isSyncInProgress()) {
-      console.log('⏸️ Sync already in progress, skipping...');
       return;
     }
 
     try {
-      console.log('🔄 Starting initial data synchronization...');
 
       // 1. 동기화 플래그 설정
       scheduleContext.setSyncInProgress(true);
@@ -224,20 +222,17 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
       projects.forEach(project => {
         if (project.meetings && project.meetings.length > 0) {
-          console.log(`📋 Found ${project.meetings.length} meetings in project ${project.id}`);
           allMeetings.push(...project.meetings);
         }
       });
 
       if (allMeetings.length === 0) {
-        console.log('ℹ️ No meetings found to sync');
         scheduleContext.setSyncInProgress(false);
         return;
       }
 
       // 3. 중복 제거 및 변환 준비
       const uniqueMeetings = DuplicateDetector.removeDuplicateMeetings(allMeetings);
-      console.log(`📦 Processing ${uniqueMeetings.length} unique meetings (removed ${allMeetings.length - uniqueMeetings.length} duplicates)`);
 
       // 4. Meeting → UnifiedSchedule 변환
       const schedulesToCreate = uniqueMeetings.map(meeting => {
@@ -249,7 +244,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
         try {
           const schedule = dataConverter.meetingToSchedule(meeting, project);
-          console.log(`✅ Converted meeting ${meeting.id} to schedule`);
           return schedule;
         } catch (error) {
           console.error(`❌ Failed to convert meeting ${meeting.id}:`, error);
@@ -265,7 +259,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
         );
 
         if (hasExisting) {
-          console.log(`ℹ️ Skipping sync for project ${(schedule as BuildupProjectMeeting).projectId} - already exists`);
           return false;
         }
 
@@ -273,13 +266,11 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       });
 
       if (filteredSchedules.length === 0) {
-        console.log('ℹ️ No new schedules to sync (all already exist)');
         scheduleContext.setSyncInProgress(false);
         return;
       }
 
       // 6. 배치 생성 실행
-      console.log(`📦 Creating ${filteredSchedules.length} schedules in batch...`);
 
       const createdSchedules = await scheduleContext.createSchedulesBatch(
         filteredSchedules.map(s => ({
@@ -295,15 +286,9 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
         }
       );
 
-      console.log(`✅ Initial sync completed: ${createdSchedules.length} schedules created`);
 
       // 7. 통계 출력
       const stats = scheduleContext.getStatistics();
-      console.log('📊 Sync Statistics:', {
-        totalSchedules: scheduleContext.schedules.length,
-        buildupMeetings: scheduleContext.buildupMeetings.length,
-        newlyCreated: createdSchedules.length
-      });
 
     } catch (error) {
       console.error('❌ Initial sync failed:', error);
@@ -316,7 +301,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
   // Phase 4-2: Enhanced Phase Transition with Queue and Snapshot
   const executePhaseTransition = useCallback(async (projectId: string, toPhase: string, trigger: string, metadata?: any) => {
-    console.log('🔄 Executing enhanced phase transition:', { projectId, toPhase, trigger });
 
     const project = projects.find(p => p.id === projectId);
     if (!project) {
@@ -333,7 +317,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     const fromPhase = project.phase || 'contract_pending';
 
     // Phase 4-3: Business Logic Validation
-    console.log('🔍 Validating phase transition:', { projectId, fromPhase, toPhase });
 
     try {
       const validationResult = ValidationManager.validatePhaseTransitionRequest(
@@ -371,7 +354,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
           console.warn('⚠️ Phase transition warnings:', warningMessages);
         }
       } else {
-        console.log('✅ Phase transition validation passed');
       }
 
       // Use queue system for phase transition
@@ -390,11 +372,9 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
         maxRetries: 3
       });
 
-      console.log(`✅ Phase transition queued: ${fromPhase} → ${toPhase}`);
 
       // Log successful validation
       if (validationResult.warnings.length > 0) {
-        console.log(`📊 Validation completed with ${validationResult.warnings.length} warnings`);
       }
 
     } catch (error) {
@@ -423,10 +403,8 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Wait for ScheduleContext to be initialized and ensure single execution
     if (scheduleContext && !scheduleContext.isLoading && !initialSyncCompleted) {
-      console.log('📋 ScheduleContext ready, starting initial sync...');
       performInitialSync().then(() => {
         setInitialSyncCompleted(true);
-        console.log('🎯 Initial sync completed, won\'t run again until page refresh');
       }).catch((error) => {
         console.error('❌ Initial sync failed:', error);
         // Don't set flag on error, allow retry
@@ -475,7 +453,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(savedProjects);
         // Check if the saved projects is an empty array
         if (Array.isArray(parsed) && parsed.length === 0) {
-          console.log('Empty projects array found, initializing sample projects');
           initializeSampleProjects();
         } else {
           setProjects(parsed);
@@ -487,7 +464,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       }
     } else {
       // Initialize with sample projects if no saved projects
-      console.log('No saved projects found, initializing sample projects');
       initializeSampleProjects();
     }
   };
@@ -949,7 +925,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       if (service) {
         const newProject = createProjectFromService(service, data);
         setProjects([...projects, newProject]);
-        console.log(`✅ 프로젝트 "${newProject.title}"이(가) 생성되었습니다.`);
         return newProject;
       }
     }
@@ -1008,7 +983,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     setProjects([...projects, newProject]);
 
     // 프로젝트 생성 성공 알림 (나중에 토스트로 변경 가능)
-    console.log(`✅ 프로젝트 "${newProject.title}"이(가) 생성되었습니다.`);
 
     return newProject;
   };
@@ -1023,7 +997,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Phase Changed Event Handler
     const handlePhaseChangedEvent = (event: PhaseChangedEvent) => {
-      console.log('📋 Phase Changed Event received:', event);
 
       // Update local project state
       setProjects(prevProjects =>
@@ -1056,7 +1029,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
       setPhaseTransitionEvents(prev => [...prev, buildupEvent]);
 
-      console.log(`✅ 프로젝트 ${event.payload.projectId} 단계가 ${event.payload.previousPhase}에서 ${event.payload.newPhase}로 전환되었습니다.`);
     };
 
     // Register event listener
@@ -1064,7 +1036,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
     // Phase 4: Listen for Schedule Events from ScheduleContext (Refactored with EventSourceTracker)
     const handleBuildupMeetingCreated = (event: CustomEvent) => {
-      console.log('📢 [Sprint 5] BuildupContext: Received buildup_meeting_created event', event.detail);
       const { schedule, metadata } = event.detail;
 
       // Step 3-4: Apply EventSourceTracker for circular reference prevention
@@ -1089,7 +1060,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
         // Phase 4-3: Validate meeting schedule before processing
         if (schedule.type === 'buildup_project') {
-          console.log('🔍 Validating meeting schedule:', { projectId: metadata.projectId, scheduleTitle: schedule.title });
 
           const validationResult = ValidationManager.validateMeetingCreation(
             schedule,
@@ -1120,7 +1090,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
               console.warn('⚠️ Meeting validation warnings:', warningMessages);
             }
           } else {
-            console.log('✅ Meeting validation passed');
           }
         }
 
@@ -1147,13 +1116,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
                 ...project,
                 phase: metadata.phaseTransition.toPhase
               };
-
-              console.log('📢 [Sprint 5] BuildupContext: ✅ Phase transition completed!', {
-                projectId: metadata.projectId,
-                fromPhase: fromPhase,
-                toPhase: metadata.phaseTransition.toPhase,
-                trigger: 'buildup_meeting_created'
-              });
             }
 
             return project;
@@ -1179,10 +1141,8 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     };
 
     // Add schedule event listener with debug log
-    console.log('🎧 Setting up BuildupContext event listener for: schedule:buildup_meeting_created');
     window.addEventListener('schedule:buildup_meeting_created', handleBuildupMeetingCreated as EventListener);
 
-    console.log('🚀 New Phase Transition Module initialized with Schedule integration');
 
     // Cleanup function
     return () => {
@@ -1224,13 +1184,11 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     const identifyMeetingSequence = (schedule: any): string | null => {
       // 1. Check explicit meetingSequence field
       if (schedule.meetingSequence) {
-        console.log('📋 Meeting sequence from field:', schedule.meetingSequence);
         return schedule.meetingSequence;
       }
 
       // 2. Check metadata for sequence
       if (schedule.metadata?.meetingSequence) {
-        console.log('📋 Meeting sequence from metadata:', schedule.metadata.meetingSequence);
         return schedule.metadata.meetingSequence;
       }
 
@@ -1243,14 +1201,12 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       if (title.includes('3차') || title.includes('guide 3')) return 'guide_3rd';
       if (title.includes('4차') || title.includes('guide 4')) return 'guide_4th';
 
-      console.log('⚠️ Could not identify meeting sequence from title:', title);
       return null;
     };
 
 
     // Phase 4-2: 실제 phase transition 실행 (Queue에서 호출됨)
     const executePhaseTransitionDirect = async (projectId: string, toPhase: string, trigger: string, metadata?: any) => {
-      console.log('🎯 Direct phase transition execution:', { projectId, toPhase, trigger });
 
       const project = projects.find(p => p.id === projectId);
       if (!project) {
@@ -1271,7 +1227,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
         }
       );
 
-      console.log(`📸 Created snapshot ${snapshotId} before phase transition`);
 
       try {
         // Update project phase
@@ -1370,7 +1325,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
         detail: { projectId, fromPhase, toPhase, trigger }
       }));
 
-      console.log(`✅ Phase transition completed: ${fromPhase} → ${toPhase}`);
 
         // Cleanup snapshot on success
         setTimeout(() => {
@@ -1385,7 +1339,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
         try {
           const rollbackResult = await globalSnapshotManager.rollbackToSnapshot(snapshotId);
           if (rollbackResult.success) {
-            console.log(`🔄 Successfully rolled back to snapshot ${snapshotId}`);
           } else {
             console.error(`❌ Rollback failed:`, rollbackResult.error);
           }
@@ -1449,7 +1402,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       }));
 
       logEvent('MEETING_ADDED_TO_PROJECT', e.detail, 'BuildupContext');
-      console.log(`✅ [BuildupContext] Added meeting ${meeting.id} to project ${projectId}`);
 
       // 🔥 Sprint 3 Phase 1: Check for phase transition
       const meetingSequence = identifyMeetingSequence(schedule);
@@ -1459,7 +1411,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
           // Find the project that was just updated
           const updatedProject = projects.find(p => p.id === projectId);
           if (updatedProject && updatedProject.phase !== targetPhase) {
-            console.log(`🚀 [Phase Transition] Triggering phase change for project ${projectId}: ${updatedProject.phase} → ${targetPhase}`);
             executePhaseTransition(projectId, targetPhase, setProjects);
           }
         }
@@ -1497,7 +1448,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       }));
 
       logEvent('MEETING_UPDATED_IN_PROJECT', e.detail, 'BuildupContext');
-      console.log(`✅ [BuildupContext] Updated meeting ${schedule.id} in project ${projectId}`);
     };
 
     // Handle schedule deleted event
@@ -1528,7 +1478,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       }));
 
       logEvent('MEETING_REMOVED_FROM_PROJECT', e.detail, 'BuildupContext');
-      console.log(`✅ [BuildupContext] Removed meeting ${schedule.id} from project ${projectId}`);
     };
 
     // Handle schedule synced event (batch sync)
@@ -1549,7 +1498,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     };
 
     // Register listeners
-    console.log('🎧 [BuildupContext] Registering schedule event listeners...');
     Object.entries(eventHandlers).forEach(([event, handler]) => {
       window.addEventListener(event, handler);
       console.log(`  ✓ Registered: ${event}`);
@@ -1557,7 +1505,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
     // Cleanup
     return () => {
-      console.log('🔌 [BuildupContext] Removing schedule event listeners...');
       Object.entries(eventHandlers).forEach(([event, handler]) => {
         window.removeEventListener(event, handler);
       });
@@ -1566,7 +1513,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
   // Stage C-3: Phase transition functions connected to new system
   const triggerPhaseTransition = async (projectId: string, meetingRecord: GuideMeetingRecord, pmId: string) => {
-    console.log('🔄 Triggering phase transition for project:', projectId);
 
     try {
       // Find the project
@@ -1592,14 +1538,12 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       // Emit the event - Phase Transition Engine will handle the rest
       await eventBus.emit('MEETING_COMPLETED', meetingEvent);
 
-      console.log('✅ Meeting completed event emitted successfully');
     } catch (error) {
       console.error('❌ Failed to trigger phase transition:', error);
     }
   };
 
   const handlePaymentCompleted = async (projectId: string, paymentData: any) => {
-    console.log('💳 Handling payment completion for project:', projectId);
 
     try {
       const project = projects.find(p => p.id === projectId);
@@ -1620,14 +1564,12 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
       await eventBus.emit('PHASE_CHANGE_REQUEST', phaseChangeEvent);
 
-      console.log('✅ Payment-triggered phase change requested');
     } catch (error) {
       console.error('❌ Failed to handle payment completion:', error);
     }
   };
 
   const requestManualPhaseTransition = async (projectId: string, fromPhase: string, toPhase: string, requestedBy: string, reason: string) => {
-    console.log('🔄 Requesting manual phase transition:', { projectId, fromPhase, toPhase, requestedBy, reason });
 
     try {
       // 1. 프로젝트 단계 업데이트
@@ -1664,7 +1606,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
       await eventBus.emit('PHASE_CHANGE_REQUEST', phaseChangeEvent);
 
-      console.log('✅ Manual phase transition completed:', newTransitionEvent);
     } catch (error) {
       console.error('❌ Failed to request manual phase transition:', error);
       throw error;
@@ -1673,7 +1614,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
   // These approval functions are for future enhancement - currently auto-approve
   const approvePhaseTransition = (approvalRequestId: string, approvedBy: string): boolean => {
-    console.log('✅ Phase transition approved:', { approvalRequestId, approvedBy });
     // Future: Implement approval workflow
     return true;
   };
@@ -1777,7 +1717,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     // For now, we'll skip this to avoid circular dependency
     // This will be implemented in Sprint 2
 
-    console.log(`✅ [BuildupContext] Meeting ${meeting.id} added to project ${projectId}`);
   }, []);
 
   // Update project meeting
@@ -1797,7 +1736,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       };
     }));
 
-    console.log(`✅ [BuildupContext] Meeting ${meetingId} updated in project ${projectId}`);
   }, []);
 
   // Remove meeting from project
@@ -1817,7 +1755,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       };
     }));
 
-    console.log(`✅ [BuildupContext] Meeting ${meetingId} removed from project ${projectId}`);
   }, []);
 
   // Sync all project meetings (batch update)
@@ -1831,7 +1768,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       };
     }));
 
-    console.log(`✅ [BuildupContext] Synced ${meetings.length} meetings for project ${projectId}`);
   }, []);
 
   // Get project meetings
@@ -2079,7 +2015,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
   // 🔥 Sprint 4 Phase 4-5: Error Management & Monitoring System Initialization
   useEffect(() => {
-    console.log('🔧 [BuildupContext] Initializing error management and monitoring systems...');
 
     try {
       // 1. Setup global error handlers
@@ -2138,14 +2073,12 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
         console.log('🧹 [BuildupContext] Performed periodic cleanup');
       }, 60 * 60 * 1000); // 1시간마다
 
-      console.log('✅ [BuildupContext] Error management and monitoring systems initialized successfully');
 
       // 정리 함수
       return () => {
         QueueRecoveryManager.stopMonitoring();
         clearInterval(memoryMonitorInterval);
         clearInterval(cleanupInterval);
-        console.log('🔄 [BuildupContext] Error management and monitoring systems cleaned up');
       };
 
     } catch (error) {
@@ -2243,7 +2176,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
       // Window 객체에 노출 (Phase Transition 시스템과의 연동을 위해)
       window.buildupContext = buildupContextObj;
-      console.log('✅ BuildupContext registered to window');
 
       // GlobalContextManager에 등록
       import('../utils/globalContextManager').then(({ contextManager }) => {
@@ -2254,7 +2186,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
           dependencies: ['schedule'],
           isReady: true
         });
-        console.log('✅ BuildupContext registered to GlobalContextManager');
       }).catch(error => {
         console.warn('GlobalContextManager registration failed:', error);
       });
@@ -2302,24 +2233,20 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
       const runMockDataMigration = async () => {
         // Sprint 5: Migration 임시 비활성화
-        console.log('📌 Migration temporarily disabled for Sprint 5 testing');
         return;
 
         // 아래 코드는 Sprint 5 완료 후 재활성화 예정
         /*
-        console.log('🔄 Checking mock data migration with UnifiedMigrationManager...');
 
         try {
           // Check if migration is already completed
           if (migrationManager.isCompleted()) {
-            console.log('✅ Migration already completed');
             return;
           }
 
           // Run migration with progress tracking
           const success = await migrationManager.runMigration({
             onProgress: (progress, message) => {
-              console.log(`📊 Migration progress: ${progress}% - ${message || ''}`);
             },
             onComplete: (results) => {
               const totalMigrated = results.reduce((sum, r) => sum + (r.migrated || 0), 0);
@@ -2334,7 +2261,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
           });
 
           const totalMigrated = results.reduce((sum, result) => sum + result.migrated, 0);
-          console.log(`✅ Migration completed: ${totalMigrated} meetings migrated`);
 
         } catch (error) {
           console.error('❌ Migration failed:', error);
@@ -2353,7 +2279,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
             await runMockDataMigration();
           } else {
             // Retry later if projects not loaded yet
-            console.log('⏳ Projects not loaded, will retry migration later');
             setTimeout(runMockDataMigration, 5000);
           }
         }, 3000);
@@ -2483,35 +2408,13 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
       console.log('🧪 Sync testing tools available at window.syncTest');
       console.log('Available methods:', Object.keys(window.syncTest));
-      console.log('');
-      console.log('🎉 Sprint 1 Step 5: Integration Testing Complete!');
-      console.log('📋 Test Commands:');
-      console.log('  • window.syncTest.getSyncStatus() - Check sync status');
-      console.log('  • window.syncTest.validateSync() - Validate all projects');
-      console.log('  • window.syncTest.runInitialSync() - Run sync again');
-      console.log('  • window.syncTest.forcePurgeAndResync() - Clean and resync');
-      console.log('');
-      console.log('🚀 Sprint 3 Phase 1: Phase Transition Test Commands:');
       console.log('  • window.testBuildupSync.testPhaseTransition("PRJ-001", "guide_1st") - Test single phase transition');
       console.log('  • window.testBuildupSync.testAllPhaseTransitions("PRJ-001") - Test all phase transitions');
-      console.log('');
-      console.log('🎨 Sprint 3 Phase 2: UI Integration Test Commands:');
       console.log('  • window.testBuildupSync.testUIIntegration("PRJ-001") - Test UI updates with phase transitions');
-      console.log('');
-      console.log('🎭 Sprint 3 Phase 3: UI Feedback & Animation Test Commands:');
       console.log('  • window.testBuildupSync.testUIFeedback("PRJ-001") - Test UI feedback and animations');
-      console.log('');
-      console.log('📝 Available meeting types for phase transitions:');
-      console.log('  • pre_meeting → contract_signed (계약 체결)');
-      console.log('  • guide_1st → planning (기획)');
-      console.log('  • guide_2nd → design (디자인)');
-      console.log('  • guide_3rd → execution (실행)');
-      console.log('  • guide_4th → review (검토)');
-      console.log('');
 
       // 자동 검증 비활성화 (테스트 환경 최적화)
       // setTimeout(() => {
-      //   console.log('🔍 Running automatic validation...');
       //   window.syncTest.validateSync();
       // }, 2000);
     }
@@ -2525,7 +2428,6 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     dependencies: ['toast', 'schedule'], // Toast와 Schedule에 의존
     autoRegister: true,
     onReady: () => {
-      console.log('✅ BuildupContext registered with GlobalContextManager');
     },
     onError: (error) => {
       console.error('❌ Failed to register BuildupContext:', error);
@@ -2675,7 +2577,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
       }
 
       const meetings = buildupContext.getProjectMeetings(projectId);
-      console.log(`🔍 [TEST] Project ${projectId} meetings:`, meetings);
       console.table(meetings.map(m => ({
         id: m.id,
         title: m.title,
@@ -2689,54 +2590,41 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
     // Check sync status
     checkSyncStatus: () => {
-      console.log('📊 [TEST] Sync Status:');
       console.log('  - Active event trackers:', EventSourceTracker.getActiveCount());
-      console.log('  - Test commands:');
       console.log('    window.testBuildupSync.createTestMeeting("PRJ-001")');
       console.log('    window.testBuildupSync.checkProjectMeetings("PRJ-001")');
-      console.log('    window.testBuildupSync.runFullSyncTest()');
     },
 
     // Run full sync test
     runFullSyncTest: async (projectId: string = 'PRJ-001') => {
-      console.log('🎬 [TEST] Starting full sync test...');
 
       // 1. Create a test meeting
-      console.log('1️⃣ Creating test meeting...');
       const meetingId = window.testBuildupSync.createTestMeeting(projectId);
       await new Promise(resolve => setTimeout(resolve, 500));
 
       // 2. Check if it was added
-      console.log('2️⃣ Checking if meeting was added...');
       window.testBuildupSync.checkProjectMeetings(projectId);
       await new Promise(resolve => setTimeout(resolve, 500));
 
       // 3. Update the meeting
-      console.log('3️⃣ Updating test meeting...');
       window.testBuildupSync.updateTestMeeting(meetingId, projectId);
       await new Promise(resolve => setTimeout(resolve, 500));
 
       // 4. Check if it was updated
-      console.log('4️⃣ Checking if meeting was updated...');
       window.testBuildupSync.checkProjectMeetings(projectId);
       await new Promise(resolve => setTimeout(resolve, 500));
 
       // 5. Delete the meeting
-      console.log('5️⃣ Deleting test meeting...');
       window.testBuildupSync.deleteTestMeeting(meetingId, projectId);
       await new Promise(resolve => setTimeout(resolve, 500));
 
       // 6. Check if it was removed
-      console.log('6️⃣ Checking if meeting was removed...');
       window.testBuildupSync.checkProjectMeetings(projectId);
 
-      console.log('✅ [TEST] Full sync test completed!');
     },
 
     // 🔥 Sprint 3 Phase 1: Test phase transition
     testPhaseTransition: async (projectId: string = 'PRJ-001', meetingType: string = 'guide_1st') => {
-      console.log('🚀 [TEST] Testing phase transition...');
-      console.log(`📌 Project: ${projectId}, Meeting Type: ${meetingType}`);
 
       // Get current project phase
       const buildupContext = window.testBuildupSync.getContext();
@@ -2751,7 +2639,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
         return;
       }
 
-      console.log(`📊 Current Phase: ${project.phase} (${PHASE_LABELS[project.phase] || project.phase})`);
 
       // Create a meeting with specific type
       const testSchedule = {
@@ -2786,7 +2673,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
         }
       });
 
-      console.log('📤 Dispatching schedule:created event with meeting sequence:', meetingType);
       window.dispatchEvent(testEvent);
 
       // Wait for state update
@@ -2795,15 +2681,11 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
       // Check if phase changed
       const updatedProject = buildupContext.projects.find((p: any) => p.id === projectId);
       if (updatedProject) {
-        console.log(`📊 New Phase: ${updatedProject.phase} (${PHASE_LABELS[updatedProject.phase] || updatedProject.phase})`);
 
         const expectedPhase = MEETING_SEQUENCE_TO_PHASE_MAP[meetingType];
         if (expectedPhase && updatedProject.phase === expectedPhase) {
-          console.log(`✅ Phase transition successful! ${project.phase} → ${updatedProject.phase}`);
         } else if (expectedPhase) {
-          console.log(`⚠️ Phase transition expected ${expectedPhase}, but got ${updatedProject.phase}`);
         } else {
-          console.log(`ℹ️ No phase transition expected for meeting type: ${meetingType}`);
         }
       }
 
@@ -2812,7 +2694,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
     // Test all phase transitions
     testAllPhaseTransitions: async (projectId: string = 'PRJ-001') => {
-      console.log('🔄 [TEST] Testing all phase transitions...');
 
       const transitions = [
         { type: 'pre_meeting', expectedPhase: 'contract_signed', label: '사전 미팅 → 계약 체결' },
@@ -2823,17 +2704,14 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
       ];
 
       for (const transition of transitions) {
-        console.log(`\n🔹 Testing: ${transition.label}`);
         await window.testBuildupSync.testPhaseTransition(projectId, transition.type);
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
-      console.log('\n✅ [TEST] All phase transition tests completed!');
     },
 
     // 🔥 Sprint 3 Phase 2: UI 업데이트 통합 테스트
     testUIIntegration: async (projectId: string = 'PRJ-001') => {
-      console.log('🎨 [TEST] Testing Sprint 3 Phase 2: UI Integration...');
 
       const buildupContext = window.testBuildupSync.getContext();
       if (!buildupContext) {
@@ -2848,31 +2726,22 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
         return;
       }
 
-      console.log(`📊 현재 프로젝트 단계: ${project.phase} (${PHASE_LABELS[project.phase] || project.phase})`);
 
       // 2. 단계 전환 테스트 및 UI 업데이트 확인
-      console.log('\n🔄 Testing phase transition with UI updates...');
       await window.testBuildupSync.testPhaseTransition(projectId, 'guide_1st');
 
       // 3. 업데이트된 프로젝트 확인
       await new Promise(resolve => setTimeout(resolve, 1000));
       const updatedProject = buildupContext.projects.find((p: any) => p.id === projectId);
-      console.log(`📊 업데이트된 단계: ${updatedProject?.phase} (${PHASE_LABELS[updatedProject?.phase] || updatedProject?.phase})`);
 
       // 4. UI 컴포넌트 검증 가이드
-      console.log('\n🎯 UI 컴포넌트 검증 가이드:');
-      console.log('  1. ProjectDetail: 7단계 진행바에서 현재 단계 강조 표시 확인');
       console.log('  2. BuildupCalendarV3: "단계 필터" 버튼 클릭하여 필터 UI 확인');
       console.log('  3. ServiceCatalog: "현재 단계" 추천 탭에서 단계별 서비스 확인');
-      console.log('  4. 단계 전환 시 토스트 알림 표시 확인');
 
-      console.log('\n✅ [TEST] Phase 2 UI Integration test completed!');
-      console.log('🔔 Manual verification required for UI components');
     },
 
     // 🔥 Sprint 3 Phase 3: UI 피드백 및 애니메이션 테스트
     testUIFeedback: async (projectId: string = 'PRJ-001') => {
-      console.log('🎭 [TEST] Testing Sprint 3 Phase 3: UI Feedback & Animations...');
 
       const buildupContext = window.testBuildupSync.getContext();
       if (!buildupContext) {
@@ -2886,11 +2755,8 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
         return;
       }
 
-      console.log(`📊 현재 프로젝트: ${project.title || projectId}`);
-      console.log(`📊 현재 단계: ${project.phase} (${PHASE_LABELS[project.phase] || project.phase})`);
 
       // 1. 단계별 맞춤 토스트 메시지 테스트
-      console.log('\n🎯 Testing customized toast messages...');
       const phases = ['design', 'execution', 'review'];
 
       for (const phase of phases) {
@@ -2900,25 +2766,10 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
       }
 
       // 2. UI 피드백 검증 가이드
-      console.log('\n🎨 UI 피드백 및 애니메이션 검증 가이드:');
-      console.log('  1. 단계별 맞춤 토스트: 각 단계마다 고유한 이모지와 메시지 확인');
-      console.log('     - 기획: 🎯, 디자인: 🎨, 실행: 🚀, 검토: ✅');
-      console.log('  2. ProjectDetail 애니메이션:');
-      console.log('     - 7단계 진행률 시스템 전체 확대/축소 효과');
       console.log('     - 현재 단계 텍스트 펄스 애니메이션 및 "새로 변경됨!" 표시');
-      console.log('     - 진행바 그라데이션 및 펄스 효과');
-      console.log('     - 현재 단계 점(dot) 바운스 애니메이션');
-      console.log('  3. Phase History 탭:');
-      console.log('     - 최근 변경사항 알림 카드 표시');
-      console.log('     - 히스토리 컨테이너 링 효과');
 
-      console.log('\n🎯 수동 검증 단계:');
-      console.log('  1. ProjectDetail 페이지로 이동');
-      console.log('  2. 단계 전환 테스트 실행 후 애니메이션 효과 확인');
       console.log('  3. "단계 이력" 탭에서 최근 변경사항 알림 확인');
-      console.log('  4. 여러 단계 전환을 연속으로 실행하여 애니메이션 지속성 확인');
 
-      console.log('\n✅ [TEST] Phase 3 UI Feedback test completed!');
       return true;
     },
 
@@ -2927,19 +2778,12 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
       // Comprehensive validation test
       runComprehensiveValidation: async () => {
-        console.log('\n🔍 [VALIDATION TEST] Running comprehensive validation...');
 
         try {
           const result = await ValidationManager.runComprehensiveValidation(projects, scheduleContext?.schedules || []);
 
-          console.log('\n📊 Validation Results:');
-          console.log(`  ✅ Valid: ${result.isValid}`);
-          console.log(`  🚨 Errors: ${result.errors.length}`);
-          console.log(`  ⚠️ Warnings: ${result.warnings.length}`);
-          console.log(`  📈 Severity: ${result.severity}`);
 
           if (result.errors.length > 0) {
-            console.log('\n❌ Validation Errors:');
             result.errors.forEach((error, index) => {
               console.log(`  ${index + 1}. [${error.code}] ${error.message}`);
               if (error.field) console.log(`     Field: ${error.field}`);
@@ -2948,7 +2792,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
           }
 
           if (result.warnings.length > 0) {
-            console.log('\n⚠️ Validation Warnings:');
             result.warnings.forEach((warning, index) => {
               console.log(`  ${index + 1}. [${warning.code}] ${warning.message}`);
               if (warning.suggestion) console.log(`     Suggestion: ${warning.suggestion}`);
@@ -2964,7 +2807,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
       // Test phase transition validation
       testPhaseTransitionValidation: (projectId: string, fromPhase: string, toPhase: string) => {
-        console.log(`\n🔍 [VALIDATION TEST] Testing phase transition: ${fromPhase} → ${toPhase}`);
 
         const project = projects.find(p => p.id === projectId);
         if (!project) {
@@ -2979,19 +2821,12 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
           { trigger: 'manual_test', timestamp: new Date() }
         );
 
-        console.log('\n📊 Phase Transition Validation:');
-        console.log(`  ✅ Valid: ${result.isValid}`);
-        console.log(`  🚨 Errors: ${result.errors.length}`);
-        console.log(`  ⚠️ Warnings: ${result.warnings.length}`);
-        console.log(`  📈 Severity: ${result.severity}`);
 
         if (result.errors.length > 0) {
-          console.log('\n❌ Errors:');
           result.errors.forEach(error => console.log(`    - ${error.message}`));
         }
 
         if (result.warnings.length > 0) {
-          console.log('\n⚠️ Warnings:');
           result.warnings.forEach(warning => console.log(`    - ${warning.message}`));
         }
 
@@ -3000,7 +2835,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
       // Test meeting validation
       testMeetingValidation: (scheduleId: string) => {
-        console.log(`\n🔍 [VALIDATION TEST] Testing meeting validation for schedule: ${scheduleId}`);
 
         const schedule = scheduleContext?.schedules?.find(s => s.id === scheduleId);
         if (!schedule || schedule.type !== 'buildup_project') {
@@ -3021,22 +2855,15 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
           scheduleContext?.schedules || []
         );
 
-        console.log('\n📊 Meeting Validation:');
-        console.log(`  ✅ Valid: ${result.isValid}`);
-        console.log(`  🚨 Errors: ${result.errors.length}`);
-        console.log(`  ⚠️ Warnings: ${result.warnings.length}`);
-        console.log(`  📈 Severity: ${result.severity}`);
 
         return result;
       },
 
       // Display validation status for all projects
       showValidationStatus: () => {
-        console.log('\n🔍 [VALIDATION STATUS] Current System Validation');
         console.log('=' * 50);
 
         // Project validation summary
-        console.log(`\n📋 Projects (${projects.length}):`);
         projects.forEach(project => {
           const result = ValidationManager.validateProject ?
             (ValidationManager as any).validateProject(project) :
@@ -3052,7 +2879,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
         // Schedule validation summary
         const buildupSchedules = (scheduleContext?.schedules || []).filter(s => s.type === 'buildup_project');
-        console.log(`\n📅 Buildup Meetings (${buildupSchedules.length}):`);
 
         let validMeetings = 0;
         let invalidMeetings = 0;
@@ -3067,18 +2893,13 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
               validMeetings++;
             } else {
               invalidMeetings++;
-              console.log(`  ⚠️ ${meeting.title} (${meeting.id}) - ${result.errors.length} errors`);
             }
           } else {
             invalidMeetings++;
-            console.log(`  🚨 ${meeting.title} (${meeting.id}) - Orphan meeting (no project)`);
           }
         });
 
-        console.log(`\n📊 Summary:`);
-        console.log(`  ✅ Valid meetings: ${validMeetings}`);
         console.log(`  ❌ Invalid meetings: ${invalidMeetings}`);
-        console.log(`  🎯 Overall health: ${invalidMeetings === 0 ? 'Healthy' : 'Needs attention'}`);
       }
     },
 
@@ -3087,7 +2908,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
       // Conflict Resolution Testing
       testConflictResolution: async () => {
-        console.log('\n⚔️ [EDGE CASE TEST] Testing conflict resolution...');
 
         // 현재 스케줄 가져오기
         const schedules = scheduleContext?.schedules || [];
@@ -3114,7 +2934,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
         // 충돌 감지
         const conflicts = ScheduleConflictResolver.detectConflicts(testSchedule, schedules, projects);
 
-        console.log(`📊 Detected ${conflicts.length} conflicts:`);
         conflicts.forEach((conflict, index) => {
           console.log(`  ${index + 1}. ${conflict.type} - ${conflict.conflictDetails.severity}`);
           console.log(`     Overlap: ${conflict.conflictDetails.overlapMinutes} minutes`);
@@ -3126,7 +2945,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
       // Time Validation Testing
       testTimeValidation: () => {
-        console.log('\n⏰ [EDGE CASE TEST] Testing time validation...');
 
         const testCases = [
           {
@@ -3168,7 +2986,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
           } as any;
 
           const result = TimeValidator.validateScheduleTime(mockSchedule);
-          console.log(`📋 ${testCase.name}: ${result.isValid ? '✅' : '❌'}`);
 
           if (result.errors.length > 0) {
             console.log(`   Errors: ${result.errors.map(e => e.message).join(', ')}`);
@@ -3181,32 +2998,25 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
       // Data Recovery Testing
       testDataRecovery: async () => {
-        console.log('\n🔧 [EDGE CASE TEST] Testing data recovery...');
 
         const healthReport = await DataRecoveryManager.performHealthCheck(projects, scheduleContext?.schedules || []);
 
-        console.log(`📊 System Health: ${healthReport.overallHealth}`);
-        console.log(`📈 Statistics:`);
         console.log(`   Projects: ${healthReport.statistics.totalProjects}`);
         console.log(`   Schedules: ${healthReport.statistics.totalSchedules}`);
         console.log(`   Orphan schedules: ${healthReport.statistics.orphanSchedules}`);
         console.log(`   Missing schedules: ${healthReport.statistics.missingSchedules}`);
         console.log(`   Duplicate meetings: ${healthReport.statistics.duplicateMeetings}`);
 
-        console.log(`🔍 Found ${healthReport.inconsistencies.length} inconsistencies:`);
         healthReport.inconsistencies.forEach((issue, index) => {
           console.log(`   ${index + 1}. ${issue.type} (${issue.severity}): ${issue.description}`);
         });
 
-        console.log(`💡 Auto-fixable: ${healthReport.autoFixable}`);
-        console.log(`🛠️ Manual review needed: ${healthReport.manualReviewRequired}`);
 
         return healthReport;
       },
 
       // Retry Mechanism Testing
       testRetryMechanism: async () => {
-        console.log('\n🔄 [EDGE CASE TEST] Testing retry mechanism...');
 
         // 실패하는 작업 시뮬레이션
         const failingOperation = async () => {
@@ -3217,7 +3027,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
           return 'Success!';
         };
 
-        console.log('🎯 Testing retry with failing operation...');
         const result = await RetryMechanismManager.executeWithRetry(
           'schedule_creation',
           failingOperation,
@@ -3227,7 +3036,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
               console.log(`   Retry attempt ${attempt}: ${error.message}`);
             },
             onSuccess: (result, attempts) => {
-              console.log(`   ✅ Success after ${attempts} attempts: ${result}`);
             },
             onFailure: (error, attempts) => {
               console.log(`   ❌ Failed after ${attempts} attempts: ${error.message}`);
@@ -3235,7 +3043,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
           }
         );
 
-        console.log(`📊 Retry Result:`);
         console.log(`   Success: ${result.success}`);
         console.log(`   Attempts: ${result.attempts}`);
         console.log(`   Duration: ${result.totalDuration}ms`);
@@ -3246,27 +3053,22 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
       // Queue Recovery Testing
       testQueueRecovery: async () => {
-        console.log('\n📋 [EDGE CASE TEST] Testing queue recovery...');
 
         // 큐 모니터링 시작 (테스트 모드)
         QueueRecoveryManager.startMonitoring(5000); // 5초마다 체크
 
         // 큐 상태 요약 출력
         const summary = QueueRecoveryManager.getQueueSummary();
-        console.log(`📊 Queue Health:`);
-        console.log(`   Healthy: ${summary.isHealthy ? '✅' : '❌'}`);
         console.log(`   Last Check: ${summary.lastCheck?.toLocaleString() || 'Never'}`);
         console.log(`   Recent Failures: ${summary.recentFailures}`);
 
         if (summary.currentMetrics) {
-          console.log(`📈 Current Metrics:`);
           console.log(`   Queue Size: ${summary.currentMetrics.size}`);
           console.log(`   Processing: ${summary.currentMetrics.processing}`);
           console.log(`   Error Rate: ${(summary.currentMetrics.errorRate * 100).toFixed(1)}%`);
           console.log(`   Health Score: ${summary.currentMetrics.healthScore}/100`);
         }
 
-        console.log(`💡 Recommendations:`);
         summary.recommendations.forEach((rec, index) => {
           console.log(`   ${index + 1}. ${rec}`);
         });
@@ -3274,7 +3076,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
         // 10초 후 모니터링 중지
         setTimeout(() => {
           QueueRecoveryManager.stopMonitoring();
-          console.log('⏹️ Queue monitoring stopped');
         }, 10000);
 
         return summary;
@@ -3282,7 +3083,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
       // Cascade Operations Testing
       testCascadeOperations: async (projectId: string = projects[0]?.id || 'PRJ-001') => {
-        console.log(`\n🗑️ [EDGE CASE TEST] Testing cascade operations for project ${projectId}...`);
 
         // 삭제 영향 분석
         const impact = await CascadeOperationManager.analyzeProjectDeletionImpact(
@@ -3291,7 +3091,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
           scheduleContext?.schedules || []
         );
 
-        console.log(`📊 Deletion Impact Analysis:`);
         console.log(`   Project: ${impact.projectTitle}`);
         console.log(`   Total Schedules: ${impact.impactAnalysis.totalSchedules}`);
         console.log(`   Upcoming Meetings: ${impact.impactAnalysis.upcomingMeetings}`);
@@ -3299,27 +3098,20 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
         console.log(`   Connected Systems: ${impact.impactAnalysis.connectedSystems.join(', ')}`);
         console.log(`   Estimated Data Size: ${impact.impactAnalysis.estimatedDataSize}`);
 
-        console.log(`⚠️ Risk Assessment: ${impact.risks.level}`);
         impact.risks.factors.forEach((factor, index) => {
           console.log(`   ${index + 1}. ${factor}`);
         });
 
-        console.log(`💡 Recommendations:`);
         impact.risks.recommendations.forEach((rec, index) => {
           console.log(`   ${index + 1}. ${rec}`);
         });
 
-        console.log(`🔧 Available Alternatives:`);
-        console.log(`   Archive: ${impact.alternatives.archive ? '✅' : '❌'}`);
-        console.log(`   Transfer: ${impact.alternatives.transfer ? '✅' : '❌'}`);
-        console.log(`   Partial: ${impact.alternatives.partial ? '✅' : '❌'}`);
 
         return impact;
       },
 
       // 통합 Edge Case 시나리오 테스트
       runComprehensiveEdgeCaseTest: async () => {
-        console.log('\n🎯 [COMPREHENSIVE EDGE CASE TEST] Running all edge case tests...');
 
         const results = {
           conflicts: null as any,
@@ -3333,7 +3125,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
         try {
           // 1. Conflict Resolution Test
-          console.log('\n1️⃣ Testing Conflict Resolution...');
           results.conflicts = await window.testBuildupSync.testEdgeCases.testConflictResolution();
         } catch (error) {
           results.errors.push(`Conflict Resolution: ${error.message}`);
@@ -3341,7 +3132,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
         try {
           // 2. Time Validation Test
-          console.log('\n2️⃣ Testing Time Validation...');
           window.testBuildupSync.testEdgeCases.testTimeValidation();
           results.timeValidation = 'completed';
         } catch (error) {
@@ -3350,7 +3140,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
         try {
           // 3. Data Recovery Test
-          console.log('\n3️⃣ Testing Data Recovery...');
           results.dataRecovery = await window.testBuildupSync.testEdgeCases.testDataRecovery();
         } catch (error) {
           results.errors.push(`Data Recovery: ${error.message}`);
@@ -3358,7 +3147,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
         try {
           // 4. Retry Mechanism Test
-          console.log('\n4️⃣ Testing Retry Mechanism...');
           results.retryMechanism = await window.testBuildupSync.testEdgeCases.testRetryMechanism();
         } catch (error) {
           results.errors.push(`Retry Mechanism: ${error.message}`);
@@ -3366,7 +3154,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
         try {
           // 5. Queue Recovery Test
-          console.log('\n5️⃣ Testing Queue Recovery...');
           results.queueRecovery = await window.testBuildupSync.testEdgeCases.testQueueRecovery();
         } catch (error) {
           results.errors.push(`Queue Recovery: ${error.message}`);
@@ -3374,31 +3161,24 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
         try {
           // 6. Cascade Operations Test
-          console.log('\n6️⃣ Testing Cascade Operations...');
           results.cascadeOperations = await window.testBuildupSync.testEdgeCases.testCascadeOperations();
         } catch (error) {
           results.errors.push(`Cascade Operations: ${error.message}`);
         }
 
         // 결과 요약
-        console.log('\n📊 [COMPREHENSIVE TEST RESULTS]');
         console.log('='.repeat(50));
-        console.log(`✅ Tests Completed: ${6 - results.errors.length}/6`);
         console.log(`❌ Tests Failed: ${results.errors.length}`);
 
         if (results.errors.length > 0) {
-          console.log('\n❌ Failed Tests:');
           results.errors.forEach((error, index) => {
             console.log(`   ${index + 1}. ${error}`);
           });
         }
 
         if (results.errors.length === 0) {
-          console.log('\n🎉 All edge case tests passed successfully!');
         } else if (results.errors.length < 3) {
-          console.log('\n⚠️ Some tests failed, but critical systems are working.');
         } else {
-          console.log('\n🚨 Multiple critical failures detected. System needs attention.');
         }
 
         return results;
@@ -3410,7 +3190,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
       // Error Manager Testing
       testErrorManager: () => {
-        console.log('\n🚨 [ERROR MANAGEMENT TEST] Testing error manager...');
 
         // 다양한 에러 시나리오 테스트
         const testScenarios = [
@@ -3437,7 +3216,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
         ];
 
         testScenarios.forEach(scenario => {
-          console.log(`\n📋 Testing: ${scenario.name}`);
 
           const standardizedError = ErrorManager.standardizeError(scenario.error, scenario.context);
 
@@ -3452,14 +3230,12 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
           // 자동 복구 시도
           if (standardizedError.isRecoverable) {
             ErrorManager.attemptAutoRecovery(standardizedError.id).then(recovered => {
-              console.log(`   Auto Recovery: ${recovered ? '✅ Success' : '❌ Failed'}`);
             });
           }
         });
 
         // 에러 통계 생성
         const stats = ErrorManager.generateStatistics(1);
-        console.log('\n📊 Error Statistics:');
         console.log(`   Total Errors: ${stats.totalErrors}`);
         console.log(`   Categories:`, stats.errorsByCategory);
         console.log(`   Severities:`, stats.errorsBySeverity);
@@ -3470,7 +3246,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
       // Performance Monitor Testing
       testPerformanceMonitor: async () => {
-        console.log('\n📊 [PERFORMANCE TEST] Testing performance monitor...');
 
         // 다양한 성능 측정 시나리오
         const testOperations = [
@@ -3502,7 +3277,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
         ];
 
         for (const test of testOperations) {
-          console.log(`\n🎯 Testing: ${test.name}`);
 
           const measurementId = PerformanceMonitor.startMeasurement(
             'api_response',
@@ -3516,7 +3290,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
             const metric = PerformanceMonitor.endMeasurement(measurementId, { result: 'success' });
 
             if (metric) {
-              console.log(`   ✅ Completed in ${metric.value.toFixed(2)}ms`);
               console.log(`   Result: ${JSON.stringify(result).substring(0, 50)}...`);
             }
           } catch (error) {
@@ -3527,11 +3300,9 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
         // 메모리 사용량 측정
         const memoryMetric = PerformanceMonitor.measureMemoryUsage();
-        console.log(`\n💾 Memory Usage: ${(memoryMetric.value / 1024 / 1024).toFixed(2)} MB`);
 
         // 성능 통계 생성
         const stats = PerformanceMonitor.generateStatistics(1);
-        console.log('\n📈 Performance Statistics:');
         console.log(`   Total Measurements: ${stats.totalMeasurements}`);
         console.log(`   Performance Issues: ${stats.performanceIssues.length}`);
 
@@ -3546,23 +3317,19 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
       // System Health Check
       testSystemHealth: async () => {
-        console.log('\n🏥 [SYSTEM HEALTH TEST] Running comprehensive system health check...');
 
         // Queue 상태 확인
         const queueSummary = QueueRecoveryManager.getQueueSummary();
-        console.log(`📋 Queue Health: ${queueSummary.isHealthy ? '✅ Healthy' : '❌ Unhealthy'}`);
         console.log(`   Recent Failures: ${queueSummary.recentFailures}`);
 
         // 에러 통계
         const errorStats = ErrorManager.generateStatistics(24);
-        console.log(`🚨 Error Summary (24h):`);
         console.log(`   Total Errors: ${errorStats.totalErrors}`);
         console.log(`   Critical Errors: ${errorStats.errorsBySeverity?.critical || 0}`);
         console.log(`   High Errors: ${errorStats.errorsBySeverity?.high || 0}`);
 
         // 성능 통계
         const performanceStats = PerformanceMonitor.generateStatistics(24);
-        console.log(`📊 Performance Summary (24h):`);
         console.log(`   Total Measurements: ${performanceStats.totalMeasurements}`);
         console.log(`   Performance Issues: ${performanceStats.performanceIssues.length}`);
 
@@ -3573,7 +3340,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
           (errorStats.errorsBySeverity?.high || 0) < 5 &&
           performanceStats.performanceIssues.filter(i => i.severity === 'critical').length === 0;
 
-        console.log(`\n🎯 Overall System Health: ${isHealthy ? '✅ HEALTHY' : '⚠️ NEEDS ATTENTION'}`);
 
         // 권장사항
         const recommendations = [];
@@ -3588,7 +3354,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
         }
 
         if (recommendations.length > 0) {
-          console.log('\n💡 Recommendations:');
           recommendations.forEach((rec, index) => {
             console.log(`   ${index + 1}. ${rec}`);
           });
@@ -3605,7 +3370,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
       // 통합 모니터링 시스템 테스트
       runComprehensiveMonitoringTest: async () => {
-        console.log('\n🎯 [COMPREHENSIVE MONITORING TEST] Running all monitoring tests...');
 
         const results = {
           errorManagement: null as any,
@@ -3616,7 +3380,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
         try {
           // 1. Error Management Test
-          console.log('\n1️⃣ Testing Error Management...');
           results.errorManagement = window.testBuildupSync.testErrorManagement.testErrorManager();
         } catch (error) {
           results.errors.push(`Error Management: ${error.message}`);
@@ -3624,7 +3387,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
         try {
           // 2. Performance Monitor Test
-          console.log('\n2️⃣ Testing Performance Monitor...');
           results.performance = await window.testBuildupSync.testErrorManagement.testPerformanceMonitor();
         } catch (error) {
           results.errors.push(`Performance Monitor: ${error.message}`);
@@ -3632,32 +3394,24 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
         try {
           // 3. System Health Test
-          console.log('\n3️⃣ Testing System Health...');
           results.systemHealth = await window.testBuildupSync.testErrorManagement.testSystemHealth();
         } catch (error) {
           results.errors.push(`System Health: ${error.message}`);
         }
 
         // 결과 요약
-        console.log('\n📊 [COMPREHENSIVE MONITORING TEST RESULTS]');
         console.log('='.repeat(60));
-        console.log(`✅ Tests Completed: ${3 - results.errors.length}/3`);
         console.log(`❌ Tests Failed: ${results.errors.length}`);
 
         if (results.errors.length > 0) {
-          console.log('\n❌ Failed Tests:');
           results.errors.forEach((error, index) => {
             console.log(`   ${index + 1}. ${error}`);
           });
         }
 
         if (results.errors.length === 0) {
-          console.log('\n🎉 All monitoring tests passed successfully!');
-          console.log('🔍 System is ready for production monitoring.');
         } else if (results.errors.length < 2) {
-          console.log('\n⚠️ Some tests failed, but core monitoring is working.');
         } else {
-          console.log('\n🚨 Multiple monitoring failures detected. System needs attention.');
         }
 
         return results;
@@ -3665,14 +3419,12 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
       // 🔥 Sprint 5 최종: 시스템 통합 건강성 검사
       performSystemHealthCheck: async () => {
-        console.log('\n🏥 [SYSTEM HEALTH CHECK] Performing comprehensive system health check...');
 
         try {
           // systemHealthCheck 함수가 전역으로 등록되어 있는지 확인
           if (typeof (window as any).systemHealthCheck === 'function') {
             const healthReport = await (window as any).systemHealthCheck();
 
-            console.log('\n📊 System Health Check Summary:');
             console.log(`Overall Status: ${healthReport.overall.toUpperCase()}`);
             console.log(`Total Checks: ${healthReport.checks.length}`);
             console.log(`Passed: ${healthReport.checks.filter(c => c.status === 'pass').length}`);
@@ -3682,7 +3434,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
             // 실패한 체크 항목들 표시
             const failedChecks = healthReport.checks.filter(c => c.status === 'fail');
             if (failedChecks.length > 0) {
-              console.log('\n❌ Failed Checks:');
               failedChecks.forEach(check => {
                 console.log(`   - [${check.category.toUpperCase()}] ${check.name}: ${check.message}`);
               });
@@ -3691,7 +3442,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
             // 경고 체크 항목들 표시
             const warningChecks = healthReport.checks.filter(c => c.status === 'warning');
             if (warningChecks.length > 0) {
-              console.log('\n⚠️ Warning Checks:');
               warningChecks.forEach(check => {
                 console.log(`   - [${check.category.toUpperCase()}] ${check.name}: ${check.message}`);
               });
@@ -3699,7 +3449,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
 
             // 권장사항 표시
             if (healthReport.recommendations.length > 0) {
-              console.log('\n💡 Recommendations:');
               healthReport.recommendations.forEach(rec => {
                 console.log(`   ${rec}`);
               });
@@ -3744,7 +3493,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
               recommendations: ['System health check utility should be properly loaded']
             };
 
-            console.log('\n📊 Basic Health Check Results:');
             console.log(`Overall Status: ${basicHealth.overall.toUpperCase()}`);
             console.log(`Active Providers: ${basicHealth.statistics.activeProviders}/${basicHealth.statistics.totalContexts}`);
 
@@ -3784,9 +3532,4 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
   };
 
   console.log('🧪 [BuildupContext] Test utilities loaded. Access via window.testBuildupSync');
-  console.log('   📊 Validation: window.testBuildupSync.testValidation.runComprehensiveValidation()');
-  console.log('   🔥 Edge Cases: window.testBuildupSync.testEdgeCases.runComprehensiveEdgeCaseTest()');
-  console.log('   📋 Status: window.testBuildupSync.checkSyncStatus()');
-  console.log('   🏥 Health Check: window.testBuildupSync.testErrorManagement.performSystemHealthCheck()');
-  console.log('   🎯 Full Test: Run validation, edge cases, and health check for complete system verification');
 }

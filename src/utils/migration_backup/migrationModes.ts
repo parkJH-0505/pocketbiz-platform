@@ -75,7 +75,6 @@ export class AutoModeStrategy implements ModeStrategy {
     options: MigrationOptions,
     context: ExecutionContext
   ): Promise<MigrationResult[]> {
-    console.log('🤖 Auto mode: Starting automatic migration');
 
     // 자동 모드는 조용히 실행
     const autoOptions: MigrationOptions = {
@@ -91,12 +90,10 @@ export class AutoModeStrategy implements ModeStrategy {
   }
 
   onBeforeExecute(context: ExecutionContext): void {
-    console.log('🔄 Auto migration starting...');
   }
 
   onAfterExecute(results: MigrationResult[], context: ExecutionContext): void {
     const total = results.reduce((sum, r) => sum + r.migrated, 0);
-    console.log(`✅ Auto migration completed: ${total} items migrated`);
   }
 }
 
@@ -113,7 +110,6 @@ export class ManualModeStrategy implements ModeStrategy {
     options: MigrationOptions,
     context: ExecutionContext
   ): Promise<MigrationResult[]> {
-    console.log('👤 Manual mode: User-triggered migration');
 
     const manualOptions: MigrationOptions = {
       ...options,
@@ -126,7 +122,6 @@ export class ManualModeStrategy implements ModeStrategy {
   }
 
   onBeforeExecute(context: ExecutionContext): void {
-    console.log('👤 Manual migration requested by user');
   }
 }
 
@@ -160,7 +155,6 @@ export class HybridModeStrategy implements ModeStrategy {
     options: MigrationOptions,
     context: ExecutionContext
   ): Promise<MigrationResult[]> {
-    console.log('🤝 Hybrid mode: User-confirmed migration');
 
     const hybridOptions: MigrationOptions = {
       ...options,
@@ -208,7 +202,6 @@ export class ScheduledModeStrategy implements ModeStrategy {
     options: MigrationOptions,
     context: ExecutionContext
   ): Promise<MigrationResult[]> {
-    console.log('⏰ Scheduled mode: Time-based migration');
 
     this.lastRun = new Date();
 
@@ -222,7 +215,6 @@ export class ScheduledModeStrategy implements ModeStrategy {
   }
 
   onAfterExecute(): void {
-    console.log(`✅ Scheduled migration completed at ${new Date().toLocaleString()}`);
   }
 }
 
@@ -353,7 +345,6 @@ export class ModeManager {
     const config = this.configurations.get(mode);
     if (config && config.enabled) {
       this.currentMode = mode;
-      console.log(`🔄 Migration mode changed to: ${mode}`);
       this.saveConfigurations();
     } else {
       throw new Error(`Mode ${mode} is not enabled or configured`);

@@ -50,7 +50,16 @@
       "Bash(rm:*)",
       "Bash(netstat:*)",
       "Bash(clip)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(start http://localhost:5177/pocketbiz-platform/)",
+      "Bash(start http://localhost:5173/pocketbiz-platform/)",
+      "Bash(timeout 5 npm run dev)",
+      "Bash(del \"C:\\Users\\포켓컴퍼니\\OneDrive\\Desktop\\my-startup-app\\my-startup-app\\src\\components\\kpi\\QuickKPINavigator.tsx\")",
+      "Bash(gh run list:*)",
+      "Bash(git restore:*)",
+      "Bash(start http://localhost:5176/pocketbiz-platform/)",
+      "Bash(xargs sed:*)"
     ],
     "deny": [],
     "ask": []

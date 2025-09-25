@@ -351,6 +351,9 @@ const MonthView: React.FC<CalendarViewProps> = ({
 
 const GrowthCalendar: React.FC = () => {
   const { weeklySchedule, currentWeek, navigateWeek, markEventCompleted } = useDashboard();
+
+  console.log('[GrowthCalendar] weeklySchedule 데이터:', weeklySchedule.length, '개');
+  console.log('[GrowthCalendar] currentWeek:', currentWeek.toLocaleDateString());
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);

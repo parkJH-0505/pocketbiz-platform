@@ -63,7 +63,6 @@ class GlobalContextManager implements IGlobalContextManager {
   private initialize(): void {
     if (this.initialized) return;
 
-    console.log('🌐 GlobalContextManager initializing...');
 
     // Window 객체에 노출 (디버깅용)
     if (typeof window !== 'undefined' && import.meta.env.DEV) {
@@ -72,7 +71,6 @@ class GlobalContextManager implements IGlobalContextManager {
     }
 
     this.initialized = true;
-    console.log('✅ GlobalContextManager initialized');
   }
 
   /**
@@ -121,7 +119,6 @@ class GlobalContextManager implements IGlobalContextManager {
       timestamp: now
     });
 
-    console.log(`✅ Context "${name}" registered`, defaultMetadata);
   }
 
   /**
@@ -153,7 +150,6 @@ class GlobalContextManager implements IGlobalContextManager {
       timestamp: new Date()
     });
 
-    console.log(`✅ Context "${name}" unregistered`);
   }
 
   /**
@@ -254,7 +250,6 @@ class GlobalContextManager implements IGlobalContextManager {
     this.metrics.messagesSent++;
     this.metrics.messagesReceived++;
 
-    console.log(`📧 Message sent: ${message.from} → ${message.to}`, fullMessage);
   }
 
   /**
@@ -277,7 +272,6 @@ class GlobalContextManager implements IGlobalContextManager {
       }
     });
 
-    console.log(`📢 Broadcast from "${from}":`, { type, payload });
   }
 
   /**
@@ -366,7 +360,6 @@ class GlobalContextManager implements IGlobalContextManager {
       messagesReceived: 0
     };
 
-    console.log('🔄 GlobalContextManager reset');
   }
 
   /**

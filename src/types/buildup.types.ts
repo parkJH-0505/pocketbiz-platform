@@ -454,17 +454,21 @@ export interface Risk {
 export interface Meeting {
   id: string;
   title: string;
-  type: 'kickoff' | 'progress' | 'review' | 'closing' | 'demo';
+  type: 'kickoff' | 'progress' | 'review' | 'closing' | 'demo' | 'pre_meeting' | 'guide_1' | 'guide_2' | 'guide_3';
   date: Date;
   duration: number;
   attendees: TeamMember[] | string[]; // CRM 연동 시 string 배열도 허용
   agenda?: string;
   minutes?: string;
+  meeting_notes?: string; // 상세한 미팅 노트 (mockProjects에서 사용)
   recording_url?: string;
   action_items?: ActionItem[];
   location?: string; // 회의 장소 (Zoom, Google Meet, 오프라인 등)
   meeting_link?: string; // 온라인 미팅 링크
   crm_id?: string; // CRM 시스템 연동용 ID
+  projectId?: string; // 프로젝트 ID 추가
+  status?: 'scheduled' | 'completed' | 'cancelled'; // 미팅 상태 추가
+  completed_at?: Date; // 완료 시간 추가
 }
 
 export interface ActionItem {

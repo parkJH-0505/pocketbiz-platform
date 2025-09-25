@@ -107,7 +107,6 @@ export class ConditionEvaluator {
         this.cacheResult(condition.id, result, condition.cacheTime);
       }
 
-      console.log(`📋 Condition evaluated: ${condition.id} (${condition.type}) = ${result}`);
 
       return {
         conditionId: condition.id,
@@ -175,7 +174,6 @@ export class ConditionEvaluator {
 
       // 높은 우선순위 조건이 true면 즉시 반환 (early exit)
       if (result.result && condition.priority >= 10) {
-        console.log(`🎯 High priority condition met: ${condition.id}`);
         break;
       }
     }

@@ -120,11 +120,6 @@ const CustomRecommendation: React.FC = () => {
 
   // 레이더 차트 데이터 계산
   const radarData = React.useMemo(() => {
-    console.log('🔍 Radar chart data calculation:', {
-      selectedEvent,
-      recommendationsCount: recommendations.length,
-      recommendationIds: recommendations.map(r => r.event.id)
-    });
 
     const data = Object.keys(axisLabels).map(axis => {
       const baseData: any = {
@@ -134,19 +129,12 @@ const CustomRecommendation: React.FC = () => {
 
       if (selectedEvent) {
         const event = recommendations.find(r => r.event.id === selectedEvent);
-        console.log('🎯 Finding event:', {
-          selectedEvent,
-          foundEvent: !!event,
-          eventCategory: event?.event.category
-        });
 
         if (event && event.event.category && categoryRequirements[event.event.category]) {
           const categoryData = categoryRequirements[event.event.category];
-          console.log(`🏷️ Category data for ${event.event.category}:`, categoryData);
           if (categoryData && categoryData.requirements) {
             const requirements = categoryData.requirements;
             baseData.requirement = requirements[axis as keyof Core5Requirements];
-            console.log(`📊 Adding requirement for ${axis}:`, baseData.requirement);
           }
         } else {
           console.log(`❌ Missing data:`, {
@@ -161,17 +149,11 @@ const CustomRecommendation: React.FC = () => {
       return baseData;
     });
 
-    console.log('📈 Final radar data:', data);
     return data;
   }, [selectedEvent, userScores, recommendations]);
 
   // KPI 기반 매칭으로 이벤트 정렬 및 필터링
   useEffect(() => {
-    console.log('🔄 Processing recommendations...', {
-      extendedEventsCount: extendedEvents.length,
-      userScores,
-      isLoading
-    });
 
     setIsLoading(true);
 
@@ -201,7 +183,6 @@ const CustomRecommendation: React.FC = () => {
         }
       });
 
-      console.log('✅ Events with scores calculated:', eventsWithScores.length);
 
       // 매칭 점수로 정렬 (60점 이상만 추천 - 기준 완화)
       const recommendedEvents = eventsWithScores
@@ -215,11 +196,6 @@ const CustomRecommendation: React.FC = () => {
         .sort((a, b) => b.score - a.score)
         .slice(0, 10); // 상위 10개만 맞춤 추천에 표시
 
-      console.log('🎯 Final recommendations:', {
-        count: recommendedEvents.length,
-        titles: recommendedEvents.map(r => r.event.title)
-      });
-
       // Force re-render by setting recommendations
       setRecommendations([]);
       setTimeout(() => {
@@ -229,7 +205,6 @@ const CustomRecommendation: React.FC = () => {
 
       // THE ONE 후보 선별 (21일 이상 남은 이벤트 중 최고 점수)
       const candidate = getTheOneCandidate(recommendedEvents);
-      console.log('👑 THE ONE candidate:', candidate?.event.title || 'None');
       setTheOneCandidate(candidate);
 
       // 첫 번째 이벤트 또는 THE ONE 후보 자동 선택
@@ -238,7 +213,6 @@ const CustomRecommendation: React.FC = () => {
       } else if (recommendedEvents.length > 0) {
         setSelectedEvent(recommendedEvents[0].event.id);
       } else {
-        console.log('⚠️ No events to select');
       }
     } catch (error) {
       console.error('❌ Error in useEffect:', error);
@@ -733,11 +707,6 @@ const CustomRecommendation: React.FC = () => {
 
             {/* Event cards */}
             {!isLoading && recommendations.map((rec, index) => {
-              console.log('🎨 Rendering event card:', {
-                id: rec.event.id,
-                title: rec.event.title,
-                index
-              });
               const compatibility = calculateCompatibility(
                 userScores,
                 categoryRequirements[rec.event.category]?.requirements || {
@@ -789,11 +758,6 @@ const CustomRecommendation: React.FC = () => {
                     <EventCard
                       result={rec}
                       onSelect={() => {
-                        console.log('🖱️ Event selected:', {
-                          eventId: rec.event.id,
-                          eventTitle: rec.event.title,
-                          eventCategory: rec.event.category
-                        });
                         setSelectedEvent(rec.event.id);
                       }}
                       isSelected={isSelected}

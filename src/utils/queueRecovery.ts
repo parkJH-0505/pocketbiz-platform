@@ -121,7 +121,6 @@ export class QueueRecoveryManager {
     }
 
     if (import.meta.env.DEV) {
-      console.log('🔍 Starting queue monitoring...');
     }
 
     this.monitoringInterval = setInterval(() => {
@@ -140,7 +139,6 @@ export class QueueRecoveryManager {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = null;
       if (import.meta.env.DEV) {
-        console.log('⏹️ Queue monitoring stopped');
       }
     }
   }
@@ -179,17 +177,14 @@ export class QueueRecoveryManager {
       for (const failure of failures) {
         if (failure.autoRecoverable && failure.severity !== 'critical') {
           if (import.meta.env.DEV) {
-            console.log(`🔧 Attempting auto-recovery for: ${failure.description}`);
           }
           const recoveryResult = await this.attemptAutoRecovery(failure);
 
           if (recoveryResult.success) {
             if (import.meta.env.DEV) {
-              console.log(`✅ Auto-recovery successful: ${failure.type}`);
             }
           } else {
             if (import.meta.env.DEV) {
-              console.log(`❌ Auto-recovery failed: ${failure.type}`);
             }
           }
         }
@@ -199,7 +194,6 @@ export class QueueRecoveryManager {
       if (failures.length > 0) {
         const criticalCount = failures.filter(f => f.severity === 'critical').length;
         if (import.meta.env.DEV) {
-          console.log(`🚨 Queue health check: ${failures.length} issues found (${criticalCount} critical)`);
         }
 
         EdgeCaseLogger.log('EC_QUEUE_001', {
@@ -534,7 +528,6 @@ export class QueueRecoveryManager {
     if (window.transitionQueue?.restart) {
       await window.transitionQueue.restart();
       result.recoveredItems = result.newQueueState.size;
-      console.log('🔄 Queue restarted successfully');
     } else {
       result.errors.push('Queue restart method not available');
     }
@@ -547,7 +540,6 @@ export class QueueRecoveryManager {
     if (window.transitionQueue?.clearStuckItems) {
       const cleared = await window.transitionQueue.clearStuckItems(itemIds);
       result.removedItems = cleared;
-      console.log(`🧹 Cleared ${cleared} stuck items`);
     } else {
       result.errors.push('Clear stuck items method not available');
     }
@@ -559,7 +551,6 @@ export class QueueRecoveryManager {
   private static async resetPriorities(result: QueueRecoveryResult): Promise<void> {
     if (window.transitionQueue?.resetPriorities) {
       await window.transitionQueue.resetPriorities();
-      console.log('🔄 Queue priorities reset');
     } else {
       result.warnings.push('Priority reset method not available');
     }
@@ -572,7 +563,6 @@ export class QueueRecoveryManager {
     if (window.transitionQueue?.purgeFailedItems) {
       const purged = await window.transitionQueue.purgeFailedItems();
       result.removedItems = purged;
-      console.log(`🗑️ Purged ${purged} failed items`);
     } else {
       result.errors.push('Purge failed items method not available');
     }
@@ -584,7 +574,6 @@ export class QueueRecoveryManager {
   private static async rebuildQueue(result: QueueRecoveryResult): Promise<void> {
     if (window.transitionQueue?.rebuild) {
       await window.transitionQueue.rebuild();
-      console.log('🏗️ Queue rebuilt successfully');
     } else {
       result.errors.push('Queue rebuild method not available');
     }
@@ -597,7 +586,6 @@ export class QueueRecoveryManager {
     strategy: QueueRecoveryStrategy,
     options?: any
   ): Promise<QueueRecoveryResult> {
-    console.log(`🔧 Starting manual queue recovery: ${strategy}`);
 
     const failure: QueueFailureInfo = {
       type: 'manual_intervention' as any,

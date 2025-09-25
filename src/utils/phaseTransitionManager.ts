@@ -203,7 +203,6 @@ export class PhaseTransitionManager extends SimpleEventEmitter {
     // 기본 규칙 초기화
     this.initializeDefaultRules();
 
-    console.log('✨ PhaseTransitionManager initialized');
   }
 
   /**
@@ -325,7 +324,6 @@ export class PhaseTransitionManager extends SimpleEventEmitter {
   public addRule(rule: TransitionRule): void {
     const key = `${rule.from}->${rule.to}`;
     this.rules.set(key, rule);
-    console.log(`📋 Added transition rule: ${key}`);
   }
 
   /**
@@ -334,7 +332,6 @@ export class PhaseTransitionManager extends SimpleEventEmitter {
   public removeRule(from: BuildupPhase, to: BuildupPhase): void {
     const key = `${from}->${to}`;
     this.rules.delete(key);
-    console.log(`🗑️ Removed transition rule: ${key}`);
   }
 
   /**
@@ -480,7 +477,6 @@ export class PhaseTransitionManager extends SimpleEventEmitter {
       // 전환 완료 이벤트
       this.emitTransitionEvent('complete', from, to, options.metadata);
 
-      console.log(`✅ Transitioned from ${from} to ${to}`);
       resolve(true);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -616,7 +612,6 @@ export class PhaseTransitionManager extends SimpleEventEmitter {
     if (scheduled) {
       clearTimeout(scheduled.timer);
       this.scheduledTransitions.delete(id);
-      console.log(`🚫 Cancelled scheduled transition: ${id}`);
       return true;
     }
     return false;
@@ -678,7 +673,6 @@ export class PhaseTransitionManager extends SimpleEventEmitter {
    */
   public setMode(mode: TransitionMode): void {
     this.mode = mode;
-    console.log(`🔄 Transition mode changed to: ${mode}`);
 
     // 모드 변경에 따른 자동 전환 재설정
     if (mode === TransitionMode.AUTO || mode === TransitionMode.HYBRID) {
@@ -776,7 +770,6 @@ export class PhaseTransitionManager extends SimpleEventEmitter {
     this.transitionQueue = [];
     this.isTransitioning = false;
 
-    console.log('🔄 PhaseTransitionManager reset');
   }
 }
 

@@ -97,7 +97,6 @@ class IntegrationValidator {
       results.push(result);
 
       if (result.passed) {
-        console.log(`✅ ${test.name}: ${result.message}`);
       } else {
         console.error(`❌ ${test.name}: ${result.message}`);
         if (result.details) {
@@ -117,7 +116,6 @@ class IntegrationValidator {
     total: number;
     results: ValidationResult[];
   }> {
-    console.log('🚀 Starting comprehensive integration validation...');
 
     const allResults: ValidationResult[] = [];
 
@@ -129,10 +127,6 @@ class IntegrationValidator {
     const passed = allResults.filter(r => r.passed).length;
     const failed = allResults.filter(r => !r.passed).length;
 
-    console.log('\n📊 Validation Summary:');
-    console.log(`✅ Passed: ${passed}`);
-    console.log(`❌ Failed: ${failed}`);
-    console.log(`📈 Success Rate: ${Math.round((passed / allResults.length) * 100)}%`);
 
     return {
       passed,

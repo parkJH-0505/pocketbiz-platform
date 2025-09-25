@@ -212,7 +212,8 @@ export class ScheduleDataConverter {
         crmId: meeting.crm_id,
         actionItems: meeting.action_items,
         recordingUrl: meeting.recording_url,
-        meetingLink: meeting.meeting_link
+        meetingLink: meeting.meeting_link,
+        meetingNotes: meeting.meeting_notes || meeting.minutes
       }
     };
 
@@ -260,7 +261,7 @@ export class ScheduleDataConverter {
       pmInfo: pmInfo,
       agenda: meeting.agenda ? [meeting.agenda] : [],
       actionItems: meeting.action_items?.map(item => item.description) || [],
-      meetingNotes: meeting.minutes || '',
+      meetingNotes: meeting.meeting_notes || meeting.minutes || '',
       meetingLink: meeting.meeting_link,
       offlineLocation: meeting.location,
       isCompleted: meeting.type === 'closing' || false,

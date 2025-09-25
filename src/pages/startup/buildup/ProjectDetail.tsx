@@ -168,7 +168,6 @@ export default function ProjectDetail() {
         meetingSequence: getNextMeetingType(project?.phase || 'contract_pending')
       });
 
-      console.log('✅ 미팅 예약 성공:', newMeeting);
       showSuccess('미팅이 성공적으로 예약되었습니다.');
 
       // 2. UI 닫기
@@ -241,13 +240,6 @@ export default function ProjectDetail() {
       }
     });
 
-    console.log(`📤 ProjectDetail emitting: project:meeting_${eventType}`, {
-      eventId,
-      projectId,
-      data,
-      trackerStatus: 'allowed'
-    });
-
     window.dispatchEvent(event);
     return eventId;
   };
@@ -270,12 +262,6 @@ export default function ProjectDetail() {
         timestamp: new Date(),
         source: 'project_detail'
       }
-    });
-
-    console.log(`🔄 ProjectDetail emitting: project:phase_transition_requested`, {
-      eventId,
-      data,
-      trackerStatus: 'allowed'
     });
 
     window.dispatchEvent(event);
@@ -309,7 +295,6 @@ export default function ProjectDetail() {
 
   // ✅ Step 3을 위한 이벤트 수신 및 Phase Transition 시스템
   useEffect(() => {
-    console.log('🔧 ProjectDetail: Setting up event listeners for Step 3 preparation');
 
     // ScheduleContext에서 발생하는 변경사항 수신
     const handleScheduleChanged = (e: CustomEvent) => {
@@ -317,28 +302,15 @@ export default function ProjectDetail() {
 
       // 현재 프로젝트와 관련된 변경사항만 처리
       if (schedule.type === 'buildup_project' && schedule.projectId === projectId) {
-        console.log(`📅 ProjectDetail received schedule change:`, {
-          operation,
-          scheduleId: schedule.id,
-          title: schedule.title,
-          source
-        });
 
         // Phase Transition 확인 및 처리
         if (schedule.phaseTransitionTrigger && operation === 'created') {
           const { fromPhase, toPhase } = schedule.phaseTransitionTrigger;
 
-          console.log(`🔄 ProjectDetail detected phase transition trigger:`, {
-            fromPhase,
-            toPhase,
-            scheduleId: schedule.id
-          });
-
           // ✅ 실제 프로젝트 단계 업데이트 실행
           if (project && updateProject) {
             try {
               updateProject(project.id, { phase: toPhase });
-              console.log(`✅ ProjectDetail: Phase updated from ${fromPhase} to ${toPhase}`);
             } catch (error) {
               console.error(`❌ ProjectDetail: Failed to update project phase:`, error);
             }
@@ -362,10 +334,7 @@ export default function ProjectDetail() {
       const { projectId: changedProjectId, changeType } = e.detail;
 
       if (changedProjectId === projectId) {
-        console.log(`🏗️ ProjectDetail received project change:`, {
-          projectId: changedProjectId,
-          changeType
-        });
+        // 프로젝트 변경 감지됨
 
         // 프로젝트 변경 시 관련 미팅도 새로고침 요청
         emitProjectMeetingEvent('refresh_requested', {
@@ -380,10 +349,7 @@ export default function ProjectDetail() {
       const { source, projectId: syncProjectId, scheduleCount, originalEventId } = e.detail;
 
       if (syncProjectId === projectId) {
-        console.log(`✅ ProjectDetail received sync completion from ${source}:`, {
-          scheduleCount,
-          originalEventId
-        });
+        // 스케줄 생성 완료 확인됨
         // UI 새로고침이나 토스트 표시 등 추후 구현
       }
     };
@@ -393,11 +359,7 @@ export default function ProjectDetail() {
       const { source, projectId: syncProjectId, schedule, originalEventId } = e.detail;
 
       if (syncProjectId === projectId) {
-        console.log(`✅ ProjectDetail received create completion from ${source}:`, {
-          scheduleId: schedule.id,
-          title: schedule.title,
-          originalEventId
-        });
+        // 스케줄 생성 성공 확인됨
         // 성공 토스트나 UI 업데이트 추후 구현
       }
     };
@@ -407,10 +369,7 @@ export default function ProjectDetail() {
       const { source, projectId: syncProjectId, scheduleId, originalEventId } = e.detail;
 
       if (syncProjectId === projectId) {
-        console.log(`✅ ProjectDetail received update completion from ${source}:`, {
-          scheduleId,
-          originalEventId
-        });
+        // 업데이트 완료 확인됨
         // 성공 토스트나 UI 업데이트 추후 구현
       }
     };
@@ -420,12 +379,7 @@ export default function ProjectDetail() {
       const { source, projectId: syncProjectId, fromPhase, toPhase, updatedScheduleCount, originalEventId } = e.detail;
 
       if (syncProjectId === projectId) {
-        console.log(`✅ ProjectDetail received phase transition completion from ${source}:`, {
-          fromPhase,
-          toPhase,
-          updatedScheduleCount,
-          originalEventId
-        });
+        // Phase Transition 완료 확인됨
         // Phase 변경 확인 토스트나 UI 업데이트 추후 구현
       }
     };
@@ -459,14 +413,9 @@ export default function ProjectDetail() {
     window.addEventListener('schedule:phase_transition_error', handleSyncError);
     window.addEventListener('schedule:buildup_change_error', handleSyncError);
 
-    // 컴포넌트 마운트 시 현재 상태 로깅 (Sprint 5 완료 후 제거 예정)
+    // 컴포넌트 마운트 시 현재 상태 확인 (Sprint 5 완료 후 제거 예정)
     if (process.env.NODE_ENV === 'development') {
-      console.log('📊 ProjectDetail mounted with:', {
-        projectId,
-        projectMeetingsCount: projectMeetings.length,
-        hasProject: !!project,
-        scheduleContextConnected: !!buildupMeetings
-      });
+      // ProjectDetail 컴포넌트 상태 확인됨
     }
 
     // 클린업
@@ -496,7 +445,6 @@ export default function ProjectDetail() {
       const { projectId: changedProjectId, fromPhase, toPhase, trigger } = e.detail;
 
       if (changedProjectId === projectId) {
-        console.log(`🎨 ProjectDetail: Phase changed for current project ${projectId}: ${fromPhase} → ${toPhase}`);
 
         // 애니메이션 효과 시작
         setIsPhaseTransitioning(true);
@@ -1616,7 +1564,6 @@ export default function ProjectDetail() {
                               }
                             } : contextNotes;
 
-                            console.log('📝 미팅 클릭됨!', meeting.title);
                             console.log('미팅 노트 필드:', meeting.meetingNotes);
                             console.log('최종 설정될 노트:', meetingNotes);
 
@@ -2880,7 +2827,6 @@ export default function ProjectDetail() {
         } : undefined}
         onSubmit={scheduleModalMode === 'create' ? handleScheduleMeeting : undefined}  // Sprint 5: 생성 모드일 때만 사용
         onSuccess={(schedule) => {
-          console.log('✅ ProjectDetail: Schedule saved successfully:', schedule);
 
           // ✅ Step 3: 실시간 양방향 동기화 트리거
           const operation = scheduleModalMode === 'create' ? 'created' : 'updated';
@@ -2914,13 +2860,7 @@ export default function ProjectDetail() {
             }
           });
 
-          console.log(`📤 ProjectDetail: Sending sync request to ScheduleContext`, {
-            eventId,
-            operation: scheduleOperation,
-            scheduleId: schedule.id,
-            title: schedule.title
-          });
-
+          // 동기화 이벤트 발송
           window.dispatchEvent(syncEvent);
 
           // 2. 기존 프로젝트 이벤트도 유지 (호환성)
@@ -2935,13 +2875,11 @@ export default function ProjectDetail() {
           if (schedule.phaseTransitionTrigger && operation === 'created') {
             const { fromPhase, toPhase } = schedule.phaseTransitionTrigger;
 
-            console.log(`🔄 ProjectDetail: Triggering phase transition from modal success`);
 
             // 실제 프로젝트 단계 업데이트 실행
             if (project && updateProject) {
               try {
                 updateProject(project.id, { phase: toPhase });
-                console.log(`✅ ProjectDetail: Phase updated from ${fromPhase} to ${toPhase} (modal success)`);
 
                 // ScheduleContext로 Phase Transition 알림
                 const phaseEventId = `${projectId}_phase_${fromPhase}_to_${toPhase}_${Date.now()}`;
@@ -2958,14 +2896,8 @@ export default function ProjectDetail() {
                   }
                 });
 
-                console.log(`📤 ProjectDetail: Sending phase transition to ScheduleContext`, {
-                  eventId: phaseEventId,
-                  fromPhase,
-                  toPhase,
-                  scheduleId: schedule.id
-                });
-
-                window.dispatchEvent(phaseTransitionEvent);
+              // Phase Transition 이벤트 발송
+              window.dispatchEvent(phaseTransitionEvent);
 
               } catch (error) {
                 console.error(`❌ ProjectDetail: Failed to update project phase (modal):`, error);
@@ -3000,7 +2932,6 @@ export default function ProjectDetail() {
               }
             });
 
-            console.log(`📤 ProjectDetail: Notifying BuildupContext of meeting addition`);
             window.dispatchEvent(buildupChangeEvent);
           }
 

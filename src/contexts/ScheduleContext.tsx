@@ -486,7 +486,6 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
 
           setProjectScheduleLinks(newProjectLinks);
           hasMockDataLoadedRef.current = true;
-          console.log('✅ Mock project meetings and links synchronized');
         }
       };
 
@@ -1296,7 +1295,6 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
           description: 'Schedule management context',
           isReady: true
         });
-        console.log('✅ ScheduleContext registered to GlobalContextManager');
       }).catch(error => {
         console.warn('GlobalContextManager registration failed:', error);
       });
@@ -1319,7 +1317,6 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
         };
       }
 
-      console.log('✅ ScheduleContext registered to window');
 
       // Context ready 이벤트 발송
       contextReadyEmitter.markReady('schedule', [
@@ -1778,7 +1775,6 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     dependencies: ['toast'], // Toast에 의존
     autoRegister: true,
     onReady: () => {
-      console.log('✅ ScheduleContext registered with GlobalContextManager');
     },
     onError: (error) => {
       console.error('❌ Failed to register ScheduleContext:', error);

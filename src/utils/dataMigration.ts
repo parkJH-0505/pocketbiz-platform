@@ -66,7 +66,6 @@ export class MockDataMigrator {
    * 모든 Mock 미팅 데이터를 ScheduleContext로 마이그레이션
    */
   async migrateAllMockMeetings(): Promise<MigrationResult[]> {
-    console.log('🔄 Starting comprehensive mock data migration...');
 
     const allResults: MigrationResult[] = [];
     const projectIds = Object.keys(mockMeetingRecords);
@@ -84,7 +83,6 @@ export class MockDataMigrator {
     }
 
     if (validProjectIds.length === 0) {
-      console.log('❌ No valid project IDs found for migration');
       return [];
     }
 
@@ -118,7 +116,6 @@ export class MockDataMigrator {
     const totalMigrated = allResults.reduce((sum, result) => sum + result.migrated, 0);
     const totalErrors = allResults.reduce((sum, result) => sum + result.errors.length, 0);
 
-    console.log(`✅ Migration completed: ${totalMigrated} meetings migrated, ${totalErrors} errors`);
 
     return allResults;
   }
@@ -129,7 +126,6 @@ export class MockDataMigrator {
   async migrateMockMeetingsForProject(projectId: string): Promise<MigrationResult> {
     const startTime = Date.now();
 
-    console.log(`🔄 Migrating mock meetings for project ${projectId}...`);
 
     const result: MigrationResult = {
       success: false,
@@ -152,7 +148,6 @@ export class MockDataMigrator {
       result.summary.totalMockMeetings = mockMeetings.length;
 
       if (mockMeetings.length === 0) {
-        console.log(`📭 No mock meetings found for project ${projectId}`);
         result.success = true;
         result.duration = Date.now() - startTime;
         return result;
@@ -222,7 +217,6 @@ export class MockDataMigrator {
         result.migrated = validSchedules.length;
         result.summary.newSchedulesCreated = validSchedules.length;
 
-        console.log(`✅ Migrated ${validSchedules.length} meetings for project ${projectId}`);
       }
 
       result.success = true;
@@ -454,7 +448,6 @@ export class MockDataMigrator {
    */
   private async createSchedulesBatch(schedules: BuildupProjectMeeting[]): Promise<void> {
     if (schedules.length === 0) {
-      console.log('No schedules to create in batch');
       return;
     }
 
@@ -528,7 +521,6 @@ export class MockDataMigrator {
    */
   clearMigrationHistory(): void {
     this.migrationHistory = [];
-    console.log('🧹 Cleared migration history');
   }
 }
 

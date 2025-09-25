@@ -647,7 +647,6 @@ export class CalendarService {
    */
   static clearStorage(): void {
     localStorage.removeItem(this.STORAGE_KEY);
-    console.log('Calendar data cleared from LocalStorage');
   }
 
   /**
@@ -655,6 +654,5 @@ export class CalendarService {
    */
   static forceSave(): void {
     this.saveToStorage();
-    console.log('Calendar data force saved to LocalStorage');
   }
 }

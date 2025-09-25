@@ -190,14 +190,12 @@ export class CascadeOperationManager {
     };
 
     try {
-      console.log(`🗑️ Starting cascade deletion for project ${projectId}...`);
 
       // 1. 백업 생성 (옵션)
       if (options?.createBackup) {
         const backup = await this.createProjectBackup(projectId);
         if (backup) {
           result.backupData = backup;
-          console.log(`💾 Backup created: ${backup.backupId}`);
         }
       }
 
@@ -229,7 +227,6 @@ export class CascadeOperationManager {
       };
 
       if (result.success) {
-        console.log(`✅ Cascade deletion completed for project ${projectId}`);
         EdgeCaseLogger.log('EC_CASCADE_002', logData);
       } else {
         console.error(`❌ Cascade deletion failed for project ${projectId}`);
@@ -283,7 +280,6 @@ export class CascadeOperationManager {
     };
 
     try {
-      console.log(`📦 Starting project archival for ${projectId}...`);
 
       // 1. 프로젝트 상태를 'archived'로 변경
       await this.updateProjectStatus(projectId, 'archived', result);
@@ -304,7 +300,6 @@ export class CascadeOperationManager {
       result.duration = Date.now() - startTime;
 
       if (result.success) {
-        console.log(`✅ Project archival completed for ${projectId}`);
         EdgeCaseLogger.log('EC_CASCADE_005', {
           projectId,
           duration: result.duration,
@@ -353,7 +348,6 @@ export class CascadeOperationManager {
     };
 
     try {
-      console.log(`🔄 Starting data transfer from ${sourceProjectId} to ${transferOptions.targetProjectId}...`);
 
       // 1. 스케줄 전송
       if (transferOptions.transferSchedules) {
@@ -374,7 +368,6 @@ export class CascadeOperationManager {
       result.duration = Date.now() - startTime;
 
       if (result.success) {
-        console.log(`✅ Data transfer completed from ${sourceProjectId} to ${transferOptions.targetProjectId}`);
         EdgeCaseLogger.log('EC_CASCADE_006', {
           sourceProjectId,
           targetProjectId: transferOptions.targetProjectId,
@@ -413,7 +406,6 @@ export class CascadeOperationManager {
         try {
           await window.scheduleContext.deleteSchedule?.(schedule.id);
           result.affectedData.schedules.push(schedule.id);
-          console.log(`🗑️ Deleted schedule: ${schedule.id}`);
         } catch (error) {
           result.errors.push({
             code: 'CASCADE_004',
@@ -448,7 +440,6 @@ export class CascadeOperationManager {
       window.buildupContext.setPhaseTransitionEvents?.(filteredEvents);
 
       result.affectedData.phaseTransitionEvents = projectEvents.map(e => e.id);
-      console.log(`🗑️ Deleted ${projectEvents.length} phase transition events`);
     }
   }
 
@@ -462,7 +453,6 @@ export class CascadeOperationManager {
     if (window.snapshotManager?.deleteProjectSnapshots) {
       const deletedCount = window.snapshotManager.deleteProjectSnapshots(projectId);
       result.affectedData.snapshots = Array(deletedCount).fill(0).map((_, i) => `snapshot_${projectId}_${i}`);
-      console.log(`🗑️ Deleted ${deletedCount} snapshots`);
     }
   }
 
@@ -476,7 +466,6 @@ export class CascadeOperationManager {
     if (window.transitionQueue?.clearProjectQueue) {
       const removedItems = window.transitionQueue.clearProjectQueue(projectId);
       result.affectedData.queueItems = removedItems.map(item => item.id || `queue_${Date.now()}`);
-      console.log(`🗑️ Removed ${removedItems.length} queue items`);
     }
   }
 
@@ -492,7 +481,6 @@ export class CascadeOperationManager {
       const updatedProjects = currentProjects.filter(p => p.id !== projectId);
 
       window.buildupContext.setProjects(updatedProjects);
-      console.log(`🗑️ Deleted project entity: ${projectId}`);
     }
   }
 

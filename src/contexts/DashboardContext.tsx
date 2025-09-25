@@ -945,7 +945,6 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
           dependencies: ['schedule', 'kpi'],
           isReady: true
         });
-        console.log('✅ DashboardContext registered to GlobalContextManager');
       }).catch(error => {
         console.warn('GlobalContextManager registration failed:', error);
       });

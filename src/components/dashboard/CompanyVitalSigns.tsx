@@ -143,6 +143,32 @@ const CompanyVitalSigns: React.FC<CompanyVitalSignsProps> = ({ className = '' })
 
   return (
     <div className={`${className} max-h-[calc(100vh-120px)] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100`}>
+      {/* KPI 위험 알림 - 70점 미만일 때만 표시 */}
+      {overallScore < 70 && (
+        <div className="p-4 bg-orange-50 border-l-4 border-orange-500 rounded-lg mb-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Activity className="w-5 h-5 text-orange-600" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-bold text-orange-900">⚠️ KPI 개선 필요</h4>
+              <p className="text-sm text-gray-700 mt-1">
+                종합 점수 <span className="font-bold">{overallScore.toFixed(1)}점</span> - 전반적인 균형 점검이 필요합니다
+              </p>
+              <p className="text-xs text-gray-600 mt-2">
+                가장 취약한 영역: {weakestAxes[0]?.label} ({weakestAxes[0]?.score.toFixed(1)}점)
+              </p>
+              <button
+                onClick={() => navigate('/startup/kpi/diagnosis')}
+                className="mt-3 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 transition-colors"
+              >
+                KPI 진단 시작하기 →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 섹션 1: KPI 생체신호 */}
       <div className="bg-white rounded-xl p-6 mb-4">
         {/* 헤더 */}

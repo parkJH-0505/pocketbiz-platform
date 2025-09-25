@@ -580,7 +580,6 @@ export class MigrationMonitor extends EventEmitter {
     this.speedHistory = [];
     this.totalItems = 0;
     this.processedItems = 0;
-    console.log('🔄 Migration monitor reset');
   }
 }
 

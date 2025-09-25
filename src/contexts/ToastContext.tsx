@@ -55,7 +55,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       return [...prev, newToast];
     });
 
-    console.log(`📢 Toast: [${type.toUpperCase()}] ${message}`);
   }, []);
 
   const hideToast = useCallback((id: string) => {
@@ -87,7 +86,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         : `🛠️ ${message}`;
 
       showToast(debugMessage, 'info', duration || 4000);
-      console.log(`🛠️ Debug Toast: ${message}`, details);
     }
   }, [showToast]);
 
@@ -110,7 +108,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     dependencies: [],
     autoRegister: true,
     onReady: () => {
-      console.log('✅ ToastContext registered with GlobalContextManager');
     },
     onError: (error) => {
       console.error('❌ Failed to register ToastContext:', error);

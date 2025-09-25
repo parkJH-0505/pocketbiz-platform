@@ -1136,7 +1136,6 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       ];
       setSharedSessions(dummySessions);
-      console.log('[VDR] Added dummy sessions for testing');
     }
 
     // 개발용 더미 문서 추가 (기존 문서가 10개 미만일 때)
@@ -1314,7 +1313,6 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       ];
       setDocuments(dummyDocs);
-      console.log('[VDR] Added dummy documents for testing');
     }
   }, [projects, savedAssessments]);
 
@@ -1322,7 +1320,6 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (sharedSessions.length > 0) {
       updateDocumentSessionLinks();
-      console.log('[VDR] Updated document-session links');
     }
   }, [sharedSessions]);
 
@@ -1571,7 +1568,6 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         window.dispatchEvent(new CustomEvent('vdr:share_session_created', {
           detail: newSession
         }));
-        console.log('[VDR] Event dispatched successfully');
       } catch (eventError) {
         console.warn('[VDR] Failed to dispatch event:', eventError);
       }
@@ -1589,7 +1585,6 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
             return doc;
           });
-          console.log('[VDR] Documents updated with session info');
           return updatedDocs;
         });
       } catch (docUpdateError) {

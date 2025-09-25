@@ -394,7 +394,6 @@ export class ErrorManager {
       }
 
       if (recovered) {
-        console.log(`✅ [ERROR MANAGER] Auto-recovery successful for error ${errorId}`);
         EdgeCaseLogger.log('EC_ERROR_002', {
           errorId,
           strategy: error.recoveryStrategy,
@@ -598,7 +597,6 @@ export class ErrorManager {
 
     const removedCount = initialCount - this.errorHistory.length;
     if (removedCount > 0) {
-      console.log(`🧹 [ERROR MANAGER] Cleaned up ${removedCount} old errors`);
     }
 
     return removedCount;
@@ -652,5 +650,4 @@ export function setupGlobalErrorHandler(): void {
     }
   });
 
-  console.log('🛡️ [ERROR MANAGER] Global error handlers registered');
 }

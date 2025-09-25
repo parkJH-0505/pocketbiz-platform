@@ -62,36 +62,19 @@ export const AssessmentPanel = () => {
   // CSV 데이터에서 KPI 필터링
   const getKPIsByAxis = (axis: AxisKey): KPIDefinition[] => {
     if (!kpiData) {
-      console.log('kpiData is not loaded yet');
       return [];
     }
     
-    console.log(`\n=== Getting KPIs for axis ${axis}, stage ${cluster.stage} ===`);
-    console.log(`Total KPIs in library: ${kpiData.libraries.length}`);
     
     const filteredKPIs = kpiData.libraries.filter(kpi => {
       const isAxisMatch = kpi.axis === axis;
       const hasStages = kpi.applicable_stages && kpi.applicable_stages.length > 0;
       const isStageMatch = kpi.applicable_stages?.includes(cluster.stage);
       
-      // 디버깅: 모든 GO axis KPI 확인
-      if (axis === 'GO' && kpi.axis === 'GO') {
-        console.log(`KPI ${kpi.kpi_id}:`, {
-          axis: kpi.axis,
-          applicable_stages: kpi.applicable_stages,
-          currentStage: cluster.stage,
-          isStageMatch,
-          willInclude: isAxisMatch && isStageMatch
-        });
-      }
       
       return isAxisMatch && isStageMatch;
     });
     
-    console.log(`✅ Found ${filteredKPIs.length} KPIs for ${axis} at stage ${cluster.stage}`);
-    if (filteredKPIs.length > 0) {
-      console.log('Filtered KPIs:', filteredKPIs.map(k => k.kpi_id));
-    }
     return filteredKPIs;
   };
   
@@ -122,7 +105,6 @@ export const AssessmentPanel = () => {
     setupCSVWatcher();
     
     const handleCSVUpdate = () => {
-      console.log('CSV updated, reloading KPIs...');
       refreshData();
     };
     
@@ -163,10 +145,6 @@ export const AssessmentPanel = () => {
   
   // 실시간 진행률 계산을 위한 로그
   useEffect(() => {
-    console.log('AssessmentPanel - Responses updated:', Object.keys(responses).length, 'responses');
-    console.log('AssessmentPanel - Progress:', progress);
-    console.log('AssessmentPanel - Axis Scores:', axisScores);
-    console.log('AssessmentPanel - Completed/Total:', completedKPIs, '/', totalKPIs, '=', overallPercentage, '%');
   }, [responses, progress, axisScores, completedKPIs, totalKPIs, overallPercentage]);
 
   if (isLoadingKPI) {
@@ -211,8 +189,11 @@ export const AssessmentPanel = () => {
   };
 
   // Quick Navigator를 위한 핸들러
-  const handleQuickKPISelect = (kpiId: string, axis: AxisKey) => {
-    setCurrentAxis(axis);
+  const handleQuickKPISelect = (kpiId: string, axis: string) => {
+    // axis를 AxisKey로 변환
+    const axisKey = axis as AxisKey;
+    setCurrentAxis(axisKey);
+
     setTimeout(() => {
       const element = document.getElementById(`kpi-card-${kpiId}`);
       if (element) {
@@ -225,17 +206,29 @@ export const AssessmentPanel = () => {
         setTimeout(() => {
           element.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2');
         }, 2000);
+      } else {
+        console.warn(`KPI card not found: kpi-card-${kpiId}`);
       }
     }, 300);
   };
 
   return (
     <div className="relative">
-      {/* Quick KPI Navigator - 플로팅 버튼 */}
-      <QuickKPINavigator
-        onKPISelect={handleQuickKPISelect}
-        className="z-50"
-      />
+      {/* Quick KPI Navigator - 필터링된 KPI만 전달 */}
+      {kpiData && (
+        <QuickKPINavigator
+          kpiData={{
+            GO: getKPIsByAxis('GO'),
+            EC: getKPIsByAxis('EC'),
+            PT: getKPIsByAxis('PT'),
+            PF: getKPIsByAxis('PF'),
+            TO: getKPIsByAxis('TO')
+          }}
+          responses={responses}
+          onKPIClick={handleQuickKPISelect}
+          userCluster={cluster}
+        />
+      )}
 
       <div className="space-y-6">
       {/* 헤더 섹션 */}
@@ -518,7 +511,6 @@ export const AssessmentPanel = () => {
             <div className="space-y-4">
               {currentKPIs.map((kpi) => {
                 const stageRule = kpiData?.stageRules.get(kpi.kpi_id)?.get(cluster.stage);
-                console.log(`StageRule for ${kpi.kpi_id} at ${cluster.stage}:`, stageRule);
                 
                 return (
                   <div
@@ -531,7 +523,6 @@ export const AssessmentPanel = () => {
                       stageRule={stageRule}
                       response={responses[kpi.kpi_id]}
                       onChange={(kpiId, value, status) => {
-                        console.log('KPI Value changed:', kpiId, value, status);
                         updateResponse(kpiId, {
                           run_id: 'current',
                           kpi_id: kpiId,

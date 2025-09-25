@@ -101,7 +101,6 @@ export class EventCoordinator {
    */
   private initialize(): void {
     if (process.env.NODE_ENV === 'development') {
-      console.log('🎯 [EventCoordinator] Initializing...');
     }
 
     // 브라우저 환경에서만 실행
@@ -310,7 +309,6 @@ export class EventCoordinator {
    */
   shutdown(): void {
     if (process.env.NODE_ENV === 'development') {
-      console.log('🔌 [EventCoordinator] Shutting down...', this.getStats());
     }
 
     this.clearQueue();

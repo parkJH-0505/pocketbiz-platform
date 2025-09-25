@@ -383,7 +383,6 @@ export class EnhancedMigrationValidator {
    */
   public addRule(rule: ValidationRule): void {
     this.rules.set(rule.id, rule);
-    console.log(`📏 Added validation rule: ${rule.name}`);
   }
 
   /**
@@ -391,7 +390,6 @@ export class EnhancedMigrationValidator {
    */
   public addChain(chain: ValidationChain): void {
     this.chains.set(chain.id, chain);
-    console.log(`🔗 Added validation chain: ${chain.name}`);
   }
 
   /**
@@ -448,7 +446,6 @@ export class EnhancedMigrationValidator {
     let criticalCount = 0;
     let warningCount = 0;
 
-    console.log(`🔗 Running validation chain: ${chain.name}`);
     migrationMonitor.updatePhase(`Validation: ${chain.name}`);
 
     if (chain.parallel) {
@@ -593,7 +590,6 @@ export class EnhancedMigrationValidator {
     const rule = this.rules.get(ruleId);
     if (rule) {
       rule.enabled = enabled;
-      console.log(`📏 Rule ${ruleId} ${enabled ? 'enabled' : 'disabled'}`);
     }
   }
 
@@ -638,7 +634,6 @@ export class EnhancedMigrationValidator {
       commonFailures: new Map(),
       rulePerformance: new Map()
     };
-    console.log('🔄 Validator reset');
   }
 }
 

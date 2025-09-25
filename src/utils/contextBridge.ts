@@ -42,7 +42,6 @@ export class ContextBridge {
     };
 
     contextManager.send(message);
-    console.log(`🔗 Bridge: ${from} → ${to} [${type}]`, payload);
   }
 
   /**
@@ -59,7 +58,6 @@ export class ContextBridge {
     }
 
     contextManager.broadcast(type, payload, from);
-    console.log(`📢 Bridge broadcast from "${from}": [${type}]`, payload);
   }
 
   /**
@@ -82,7 +80,6 @@ export class ContextBridge {
       }
 
       const result = await context[methodName](...args);
-      console.log(`✅ Bridge call: ${targetContext}.${methodName}()`, { args, result });
       return result;
     } catch (error) {
       console.error(`❌ Bridge call failed: ${targetContext}.${methodName}()`, error);
@@ -151,7 +148,6 @@ export class ContextBridge {
       // 동기화 메시지 전송
       this.send(sourceContext, targetContext, `sync:${dataType}`, data);
 
-      console.log(`🔄 Sync: ${sourceContext} → ${targetContext} [${dataType}]`);
       return true;
     } catch (error) {
       console.error(`❌ Sync failed between "${sourceContext}" and "${targetContext}"`, error);

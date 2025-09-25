@@ -25,14 +25,12 @@ export const calculateDday = (endDate: Date | string): number => {
 export const getTheOneCandidate = <T extends { event: { applicationEndDate: Date } }>(
   events: T[]
 ): T | null => {
-  console.log('🔍 THE ONE 후보 선별 시작...');
 
   // 7일 이상 남은 이벤트만 필터링
   const eligibleEvents = events.filter(event => {
     const dday = calculateDday(event.event.applicationEndDate);
     const isEligible = dday >= 7;
 
-    console.log(`📅 ${event.event.id}: D-${dday}일 ${isEligible ? '✅ 준비가능' : '❌ 촉박함'}`);
 
     return isEligible;
   });
@@ -45,11 +43,6 @@ export const getTheOneCandidate = <T extends { event: { applicationEndDate: Date
   });
 
   const candidate = sortedByTime.length > 0 ? sortedByTime[0] : null;
-
-  console.log(`🎯 THE ONE 선택 결과:`, candidate ?
-    `${candidate.event.id} (D-${calculateDday(candidate.event.applicationEndDate)}일)` :
-    '7일 이상 여유있는 후보 없음'
-  );
 
   return candidate;
 };

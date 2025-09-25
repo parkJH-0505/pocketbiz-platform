@@ -47,14 +47,6 @@ export const PhaseTransitionTestPanel: React.FC = () => {
       const updatedProject = projects.find(p => p.id === runningTest.projectId);
       const success = updatedProject?.currentPhase === runningTest.expectedPhase;
 
-      console.log('🔍 Polling test result:', {
-        projectId: runningTest.projectId,
-        expectedPhase: runningTest.expectedPhase,
-        actualPhase: updatedProject?.currentPhase,
-        success,
-        timestamp: new Date().toISOString()
-      });
-
       // 성공하거나 5초가 지나면 결과 기록
       if (success || Date.now() - runningTest.startTime > 5000) {
         clearInterval(checkInterval);
@@ -170,16 +162,7 @@ export const PhaseTransitionTestPanel: React.FC = () => {
         }
       };
 
-      console.log('🚀 Creating test meeting with phase transition:', {
-        projectId: selectedProject.id,
-        fromPhase: scenario.fromPhase,
-        toPhase: scenario.toPhase,
-        meetingType: scenario.meetingType,
-        phaseTransitionTrigger: testMeeting.phaseTransitionTrigger
-      });
-
       const result = await createSchedule(testMeeting);
-      console.log('📝 Meeting created:', result);
 
       // 3. 폴링을 위한 상태 설정
       setRunningTest({
@@ -210,19 +193,16 @@ export const PhaseTransitionTestPanel: React.FC = () => {
 
   // 모든 테스트 실행
   const runAllTests = async () => {
-    console.log('🚀 Running all tests sequentially...');
     setTestResults([]); // 이전 결과 초기화
 
     for (let i = 0; i < testScenarios.length; i++) {
       const scenario = testScenarios[i];
-      console.log(`📋 Test ${i + 1}/${testScenarios.length}: ${scenario.label}`);
 
       await runTest(scenario);
       // 각 테스트가 완료될 때까지 대기
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
-    console.log('✅ All tests completed');
   };
 
   return (

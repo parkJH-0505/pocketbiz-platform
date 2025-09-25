@@ -80,7 +80,6 @@ class ErrorMonitor {
     };
     window.addEventListener('unhandledrejection', this.unhandledRejectionHandler);
 
-    console.log('📊 Error monitoring started');
   }
 
   /**
@@ -104,7 +103,6 @@ class ErrorMonitor {
       window.removeEventListener('unhandledrejection', this.unhandledRejectionHandler);
     }
 
-    console.log('📊 Error monitoring stopped');
   }
 
   /**
@@ -191,7 +189,6 @@ class ErrorMonitor {
    */
   clear(): void {
     this.errors = [];
-    console.log('📊 Error log cleared');
   }
 
   /**
@@ -250,9 +247,6 @@ class ErrorMonitor {
 
     const fixedStatus = this.checkFixedErrors();
     console.group('✅ Fixed Errors Status:');
-    console.log(`  showSuccess/showError: ${fixedStatus.showSuccessError ? '❌ Still exists' : '✅ Fixed'}`);
-    console.log(`  ScheduleContext: ${fixedStatus.scheduleContextError ? '❌ Still exists' : '✅ Fixed'}`);
-    console.log(`  Unknown ProjectId: ${fixedStatus.unknownProjectIdError ? '❌ Still exists' : '✅ Fixed'}`);
     console.groupEnd();
 
     console.groupEnd();
@@ -273,7 +267,6 @@ class ErrorMonitor {
         resolve(report);
       }, duration);
 
-      console.log(`🧪 Running error monitoring for ${duration / 1000} seconds...`);
     });
   }
 }

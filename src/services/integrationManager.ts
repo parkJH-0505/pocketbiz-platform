@@ -33,7 +33,6 @@ class IntegrationManager {
    * 초기화
    */
   private initialize(): void {
-    console.log('🔗 Integration Manager initialized');
   }
 
   /**
@@ -79,7 +78,6 @@ class IntegrationManager {
     });
 
     // 로그
-    console.log(`📡 Integration event: ${event.type}`, event.payload);
   }
 
   /**
@@ -256,7 +254,6 @@ class IntegrationManager {
     this.meetingRecords = [];
     this.activeProjects.clear();
     this.eventHistory = [];
-    console.log('🔄 Integration Manager reset');
   }
 }
 

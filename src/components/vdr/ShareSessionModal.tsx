@@ -90,7 +90,6 @@ const ShareSessionModal: React.FC<ShareSessionModalProps> = ({
       setShareLink('');
       setCopied(false);
       setIsCreating(false);
-      console.log('[ShareModal] Modal opened, state reset');
     }
   }, [isOpen, selectedDocuments]);
 
@@ -201,7 +200,6 @@ const ShareSessionModal: React.FC<ShareSessionModalProps> = ({
     setIsCreating(true);
     try {
       const expiresAt = getExpiryDate();
-      console.log('[ShareModal] Calling onCreateSession...');
 
       const link = await onCreateSession(
         sessionName.trim(),
@@ -222,7 +220,6 @@ const ShareSessionModal: React.FC<ShareSessionModalProps> = ({
       console.error('[ShareModal] Failed to create share session:', error);
       alert(`공유 세션 생성 실패: ${error.message || '알 수 없는 오류'}`);
     } finally {
-      console.log('[ShareModal] Setting isCreating to false');
       setIsCreating(false);
     }
   };

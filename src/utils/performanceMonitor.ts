@@ -589,7 +589,6 @@ export class PerformanceMonitor {
    */
   static setMonitoringEnabled(enabled: boolean): void {
     this.monitoringEnabled = enabled;
-    console.log(`📊 [PERFORMANCE MONITOR] Monitoring ${enabled ? 'enabled' : 'disabled'}`);
   }
 
   /**
@@ -603,7 +602,6 @@ export class PerformanceMonitor {
 
     const removedCount = initialCount - this.metrics.length;
     if (removedCount > 0) {
-      console.log(`🧹 [PERFORMANCE MONITOR] Cleaned up ${removedCount} old metrics`);
     }
 
     return removedCount;

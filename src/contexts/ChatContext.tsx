@@ -596,7 +596,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           dependencies: ['user'],
           isReady: true
         });
-        console.log('✅ ChatContext registered to GlobalContextManager');
       }).catch(error => {
         console.warn('GlobalContextManager registration failed:', error);
       });

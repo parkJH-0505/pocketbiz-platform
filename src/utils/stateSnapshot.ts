@@ -116,8 +116,6 @@ export class StateSnapshotManager {
       // 스냅샷 수 제한 관리
       this.enforceSnapshotLimit();
 
-      console.log(`📸 Created state snapshot for project ${projectId}: ${snapshotId}`);
-      console.log(`📊 Snapshot contains: ${relatedSchedules.length} schedules, ${phaseTransitionEvents.length} events`);
 
       return snapshotId;
 
@@ -139,7 +137,6 @@ export class StateSnapshotManager {
         throw new Error(`Snapshot not found: ${snapshotId}`);
       }
 
-      console.log(`🔄 Rolling back to snapshot ${snapshotId} for project ${snapshot.projectId}`);
 
       // BuildupContext 상태 복원
       await this.restoreProjectState(snapshot.project);
@@ -163,7 +160,6 @@ export class StateSnapshotManager {
 
       this.rollbackHistory.push(result);
 
-      console.log(`✅ Successfully rolled back to snapshot ${snapshotId} (${result.duration}ms)`);
       return result;
 
     } catch (error) {
@@ -234,7 +230,6 @@ export class StateSnapshotManager {
       }
 
       window.buildupContext.setProjects(updatedProjects);
-      console.log(`🔧 Restored project state for ${project.id}: phase=${project.phase}`);
     }
   }
 
@@ -252,7 +247,6 @@ export class StateSnapshotManager {
       // 스냅샷 스케줄 복원
       if (window.scheduleContext.createSchedulesBatch) {
         await window.scheduleContext.createSchedulesBatch(schedules);
-        console.log(`🔧 Restored ${schedules.length} schedules for project ${projectId}`);
       }
     }
   }
@@ -274,7 +268,6 @@ export class StateSnapshotManager {
       const restoredEvents = [...filteredEvents, ...events];
 
       window.buildupContext.setPhaseTransitionEvents(restoredEvents);
-      console.log(`🔧 Restored ${events.length} phase transition events for project ${projectId}`);
     }
   }
 
@@ -296,7 +289,6 @@ export class StateSnapshotManager {
     });
 
     if (oldSnapshots.length > 0) {
-      console.log(`🧹 Cleaned up ${oldSnapshots.length} old snapshots`);
     }
 
     // 최대 개수 제한 적용
@@ -320,7 +312,6 @@ export class StateSnapshotManager {
         this.snapshots.delete(snapshot.id);
       });
 
-      console.log(`📏 Enforced snapshot limit: removed ${toDelete.length} snapshots`);
     }
   }
 
@@ -350,7 +341,6 @@ export class StateSnapshotManager {
   deleteSnapshot(snapshotId: string): boolean {
     const deleted = this.snapshots.delete(snapshotId);
     if (deleted) {
-      console.log(`🗑️ Deleted snapshot: ${snapshotId}`);
     }
     return deleted;
   }
@@ -364,7 +354,6 @@ export class StateSnapshotManager {
       this.snapshots.delete(snapshot.id);
     });
 
-    console.log(`🗑️ Deleted ${snapshots.length} snapshots for project ${projectId}`);
     return snapshots.length;
   }
 

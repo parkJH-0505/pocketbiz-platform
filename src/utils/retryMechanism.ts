@@ -222,14 +222,12 @@ export class RetryMechanismManager {
     let result: T | undefined;
     let finalError: Error | undefined;
 
-    console.log(`🔄 Starting retryable operation: ${retryableOp.type} (${retryableOp.id})`);
 
     while (retryableOp.currentAttempt < retryableOp.maxAttempts) {
       retryableOp.currentAttempt++;
       retryableOp.lastAttemptAt = new Date();
       retryableOp.status = 'running';
 
-      console.log(`🎯 Attempt ${retryableOp.currentAttempt}/${retryableOp.maxAttempts} for ${retryableOp.type}`);
 
       try {
         // 타임아웃 설정
@@ -251,7 +249,6 @@ export class RetryMechanismManager {
         retryableOp.status = 'success';
         const totalDuration = Date.now() - startTime;
 
-        console.log(`✅ Operation succeeded: ${retryableOp.type} after ${retryableOp.currentAttempt} attempts (${totalDuration}ms)`);
 
         // 성공 콜백 실행
         retryableOp.config.onSuccess?.(result, retryableOp.currentAttempt);
@@ -287,14 +284,11 @@ export class RetryMechanismManager {
 
         retryableOp.errors.push(retryError);
 
-        console.log(`❌ Attempt ${retryableOp.currentAttempt} failed: ${finalError.message} (${failureReason})`);
 
         // 재시도 불가능한 에러이거나 최대 횟수 도달 시 중단
         if (!isRetryable || retryableOp.currentAttempt >= retryableOp.maxAttempts) {
           if (!isRetryable) {
-            console.log(`🚫 Non-retryable error, stopping retries`);
           } else {
-            console.log(`🚫 Max attempts reached, stopping retries`);
           }
           break;
         }
@@ -324,7 +318,6 @@ export class RetryMechanismManager {
     retryableOp.status = 'failed';
     const totalDuration = Date.now() - startTime;
 
-    console.log(`❌ Operation failed: ${retryableOp.type} after ${retryableOp.currentAttempt} attempts (${totalDuration}ms)`);
 
     // 실패 콜백 실행
     retryableOp.config.onFailure?.(finalError!, retryableOp.currentAttempt);
@@ -368,7 +361,6 @@ export class RetryMechanismManager {
 
     const customConfig: Partial<RetryConfiguration> = {
       onRetry: (attempt, error) => {
-        console.log(`🔄 Phase transition retry ${attempt}: ${fromPhase} → ${toPhase} for project ${projectId}`);
         EdgeCaseLogger.log('EC_RETRY_003', {
           projectId,
           fromPhase,
@@ -378,10 +370,8 @@ export class RetryMechanismManager {
         });
       },
       onSuccess: (result, attempts) => {
-        console.log(`✅ Phase transition succeeded: ${fromPhase} → ${toPhase} for project ${projectId} (${attempts} attempts)`);
       },
       onFailure: (error, attempts) => {
-        console.log(`❌ Phase transition failed: ${fromPhase} → ${toPhase} for project ${projectId} (${attempts} attempts)`);
         EdgeCaseLogger.log('EC_RETRY_004', {
           projectId,
           fromPhase,
@@ -430,7 +420,6 @@ export class RetryMechanismManager {
       migrationFunction,
       {
         onRetry: (attempt, error) => {
-          console.log(`🔄 Data migration retry ${attempt}: ${error.message}`);
         }
       }
     );

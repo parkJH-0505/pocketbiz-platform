@@ -21,7 +21,6 @@ declare global {
 const unitTests = {
   // Context 연결 테스트
   contextConnection: () => {
-    console.log('🧪 [Unit Test 1] Context Connection Test');
 
     const results = {
       scheduleContext: !!window.scheduleContext,
@@ -29,33 +28,25 @@ const unitTests = {
       phaseTransitionManager: !!window.phaseTransitionManager
     };
 
-    console.log('  - window.scheduleContext:', results.scheduleContext ? '✅' : '❌');
-    console.log('  - window.buildupContext:', results.buildupContext ? '✅' : '❌');
-    console.log('  - window.phaseTransitionManager:', results.phaseTransitionManager ? '✅' : '❌');
 
     const passed = results.scheduleContext && results.buildupContext;
-    console.log(`  Result: ${passed ? '✅ PASSED' : '❌ FAILED'}`);
     return passed;
   },
 
   // 미팅 생성 테스트
   meetingCreation: async () => {
-    console.log('🧪 [Unit Test 2] Meeting Creation Test');
 
     // ScheduleContext 접근성 확인
     if (!window.scheduleContext) {
-      console.log('  ❌ ScheduleContext not available in window');
       return false;
     }
 
     const { createSchedule, schedules } = window.scheduleContext;
     if (!createSchedule) {
-      console.log('  ❌ createSchedule method not available');
       return false;
     }
 
     const initialCount = schedules?.length || 0;
-    console.log(`  📊 Initial schedule count: ${initialCount}`);
 
     try {
       const meetingData = {
@@ -77,35 +68,26 @@ const unitTests = {
         }
       };
 
-      console.log('  📝 Meeting data to create:', meetingData);
       const testMeeting = await createSchedule(meetingData);
 
       // 결과 확인
       const finalCount = window.scheduleContext.schedules?.length || 0;
-      console.log(`  📊 Final schedule count: ${finalCount}`);
 
       if (testMeeting && testMeeting.id) {
-        console.log('  ✅ Meeting created:', testMeeting.id);
-        console.log(`  Result: ✅ PASSED`);
         return true;
       } else {
-        console.log('  ❌ Meeting creation returned invalid result');
         return false;
       }
     } catch (error) {
-      console.log('  ❌ Failed to create meeting:', error);
-      console.log(`  Result: ❌ FAILED`);
       return false;
     }
   },
 
   // 이벤트 발생 테스트
   eventEmission: async () => {
-    console.log('🧪 [Unit Test 3] Event Emission Test');
 
     // ScheduleContext 이벤트 방식 확인
     if (!window.scheduleContext) {
-      console.log('  ❌ ScheduleContext not available');
       return false;
     }
 
@@ -119,7 +101,6 @@ const unitTests = {
 
       eventTypes.forEach(eventType => {
         const handler = (event: any) => {
-          console.log('  ✅ Event received:', eventType, event);
           eventReceived = true;
 
           // 모든 리스너 제거
@@ -128,7 +109,6 @@ const unitTests = {
           });
 
           clearTimeout(timeoutId);
-          console.log(`  Result: ✅ PASSED`);
           resolve(true);
         };
 
@@ -142,8 +122,6 @@ const unitTests = {
           handlers.forEach(h => {
             window.removeEventListener(h.type, h.handler);
           });
-          console.log('  ❌ No events received within timeout');
-          console.log(`  Result: ❌ FAILED`);
           resolve(false);
         }
       }, 5000);
@@ -167,12 +145,10 @@ const unitTests = {
             email: 'event.pm@pocketcompany.co.kr'
           }
         }).catch((error: any) => {
-          console.log('  ❌ Failed to trigger event:', error);
           clearTimeout(timeoutId);
           resolve(false);
         });
       } else {
-        console.log('  ❌ createSchedule not available');
         clearTimeout(timeoutId);
         resolve(false);
       }
@@ -181,21 +157,16 @@ const unitTests = {
 
   // Phase 전환 가능성 테스트
   phaseTransitionCapability: () => {
-    console.log('🧪 [Unit Test 4] Phase Transition Capability Test');
 
     const project = window.buildupContext?.projects?.find((p: any) => p.id === 'PRJ-TEST');
 
     if (!project) {
-      console.log('  ⚠️  PRJ-TEST project not found');
-      console.log(`  Result: ⚠️  SKIPPED`);
       return true; // Skip rather than fail
     }
 
     console.log('  Current phase:', project.phase);
-    console.log('  Can update phase:', typeof window.buildupContext?.setProjects === 'function' ? '✅' : '❌');
 
     const passed = typeof window.buildupContext?.setProjects === 'function';
-    console.log(`  Result: ${passed ? '✅ PASSED' : '❌ FAILED'}`);
     return passed;
   }
 };
@@ -206,24 +177,19 @@ const unitTests = {
 const scenarioTests = {
   // 시나리오 1: 기본 미팅 예약 → Phase 전환
   basicMeetingToPhase: async () => {
-    console.log('🧪 [Scenario 1] Basic Meeting → Phase Transition');
 
     const testProjectId = 'PRJ-TEST';
 
     // 초기 상태 확인
-    console.log(`  📋 Available projects: ${window.buildupContext?.projects?.length || 0}`);
     window.buildupContext?.projects?.forEach((p: any) => {
       console.log(`    - ${p.id}: ${p.title} (${p.phase})`);
     });
 
     let project = window.buildupContext?.projects?.find((p: any) => p.id === testProjectId);
     if (!project) {
-      console.log('  ❌ Test project PRJ-TEST not found!');
-      console.log('  ❌ Cannot run BasicMeetingToPhase test without test project');
       return false;  // 프로젝트가 없으면 실패로 처리
     }
 
-    console.log(`  📋 Found test project: ${project.id} - ${project.title}`);
 
     const initialPhase = project.phase;
     console.log('  Initial phase:', initialPhase);
@@ -249,7 +215,6 @@ const scenarioTests = {
         }
       });
 
-      console.log('  ✅ Meeting scheduled:', meeting.id);
 
       // Phase 전환 확인 (BuildupContext 동기화 대기)
       await new Promise(resolve => setTimeout(resolve, 5000));
@@ -263,7 +228,6 @@ const scenarioTests = {
           await window.buildupContext.refreshProjects();
           project = window.buildupContext?.projects?.find((p: any) => p.id === testProjectId);
         } catch (e) {
-          console.log('  ⚠️ refreshProjects failed:', e.message);
         }
       }
 
@@ -277,11 +241,9 @@ const scenarioTests = {
           alternativePhase = storedProject?.phase;
         }
       } catch (e) {
-        console.log('  ⚠️ localStorage check failed:', e.message);
       }
 
       const newPhase = project?.phase;
-      console.log(`  📊 Phase check methods:`);
       console.log(`    BuildupContext phase: ${newPhase}`);
       console.log(`    LocalStorage phase: ${alternativePhase}`);
 
@@ -304,36 +266,26 @@ const scenarioTests = {
                     contextPhaseChanged || phaseProgressed || logBasedSuccess;
 
       if (passed) {
-        console.log(`  ✅ Phase transition detected!`);
       } else {
-        console.log(`  ⚠️  No phase change detected, but system may still be working`);
       }
 
-      console.log(`  Result: ${passed ? '✅ PASSED' : '❌ FAILED'}`);
       return passed;
 
     } catch (error) {
-      console.log('  ❌ Scenario failed:', error);
-      console.log(`  ❌ Error message: ${error.message}`);
-      console.log(`  ❌ Error stack: ${error.stack}`);
       if (error.cause) {
-        console.log(`  ❌ Error cause: ${JSON.stringify(error.cause, null, 2)}`);
       }
-      console.log(`  Result: ❌ FAILED`);
       return false;
     }
   },
 
   // 시나리오 2: 연속 미팅 예약
   sequentialMeetings: async () => {
-    console.log('🧪 [Scenario 2] Sequential Meetings');
 
     // 테스트 프로젝트 사용
     const projectId = 'PRJ-TEST';
 
     const project = window.buildupContext?.projects?.find((p: any) => p.id === projectId);
     if (!project) {
-      console.log('  ❌ Test project not found');
       return false;
     }
 
@@ -370,7 +322,6 @@ const scenarioTests = {
           }
         });
 
-        console.log(`  ✅ ${meetingConfig.sequence} scheduled: ${meeting.id}`);
         successCount++;
 
         // 각 미팅 후 Phase 상태 확인
@@ -380,24 +331,20 @@ const scenarioTests = {
         console.log(`  Phase after ${meetingConfig.sequence}: ${updatedProject?.phase}`);
 
       } catch (error) {
-        console.log(`  ❌ Failed to schedule ${meetingConfig.sequence}:`, error);
       }
     }
 
     const passed = successCount >= 1; // 적어도 1개 미팅 성공하면 통과
     console.log(`  Successfully scheduled ${successCount}/${meetings.length} meetings`);
-    console.log(`  Result: ${passed ? '✅ PASSED' : '❌ FAILED'}`);
     return passed;
   },
 
   // 시나리오 3: 캘린더 통합 확인
   calendarIntegration: () => {
-    console.log('🧪 [Scenario 3] Calendar Integration');
 
     try {
       // Context 가용성 확인
       if (!window.scheduleContext || !window.buildupContext) {
-        console.log('  ❌ Required contexts not available');
         return false;
       }
 
@@ -412,15 +359,12 @@ const scenarioTests = {
           if (stored) {
             const parsed = JSON.parse(stored);
             schedules = Array.isArray(parsed) ? parsed : (parsed.schedules || []);
-            console.log(`    📦 Loaded ${schedules.length} schedules from localStorage`);
           }
         } catch (error) {
-          console.log('    ⚠️ Failed to load from localStorage:', error.message);
         }
       }
       const projects = window.buildupContext.projects || [];
 
-      console.log('  Context Status:');
       console.log(`    Total schedules: ${schedules.length}`);
       console.log(`    Total projects: ${projects.length}`);
 
@@ -454,16 +398,12 @@ const scenarioTests = {
       const passed = testMeetings.length > 0 || projectsWithMeetings.length > 0 || buildupMeetings.length > 0;
 
       if (passed) {
-        console.log('  ✅ Calendar integration working!');
       } else {
-        console.log('  ❌ No integration evidence found');
       }
 
-      console.log(`  Result: ${passed ? '✅ PASSED' : '❌ FAILED'}`);
       return passed;
 
     } catch (error) {
-      console.log('  ❌ Calendar integration test failed:', error);
       return false;
     }
   }
@@ -474,19 +414,12 @@ const scenarioTests = {
  */
 export const runSprint5IntegrationTests = () => {
   const runAll = async () => {
-    console.log('');
-    console.log('🚀 ========================================');
-    console.log('🚀 Sprint 5 Integration Test Suite');
-    console.log('🚀 ========================================');
-    console.log('');
 
     let totalTests = 0;
     let passedTests = 0;
     const results: Record<string, boolean> = {};
 
     // Step 4.1: Unit Tests
-    console.log('📋 Step 4.1: Unit Tests');
-    console.log('------------------------');
     for (const [name, test] of Object.entries(unitTests)) {
       totalTests++;
       try {
@@ -497,12 +430,9 @@ export const runSprint5IntegrationTests = () => {
         console.error(`Test ${name} crashed:`, error);
         results[name] = false;
       }
-      console.log('');
     }
 
     // Step 4.2: Scenario Tests
-    console.log('📋 Step 4.2: Scenario Tests');
-    console.log('----------------------------');
     for (const [name, test] of Object.entries(scenarioTests)) {
       totalTests++;
       try {
@@ -513,33 +443,21 @@ export const runSprint5IntegrationTests = () => {
         console.error(`Scenario ${name} crashed:`, error);
         results[name] = false;
       }
-      console.log('');
     }
 
     // Summary
-    console.log('🏁 ========================================');
-    console.log('🏁 Test Results Summary');
-    console.log('🏁 ========================================');
-    console.log('');
     console.log(`Total Tests: ${totalTests}`);
     console.log(`Passed: ${passedTests}`);
     console.log(`Failed: ${totalTests - passedTests}`);
     console.log(`Success Rate: ${Math.round((passedTests / totalTests) * 100)}%`);
-    console.log('');
 
     // Detailed results
-    console.log('Detailed Results:');
     for (const [name, passed] of Object.entries(results)) {
-      console.log(`  ${name}: ${passed ? '✅' : '❌'}`);
     }
 
-    console.log('');
     if (passedTests === totalTests) {
-      console.log('🎉 All tests passed! Sprint 5 is working correctly!');
     } else {
-      console.log('⚠️  Some tests failed. Please check the logs above.');
     }
-    console.log('');
 
     return {
       total: totalTests,
@@ -571,7 +489,6 @@ if (typeof window !== 'undefined') {
     await tests.scenarioTests.sequentialMeetings();
   };
 
-  console.log('✅ Sprint 5 Test Suite loaded. Run window.sprint5Tests.runAll() to start.');
 }
 
 export default runSprint5IntegrationTests;

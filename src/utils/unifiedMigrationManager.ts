@@ -61,9 +61,7 @@ export class UnifiedMigrationManager {
 
     if (this.migrationCompleted) {
       this.state = 'completed';
-      console.log('✅ Migration already completed, skipping');
     } else {
-      console.log('🔄 UnifiedMigrationManager initialized');
     }
   }
 
@@ -73,13 +71,11 @@ export class UnifiedMigrationManager {
   public async runMigration(options: MigrationOptions = {}): Promise<boolean> {
     // 이미 완료되었거나 진행 중이면 스킵
     if (this.migrationCompleted || this.isRunning) {
-      console.log('Migration already completed or running, skipping');
       return false;
     }
 
     // 전제 조건 확인
     if (!options.force && !validateMigrationPrerequisites()) {
-      console.log('Migration prerequisites not met, postponing');
       return false;
     }
 
@@ -109,7 +105,6 @@ export class UnifiedMigrationManager {
       options.onComplete?.(results);
 
       if (!options.silent) {
-        console.log('✅ Migration completed successfully', results);
       }
 
       return true;
@@ -161,7 +156,6 @@ export class UnifiedMigrationManager {
     this.state = 'idle';
     this.isRunning = false;
     localStorage.removeItem('migration_completed');
-    console.log('🔄 Migration state reset');
   }
 
   /**

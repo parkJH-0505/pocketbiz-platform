@@ -13,7 +13,6 @@ export async function loadKPIData() {
   }
   
   try {
-    console.log('Loading KPI data from imported CSV files...');
 
     // 직접 import된 CSV 데이터 사용
     const libraryCSV = csvData.library;
@@ -31,7 +30,6 @@ export async function loadKPIData() {
     
     cachedKPIData = parseCSVToKPIData(libraryCSV, stageRulesCSV, inputsCSV);
     
-    console.log(`✅ KPI data loaded: ${cachedKPIData.libraries.length} KPIs, ${cachedKPIData.stageRules.size} rules`);
 
     // 상세 디버그 정보는 개발 환경에서만
     if (import.meta.env.DEV && import.meta.env.VITE_DEBUG_KPI) {

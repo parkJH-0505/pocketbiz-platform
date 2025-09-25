@@ -445,7 +445,6 @@ export const ErrorHandler: React.FC<ErrorHandlerProps> = ({
       ErrorManager.reportErrorToAdmin(props.error.id);
 
       // 실제 환경에서는 지원팀 연락 로직 (이메일, 채팅 등)
-      console.log('Support contact would be initiated');
 
       props.onContactSupport?.();
     }

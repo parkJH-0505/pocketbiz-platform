@@ -137,7 +137,6 @@ export default function BuildupCalendarV3() {
   const syncAllData = withLoading('calendar_sync',
     withRetry(
       withErrorHandler(async () => {
-        console.log('🔄 BuildupCalendarV3: Starting Step 2 enhanced sync process...');
 
         // ScheduleContext 새로고침
         await refreshSchedules();
@@ -156,7 +155,6 @@ export default function BuildupCalendarV3() {
         });
         window.dispatchEvent(syncCompletedEvent);
 
-        console.log('✅ BuildupCalendarV3: All data synced successfully with enhanced event system');
         showSuccess('캘린더 데이터가 동기화되었습니다');
       }, {
         syncType: 'full_sync',
@@ -172,10 +170,8 @@ export default function BuildupCalendarV3() {
   // 프로젝트별 스케줄 새로고침
   const refreshProjectSchedules = withLoading('project_schedules',
     withErrorHandler(async (projectId: string) => {
-      console.log(`🔄 Refreshing schedules for project: ${projectId}`);
 
       const projectSchedules = getSchedulesByProject(projectId);
-      console.log(`📅 Found ${projectSchedules.length} schedules for project ${projectId}`);
 
       return projectSchedules;
     }, {
@@ -190,7 +186,6 @@ export default function BuildupCalendarV3() {
     const isMigrationCompleted = localStorage.getItem(migrationKey);
 
     if (!isMigrationCompleted) {
-      console.log('🔄 Performing one-time schedule migration to September 2025...');
       migrateSchedulesToSeptember2025();
       localStorage.setItem(migrationKey, 'true');
     }
@@ -198,11 +193,9 @@ export default function BuildupCalendarV3() {
 
   // ✅ Step 2: ProjectDetail 이벤트 수신 및 통합 이벤트 시스템 설정
   useEffect(() => {
-    console.log('🔧 BuildupCalendarV3: Setting up Step 2 event system with ProjectDetail integration');
     // 스케줄 생성 이벤트 핸들러
     const handleScheduleCreated = (event: CustomEvent) => {
       const { schedule } = event.detail;
-      console.log('📅 Schedule created:', schedule.title);
       showSuccess(`일정이 생성되었습니다: ${schedule.title}`);
 
       // 캘린더 자동 스크롤 (생성된 일정의 날짜로)
@@ -216,21 +209,18 @@ export default function BuildupCalendarV3() {
     // 스케줄 업데이트 이벤트 핸들러
     const handleScheduleUpdated = (event: CustomEvent) => {
       const { schedule, previousData } = event.detail;
-      console.log('📅 Schedule updated:', schedule.title);
       showInfo(`일정이 수정되었습니다: ${schedule.title}`);
     };
 
     // 스케줄 삭제 이벤트 핸들러
     const handleScheduleDeleted = (event: CustomEvent) => {
       const { schedule } = event.detail;
-      console.log('📅 Schedule deleted:', schedule.title);
       showWarning(`일정이 삭제되었습니다: ${schedule.title}`);
     };
 
     // 빌드업 미팅 생성 특별 핸들러 (Phase Transition 포함)
     const handleBuildupMeetingCreated = (event: CustomEvent) => {
       const { schedule, metadata } = event.detail;
-      console.log('🏗️ Buildup meeting created:', schedule.title, metadata);
 
       // Phase transition 정보가 있으면 통합 메시지로 표시
       if (metadata?.phaseTransition) {
@@ -273,7 +263,6 @@ export default function BuildupCalendarV3() {
     // Phase Transition 트리거 이벤트 핸들러
     const handlePhaseTransitionTriggered = (event: CustomEvent) => {
       const { fromPhase, toPhase, triggerType } = event.detail;
-      console.log('🔄 Phase transition triggered:', { fromPhase, toPhase, triggerType });
 
       showSuccess(`프로젝트 단계 전환: ${fromPhase} → ${toPhase}`);
     };
@@ -288,7 +277,6 @@ export default function BuildupCalendarV3() {
     // BuildupContext에서 발생하는 프로젝트 이벤트 핸들러
     const handleProjectPhaseChanged = (event: CustomEvent) => {
       const { projectId, fromPhase, toPhase, triggerType } = event.detail;
-      console.log('🏗️ Project phase changed:', { projectId, fromPhase, toPhase, triggerType });
 
       showSuccess(`프로젝트 단계가 ${fromPhase}에서 ${toPhase}로 변경되었습니다`);
 
@@ -299,7 +287,6 @@ export default function BuildupCalendarV3() {
     // 프로젝트 업데이트 이벤트 핸들러
     const handleProjectUpdated = (event: CustomEvent) => {
       const { projectId, updates } = event.detail;
-      console.log('🏗️ Project updated:', { projectId, updates });
 
       // 프로젝트 정보가 변경되면 관련 스케줄 정보도 업데이트 필요
       refreshProjectSchedules(projectId);
@@ -308,7 +295,6 @@ export default function BuildupCalendarV3() {
     // 마이그레이션 완료 이벤트 핸들러
     const handleMigrationCompleted = (event: CustomEvent) => {
       const { migratedCount } = event.detail;
-      console.log('🔄 Migration completed:', migratedCount, 'schedules migrated');
       showSuccess(`${migratedCount}개의 일정이 2025년 9월로 이동되었습니다`);
 
       // 데이터 새로고침
@@ -319,16 +305,7 @@ export default function BuildupCalendarV3() {
     const handleProjectMeetingEvent = (e: CustomEvent) => {
       const { eventId, projectId, operation, schedule, source } = e.detail;
 
-      console.log(`📤 BuildupCalendarV3 received from ProjectDetail:`, {
-        eventType: e.type,
-        eventId,
-        projectId,
-        operation,
-        source
-      });
-
       if (operation === 'created' || operation === 'updated') {
-        console.log(`🔄 Calendar will refresh due to ProjectDetail ${operation}:`, schedule?.title);
         showInfo(`프로젝트에서 미팅이 ${operation === 'created' ? '생성' : '수정'}되었습니다: ${schedule?.title || ''}`);
 
         // 해당 프로젝트의 날짜로 자동 이동
@@ -340,19 +317,12 @@ export default function BuildupCalendarV3() {
       }
 
       if (operation === 'selected') {
-        console.log(`👆 ProjectDetail selected meeting: ${e.detail.meetingTitle}`);
       }
     };
 
     // ✅ Step 3: 동기화 요청 이벤트 핸들러 (기존)
     const handleSyncRequested = (e: CustomEvent) => {
       const { source, projectId, meeting, operation } = e.detail;
-
-      console.log(`🔄 BuildupCalendarV3 received sync request from ${source}:`, {
-        projectId,
-        operation,
-        meetingTitle: meeting?.title
-      });
 
       // 개발자용 디버깅 정보만 표시
       showDebug(`Sync Request: ${source} → ${operation}`, {
@@ -365,12 +335,6 @@ export default function BuildupCalendarV3() {
     const handleSyncCompleted = (e: CustomEvent) => {
       const { source, projectId: syncProjectId, scheduleCount, originalEventId } = e.detail;
 
-      console.log(`✅ BuildupCalendarV3 received sync completion from ${source}:`, {
-        syncProjectId,
-        scheduleCount,
-        originalEventId
-      });
-
       // 성공 토스트 표시
       showSuccess(`일정 동기화 완료 (${scheduleCount}개)`);
     };
@@ -378,12 +342,6 @@ export default function BuildupCalendarV3() {
     // ✅ Step 3: ScheduleContext에서 생성 완료 이벤트 수신
     const handleCreateCompleted = (e: CustomEvent) => {
       const { source, projectId: syncProjectId, schedule, originalEventId } = e.detail;
-
-      console.log(`✅ BuildupCalendarV3 received create completion from ${source}:`, {
-        scheduleId: schedule.id,
-        title: schedule.title,
-        originalEventId
-      });
 
       // 성공 토스트 표시
       showSuccess(`일정 생성 완료: ${schedule.title}`);
@@ -393,11 +351,6 @@ export default function BuildupCalendarV3() {
     const handleUpdateCompleted = (e: CustomEvent) => {
       const { source, projectId: syncProjectId, scheduleId, originalEventId } = e.detail;
 
-      console.log(`✅ BuildupCalendarV3 received update completion from ${source}:`, {
-        scheduleId,
-        originalEventId
-      });
-
       // 성공 토스트 표시
       showSuccess(`일정 업데이트 완료`);
     };
@@ -405,13 +358,6 @@ export default function BuildupCalendarV3() {
     // ✅ Step 3: ScheduleContext에서 Phase Transition 완료 이벤트 수신
     const handlePhaseTransitionCompleted = (e: CustomEvent) => {
       const { source, projectId: syncProjectId, fromPhase, toPhase, updatedScheduleCount, originalEventId } = e.detail;
-
-      console.log(`✅ BuildupCalendarV3 received phase transition completion from ${source}:`, {
-        fromPhase,
-        toPhase,
-        updatedScheduleCount,
-        originalEventId
-      });
 
       // Phase 변경 확인 토스트 표시
       showSuccess(`프로젝트 단계 변경: ${fromPhase} → ${toPhase}`);
@@ -518,7 +464,6 @@ export default function BuildupCalendarV3() {
     const startTime = performance.now();
 
     if (!schedules || schedules.length === 0) {
-      console.log('📊 BuildupCalendarV3: No schedules to convert');
       return [];
     }
 
@@ -605,14 +550,8 @@ export default function BuildupCalendarV3() {
     }, [] as CalendarEvent[]);
 
     const endTime = performance.now();
-    console.log('⚡ Schedule conversion performance:', {
-      duration: `${(endTime - startTime).toFixed(2)}ms`,
-      originalCount: schedules.length,
-      validatedCount: validatedSchedules.length,
-      convertedCount: convertedEvents.length,
-      finalCount: deduplicatedEvents.length,
-      duplicatesRemoved: convertedEvents.length - deduplicatedEvents.length
-    });
+
+    // 성능 측정 완료
 
     return deduplicatedEvents;
   }, [schedules]);
@@ -622,11 +561,7 @@ export default function BuildupCalendarV3() {
 
   // ✅ Step 2: 단일 데이터 소스 - ScheduleContext만 사용
   const allScheduleEvents = useMemo(() => {
-    console.log('📊 BuildupCalendarV3: Processing schedules from ScheduleContext only', {
-      schedulesCount: schedulesToEvents.length,
-      source: 'ScheduleContext_only'
-    });
-
+    // 단일 데이터 소스로 통합
     return schedulesToEvents; // 단일 소스로 변경
   }, [schedulesToEvents]);
 
@@ -1276,14 +1211,7 @@ export default function BuildupCalendarV3() {
             }
           });
 
-          console.log(`📤 BuildupCalendarV3: Sending sync request to ScheduleContext`, {
-            eventId,
-            operation: scheduleOperation,
-            scheduleId: schedule.id,
-            title: schedule.title,
-            projectId
-          });
-
+          // 스케줄 동기화 이벤트 발송
           window.dispatchEvent(syncEvent);
 
           // 2. 기존 이벤트도 유지 (호환성)
@@ -1300,7 +1228,6 @@ export default function BuildupCalendarV3() {
             detail: calendarEventDetail
           });
 
-          console.log('📤 BuildupCalendarV3: Emitting calendar schedule action', calendarEventDetail);
           window.dispatchEvent(calendarEvent);
 
           // 3. Phase Transition 처리 (필요시)
@@ -1321,14 +1248,7 @@ export default function BuildupCalendarV3() {
               }
             });
 
-            console.log(`📤 BuildupCalendarV3: Sending phase transition request`, {
-              eventId: phaseEventId,
-              fromPhase,
-              toPhase,
-              scheduleId: schedule.id,
-              projectId
-            });
-
+            // Phase Transition 이벤트 발송
             window.dispatchEvent(phaseTransitionEvent);
           }
 
@@ -1348,7 +1268,6 @@ export default function BuildupCalendarV3() {
               }
             });
 
-            console.log(`📤 BuildupCalendarV3: Notifying BuildupContext of meeting addition`);
             window.dispatchEvent(buildupChangeEvent);
           }
 

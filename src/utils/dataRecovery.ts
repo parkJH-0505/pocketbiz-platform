@@ -125,7 +125,6 @@ export class DataRecoveryManager {
     projects: Project[],
     schedules: UnifiedSchedule[]
   ): Promise<SystemHealthReport> {
-    console.log('🔍 Starting system health check...');
 
     const inconsistencies: DataInconsistency[] = [];
     const timestamp = new Date();
@@ -185,7 +184,6 @@ export class DataRecoveryManager {
     };
 
     // 결과 로깅
-    console.log(`📊 Health check completed: ${overallHealth} (${inconsistencies.length} issues found)`);
     EdgeCaseLogger.log('EC_RECOVERY_001', {
       overallHealth,
       inconsistencyCount: inconsistencies.length,
@@ -205,7 +203,6 @@ export class DataRecoveryManager {
     projects: Project[],
     schedules: UnifiedSchedule[]
   ): Promise<RecoveryResult[]> {
-    console.log(`🔧 Starting auto recovery for ${inconsistencies.length} inconsistencies...`);
 
     const results: RecoveryResult[] = [];
     const autoFixableInconsistencies = inconsistencies.filter(i => i.autoFixable);
@@ -216,9 +213,7 @@ export class DataRecoveryManager {
         results.push(result);
 
         if (result.success) {
-          console.log(`✅ Auto-fixed: ${inconsistency.description}`);
         } else {
-          console.log(`❌ Auto-fix failed: ${inconsistency.description}`);
         }
       } catch (error) {
         const errorResult: RecoveryResult = {
@@ -243,7 +238,6 @@ export class DataRecoveryManager {
     }
 
     const successCount = results.filter(r => r.success).length;
-    console.log(`🎯 Auto recovery completed: ${successCount}/${autoFixableInconsistencies.length} fixed`);
 
     EdgeCaseLogger.log('EC_RECOVERY_002', {
       totalInconsistencies: autoFixableInconsistencies.length,

@@ -101,7 +101,6 @@ export function usePhaseTransition(): UsePhaseTransitionReturn {
       // Status 업데이트
       await refreshStatus();
 
-      console.log('✅ Phase Transition enabled successfully');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to enable phase transition';
       setError(errorMessage);
@@ -119,7 +118,6 @@ export function usePhaseTransition(): UsePhaseTransitionReturn {
 
       refreshStatus();
 
-      console.log('⏹️ Phase Transition disabled');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to disable phase transition';
       setError(errorMessage);
@@ -138,7 +136,6 @@ export function usePhaseTransition(): UsePhaseTransitionReturn {
 
     try {
       await triggerPhaseTransition(projectId, meetingRecord, pmId);
-      console.log('✅ Meeting completed event triggered');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to trigger meeting completion';
       setError(errorMessage);
@@ -160,7 +157,6 @@ export function usePhaseTransition(): UsePhaseTransitionReturn {
 
     try {
       await requestManualPhaseTransition(projectId, fromPhase, toPhase, 'user', reason);
-      console.log('✅ Phase change requested');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to request phase change';
       setError(errorMessage);

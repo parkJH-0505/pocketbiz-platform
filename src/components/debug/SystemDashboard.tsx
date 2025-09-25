@@ -357,7 +357,6 @@ export const SystemDashboard: React.FC = () => {
         <button
           onClick={() => {
             // 실제 환경에서는 BuildupContext의 데이터를 사용
-            console.log('Health check would run with real data');
           }}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
         >

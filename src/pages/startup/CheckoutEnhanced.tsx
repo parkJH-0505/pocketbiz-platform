@@ -344,14 +344,12 @@ export default function CheckoutEnhanced() {
           contractId: checkoutData.contractData.contractNumber
         };
 
-        console.log(`💳 결제 완료 처리: 프로젝트 ${newProject.id} → 자동 단계 전환 트리거`);
         handlePaymentCompleted(newProject.id, paymentData);
       }
 
       // 장바구니 비우기
       clearCart();
 
-      console.log(`✅ ${createdProjects.length}개 프로젝트 생성 및 결제 완료 처리 완료`);
 
       // 성공 메시지와 함께 프로젝트 대시보드로 이동
       setTimeout(() => {

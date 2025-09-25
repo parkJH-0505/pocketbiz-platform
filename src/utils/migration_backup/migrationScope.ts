@@ -358,7 +358,6 @@ export class MigrationScopeManager {
     // 저장
     this.saveTrackers();
 
-    console.log(`📊 Updated incremental tracker: ${id}, processed ${processedItems.length} items`);
   }
 
   /**
@@ -496,7 +495,6 @@ export class MigrationScopeManager {
     this.incrementalTrackers.clear();
     this.selectiveItems.clear();
     localStorage.removeItem('migration_incremental_trackers');
-    console.log('🔄 Scope manager reset');
   }
 }
 

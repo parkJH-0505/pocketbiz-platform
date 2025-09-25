@@ -157,7 +157,6 @@ const KPIDiagnosisPageContent = () => {
 };
 
 const KPIDiagnosisPage = () => {
-  console.log('KPIDiagnosisPage main component rendering');
   
   return (
     <ErrorBoundary>

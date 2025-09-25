@@ -470,13 +470,6 @@ export class ValidationManager {
     };
 
     // 검증 결과 로깅
-    console.log('🔍 Comprehensive validation completed:', {
-      totalErrors: allErrors.length,
-      totalWarnings: allWarnings.length,
-      severity: result.severity,
-      projectsValidated: projects.length,
-      schedulesValidated: schedules.length
-    });
 
     if (allErrors.length > 0) {
       EdgeCaseLogger.log('EC_SYSTEM_002', {

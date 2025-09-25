@@ -28,7 +28,6 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data, onAxisClick, showO
 
   const handleShare = () => {
     // Share logic
-    console.log('Sharing...');
   };
 
   return (

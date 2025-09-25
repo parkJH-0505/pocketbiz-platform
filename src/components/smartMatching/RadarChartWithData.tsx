@@ -44,7 +44,6 @@ const RadarChartWithData: React.FC<RadarChartWithDataProps> = ({
     }
 
     // 모든 값이 0이거나 데이터가 없으면 기본값 사용
-    console.log('Using default scores - no KPI diagnosis data found');
     return defaultScores;
   }, [axisScores]);
 

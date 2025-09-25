@@ -261,7 +261,6 @@ export class ContextDependencyGraph {
     );
 
     roots.forEach((root, index) => {
-      console.log(`\n📦 ${root} (root)`);
       const dependents = this.getDependents(root);
       dependents.forEach((dep, i) => {
         printNode(dep, '', i === dependents.length - 1);

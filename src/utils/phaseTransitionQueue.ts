@@ -141,7 +141,6 @@ export class PhaseTransitionQueue {
       projectQueue.splice(insertIndex, 0, queueItem);
     }
 
-    console.log(`📋 Enqueued ${item.operation} for project ${item.projectId} (Queue: ${projectQueue.length})`);
 
     // 자동으로 처리 시작
     this.processProjectQueue(item.projectId);
@@ -173,7 +172,6 @@ export class PhaseTransitionQueue {
     this.processing.add(projectId);
     pendingItem.status = 'processing';
 
-    console.log(`🔄 Processing ${pendingItem.operation} for project ${projectId}`);
 
     try {
       const startTime = Date.now();
@@ -183,7 +181,6 @@ export class PhaseTransitionQueue {
       if (result.success) {
         pendingItem.status = 'completed';
         pendingItem.executionTime = duration;
-        console.log(`✅ Completed ${pendingItem.operation} for project ${projectId} (${duration}ms)`);
       } else {
         throw result.error || new Error('Operation failed');
       }
@@ -205,7 +202,6 @@ export class PhaseTransitionQueue {
       } else {
         // 재시도를 위해 다시 pending 상태로
         pendingItem.status = 'pending';
-        console.log(`🔄 Retrying ${pendingItem.operation} for project ${projectId} (${pendingItem.retryCount}/${pendingItem.maxRetries})`);
       }
     } finally {
       // 프로젝트 락 해제
@@ -392,7 +388,6 @@ export class PhaseTransitionQueue {
 
       if (context) {
         if (i > 0) {
-          console.log(`✅ ${contextName}Context available after ${i} retries`);
         }
         return true;
       }
@@ -525,7 +520,6 @@ export class PhaseTransitionQueue {
    */
   setGlobalLock(locked: boolean): void {
     this.globalLock = locked;
-    console.log(`🔒 Global queue lock: ${locked}`);
   }
 }
 

@@ -60,7 +60,6 @@ class ContextReadyEmitter extends SimpleEventEmitter {
    */
   markReady(contextName: string, methods?: string[]): void {
     if (this.readyContexts.has(contextName)) {
-      console.log(`⚠️ Context '${contextName}' is already marked as ready`);
       return;
     }
 
@@ -77,18 +76,15 @@ class ContextReadyEmitter extends SimpleEventEmitter {
     // 전역 이벤트 발송
     this.emit('context:ready', contextName);
 
-    console.log(`📢 Context ready: ${contextName}`);
 
     if (methods && methods.length > 0) {
       console.log(`   Available methods: ${methods.join(', ')}`);
     }
 
-    console.log(`📊 Total ready contexts: ${this.readyContexts.size} / ${this.getAllExpectedContexts().length}`);
 
     // 모든 Context가 준비되면 알림
     if (this.areAllContextsReady()) {
       this.emit('all:ready');
-      console.log('🎉 All contexts are ready!');
     }
   }
 
@@ -104,7 +100,6 @@ class ContextReadyEmitter extends SimpleEventEmitter {
     this.contextMetadata.delete(contextName);
 
     this.emit(`${contextName}:unready`, contextName);
-    console.log(`🔄 Context unready: ${contextName}`);
   }
 
   /**
@@ -196,7 +191,6 @@ class ContextReadyEmitter extends SimpleEventEmitter {
    */
   printStatus(): void {
     const status = this.getReadyStatus();
-    console.log('📋 Context Ready Status:');
     Object.entries(status).forEach(([name, ready]) => {
       const icon = ready ? '✅' : '⏳';
       const metadata = this.getContextMetadata(name);
@@ -212,7 +206,6 @@ class ContextReadyEmitter extends SimpleEventEmitter {
     this.readyContexts.clear();
     this.contextMetadata.clear();
     this.removeAllListeners();
-    console.log('🔄 ContextReadyEmitter reset');
   }
 }
 

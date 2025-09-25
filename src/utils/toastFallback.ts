@@ -19,7 +19,6 @@ interface ToastFallback {
 export const createToastFallback = (): ToastFallback => {
   return {
     showSuccess: (message: string, duration?: number) => {
-      console.log(`✅ SUCCESS: ${message}`);
 
       // 개발 환경에서 시각적 피드백 제공
       if (import.meta.env.DEV && typeof window !== 'undefined') {
@@ -146,7 +145,6 @@ export const createToastFallback = (): ToastFallback => {
 
     showDebug: (message: string, details?: any, duration?: number) => {
       if (import.meta.env.DEV) {
-        console.log(`🔧 DEBUG: ${message}`, details);
 
         if (typeof window !== 'undefined') {
           const toast = document.createElement('div');

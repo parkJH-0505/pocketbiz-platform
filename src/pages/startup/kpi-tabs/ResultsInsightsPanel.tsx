@@ -797,7 +797,6 @@ const ResultsInsightsPanel = () => {
         onClick={() => {
           if (isLaunching) return;
           
-          console.log('로켓 발사 시작!');
           console.log('현재 window 크기:', window.innerWidth, window.innerHeight);
           
           // 액션플랜 탭 버튼의 실제 위치 찾기
@@ -815,7 +814,6 @@ const ResultsInsightsPanel = () => {
               left: rect.left + rect.width / 2 - 64
             });
           } else {
-            console.log('액션플랜 탭을 찾을 수 없음, 기본값 사용');
           }
           
           setIsLaunching(true);
