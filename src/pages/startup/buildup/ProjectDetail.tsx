@@ -1611,15 +1611,9 @@ export default function ProjectDetail() {
                               }
                             } : contextNotes;
 
-                            console.log('📝 미팅 노트 데이터:', {
-                              meetingId: meeting.id,
-                              meetingTitle: meeting.title,
-                              meetingObject: meeting,
-                              hasOriginalNotes: !!meeting.meetingNotes?.content,
-                              meetingNotesField: meeting.meetingNotes,
-                              contextNotes,
-                              finalMeetingNotes: meetingNotes
-                            });
+                            console.log('📝 미팅 클릭됨!', meeting.title);
+                            console.log('미팅 노트 필드:', meeting.meetingNotes);
+                            console.log('최종 설정될 노트:', meetingNotes);
 
                             setSelectedMeetingNotes(meetingNotes);
                             setSelectedMeetingActionItems(meetingActionItems);
@@ -1810,7 +1804,7 @@ export default function ProjectDetail() {
                         {selectedMeetingNotes ? (
                           <div className="prose prose-sm max-w-none">
                             {/* 미팅 노트가 단순 텍스트일 경우 */}
-                            {typeof selectedMeetingNotes.content === 'string' && (
+                            {selectedMeetingNotes && typeof selectedMeetingNotes.content === 'string' && (
                               <div className="mb-6">
                                 <h4 className="flex items-center text-sm font-semibold text-gray-900 mb-3">
                                   <FileText className="w-4 h-4 mr-2 text-blue-500" />

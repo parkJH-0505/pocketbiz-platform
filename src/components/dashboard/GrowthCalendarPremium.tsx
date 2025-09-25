@@ -135,53 +135,6 @@ const GrowthCalendarPremium: React.FC = () => {
       }
     });
 
-    // 현재 주에 보여줄 테스트 스마트매칭 이벤트 추가
-    const today = new Date();
-    const testSmartMatchingEvents = [
-      {
-        event: {
-          id: 'test-tips-current',
-          category: 'tips_program',
-          title: 'TIPS 프로그램 마감',
-          description: '테크 스타트업 지원 프로그램 마감일입니다.',
-          fundingAmount: '최대 5억원',
-          hostOrganization: '중소벤처기업부',
-          applicationStartDate: new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000),
-          applicationEndDate: new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000),
-          supportField: 'R&D 자금'
-        } as any,
-        score: 92,
-        matchingReasons: ['기술력 우수', 'R&D 역량 충족'],
-        urgencyLevel: 'high',
-        daysUntilDeadline: 2,
-        recommendedActions: ['사업계획서 준비']
-      },
-      {
-        event: {
-          id: 'test-gov-current',
-          category: 'government_support',
-          title: '정부지원 창업자금',
-          description: '정부지원 창업자금 신청 마감일입니다.',
-          supportAmount: '최대 2억원',
-          hostOrganization: '창업진흥원',
-          applicationStartDate: new Date(today.getTime() - 20 * 24 * 60 * 60 * 1000),
-          applicationEndDate: new Date(today.getTime() + 5 * 24 * 60 * 60 * 1000),
-          supportField: '창업자금'
-        } as any,
-        score: 85,
-        matchingReasons: ['사업 단계 적합'],
-        urgencyLevel: 'medium',
-        daysUntilDeadline: 5,
-        recommendedActions: ['신청서 작성']
-      }
-    ];
-
-    testSmartMatchingEvents.forEach(matchingResult => {
-      const transformResult = transformSmartMatchingEvent(matchingResult);
-      if (transformResult.success && transformResult.event) {
-        events.push(transformResult.event);
-      }
-    });
 
     return events;
   }, [weeklySchedule, schedules, refreshKey]);

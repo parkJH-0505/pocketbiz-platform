@@ -18,7 +18,8 @@ import {
   Target,
   Edit,
   ArrowRight,
-  Filter
+  Filter,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useKPIDiagnosis } from '../../contexts/KPIDiagnosisContext';
