@@ -68,7 +68,7 @@ import ConnectAI from './pages/startup/ConnectAI';
 import NotificationCenterPage from './pages/startup/NotificationCenter';
 import VDR from './pages/startup/VDR';
 import Sprint1Verification from './pages/startup/Sprint1Verification';
-import ContextManagerTest from './pages/startup/ContextManagerTest';
+// import ContextManagerTest from './pages/startup/ContextManagerTest';
 import ContextRegistryTest from './pages/startup/ContextRegistryTest';
 import ContextBridgeTest from './pages/startup/ContextBridgeTest';
 // Migration test pages removed - no longer needed in production
@@ -212,7 +212,7 @@ function App() {
                             <Route path="verify" element={<Sprint1Verification />} />
 
                             {/* Sprint 2 - Context Manager 테스트 페이지 */}
-                            <Route path="context-test" element={<ContextManagerTest />} />
+                            {/* <Route path="context-test" element={<ContextManagerTest />} /> */}
                             <Route path="registry-test" element={<ContextRegistryTest />} />
                             <Route path="bridge-test" element={<ContextBridgeTest />} />
 

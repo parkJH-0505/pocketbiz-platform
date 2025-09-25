@@ -93,16 +93,46 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
   const calendarEnd = startOfWeek(addDays(monthEnd, 6), { weekStartsOn: 1 });
   const calendarDates = eachDayOfInterval({ start: calendarStart, end: addDays(calendarEnd, 6) });
 
-  // calendar-refresh 이벤트 리스너
+  // calendar-refresh 이벤트 리스너 (useCallback으로 최적화)
+  const handleCalendarRefresh = useCallback(() => {
+    setRefreshKey(prev => prev + 1);
+  }, []);
+
   useEffect(() => {
-    const handleCalendarRefresh = () => {
-      setRefreshKey(prev => prev + 1);
-    };
     window.addEventListener('calendar-refresh', handleCalendarRefresh);
     return () => {
       window.removeEventListener('calendar-refresh', handleCalendarRefresh);
     };
-  }, []);
+  }, [handleCalendarRefresh]);
+
+  // 드래그&드롭 핸들러들 최적화
+  const handleDragOver = useCallback((e: React.DragEvent, dateString: string) => {
+    e.preventDefault();
+    if (draggedEvent) {
+      setHoveredDay(dateString);
+    }
+  }, [draggedEvent, setHoveredDay]);
+
+  const handleDragLeave = useCallback(() => {
+    setHoveredDay(null);
+  }, [setHoveredDay]);
+
+  const handleDrop = useCallback(async (e: React.DragEvent, date: Date) => {
+    e.preventDefault();
+    if (draggedEvent) {
+      try {
+        const success = await addEventToCalendar(draggedEvent, date);
+        if (success) {
+          setRefreshKey(prev => prev + 1);
+        }
+      } catch (error) {
+        console.error('Failed to add event:', error);
+      } finally {
+        setDraggedEvent(null);
+        setHoveredDay(null);
+      }
+    }
+  }, [draggedEvent, addEventToCalendar, setDraggedEvent, setHoveredDay]);
 
   // 통합된 캘린더 이벤트 생성
   const unifiedEvents = useMemo(() => {
