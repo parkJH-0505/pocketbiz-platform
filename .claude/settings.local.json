@@ -59,7 +59,8 @@
       "Bash(gh run list:*)",
       "Bash(git restore:*)",
       "Bash(start http://localhost:5176/pocketbiz-platform/)",
-      "Bash(xargs sed:*)"
+      "Bash(xargs sed:*)",
+      "Bash(git mv:*)"
     ],
     "deny": [],
     "ask": []

@@ -864,7 +864,18 @@ const WeeklyAgenda: React.FC<WeeklyAgendaProps> = React.memo(({
   setRefreshKey
 }) => {
   return (
-    <div className="space-y-1">
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      {/* 테이블 헤더 */}
+      <div className="flex bg-gray-50 border-b border-gray-200">
+        <div className="w-24 px-3 py-2 text-xs font-semibold text-gray-700 border-r border-gray-200">
+          날짜
+        </div>
+        <div className="flex-1 px-3 py-2 text-xs font-semibold text-gray-700">
+          일정
+        </div>
+      </div>
+
+      {/* 테이블 바디 */}
       {weekDates.map((date, dayIndex) => {
         const dayEvents = getEventsForDate(date);
         const dateString = format(date, 'yyyy-MM-dd');
@@ -872,121 +883,108 @@ const WeeklyAgenda: React.FC<WeeklyAgendaProps> = React.memo(({
         const isToday = isSameDay(date, new Date());
 
         return (
-          <div key={dayIndex} className="mb-3">
-            {/* 강화된 날짜 헤더 */}
-            <div className={`flex items-center gap-3 py-3 px-4 rounded-lg shadow-sm mb-2 ${
-              isToday
-                ? 'bg-gradient-to-r from-blue-100 to-blue-50 border border-blue-200'
-                : 'bg-gradient-to-r from-gray-100 to-gray-50 border border-gray-200'
+          <div
+            key={dayIndex}
+            className={`flex border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+              isDragOver ? 'bg-blue-50' : ''
+            }`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (draggedEvent) {
+                setHoveredDay(dateString);
+              }
+            }}
+            onDragLeave={() => {
+              setHoveredDay(null);
+            }}
+            onDrop={async (e) => {
+              e.preventDefault();
+              if (draggedEvent) {
+                try {
+                  const success = await addEventToCalendar(draggedEvent, date);
+                  if (success) {
+                    setRefreshKey(prev => prev + 1);
+                  }
+                } catch (error) {
+                  console.error('Failed to add event:', error);
+                } finally {
+                  setDraggedEvent(null);
+                  setHoveredDay(null);
+                }
+              }
+            }}
+          >
+            {/* 왼쪽 날짜 컬럼 */}
+            <div className={`w-24 px-3 py-3 border-r border-gray-200 flex-shrink-0 ${
+              isToday ? 'bg-blue-50' : ''
             }`}>
-              <div className={`w-3 h-3 rounded-full ${
-                isToday ? 'bg-blue-500' : dayEvents.length > 0 ? 'bg-green-500' : 'bg-gray-400'
-              }`}></div>
-              <div className="flex-1">
-                <h4 className={`font-semibold text-sm ${
-                  isToday ? 'text-blue-800' : 'text-gray-800'
+              <div className="text-center">
+                <div className={`text-xs font-semibold ${
+                  isToday ? 'text-blue-700' : 'text-gray-600'
                 }`}>
-                  {format(date, 'M월 d일', { locale: ko })} ({format(date, 'E', { locale: ko })})
-                </h4>
-              </div>
-              {isToday && (
-                <span className="px-2 py-1 bg-blue-600 text-white rounded-full text-xs font-medium">
-                  오늘
-                </span>
-              )}
-              <div className={`text-xs font-medium px-2 py-1 rounded-full ${
-                dayEvents.length > 0
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-100 text-gray-500'
-              }`}>
-                {dayEvents.length}개
+                  {format(date, 'M/d', { locale: ko })}
+                </div>
+                <div className={`text-xs ${
+                  isToday ? 'text-blue-600' : 'text-gray-500'
+                }`}>
+                  {format(date, 'E', { locale: ko })}
+                </div>
+                {isToday && (
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mx-auto mt-1"></div>
+                )}
               </div>
             </div>
 
-            {/* 개선된 이벤트 리스트 */}
-            <div
-              className={`ml-2 rounded-lg border ${
-                isDragOver ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white'
-              }`}
-              onDragOver={(e) => {
-                e.preventDefault();
-                if (draggedEvent) {
-                  setHoveredDay(dateString);
-                }
-              }}
-              onDragLeave={() => {
-                setHoveredDay(null);
-              }}
-              onDrop={async (e) => {
-                e.preventDefault();
-                if (draggedEvent) {
-                  try {
-                    const success = await addEventToCalendar(draggedEvent, date);
-                    if (success) {
-                      setRefreshKey(prev => prev + 1);
-                    }
-                  } catch (error) {
-                    console.error('Failed to add event:', error);
-                  } finally {
-                    setDraggedEvent(null);
-                    setHoveredDay(null);
-                  }
-                }
-              }}
-            >
+            {/* 오른쪽 일정 컬럼 */}
+            <div className="flex-1 px-3 py-2">
               {isDragOver && (
-                <div className="px-4 py-3 text-sm text-blue-600 bg-blue-100 text-center border-b border-blue-200">
+                <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded mb-2 text-center">
                   ✨ 드롭하여 추가
                 </div>
               )}
 
               {dayEvents.length > 0 ? (
-                dayEvents.map((event, eventIndex) => (
-                  <div
-                    key={eventIndex}
-                    className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer group transition-colors ${
-                      eventIndex < dayEvents.length - 1 ? 'border-b border-gray-100' : ''
-                    }`}
-                  >
-                    {/* 우선순위 점 */}
-                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                      event.priority === 'high' ? 'bg-red-500 shadow-sm' :
-                      event.priority === 'medium' ? 'bg-yellow-500 shadow-sm' : 'bg-green-500 shadow-sm'
-                    }`}></div>
+                <div className="space-y-1.5">
+                  {dayEvents.map((event, eventIndex) => (
+                    <div
+                      key={eventIndex}
+                      className="flex items-center gap-2 p-2 rounded hover:bg-white border border-transparent hover:border-gray-200 cursor-pointer group transition-all"
+                    >
+                      {/* 우선순위 점 */}
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                        event.priority === 'high' ? 'bg-red-500' :
+                        event.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                      }`}></div>
 
-                    {/* 이벤트 정보 */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 justify-between">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-medium text-sm text-gray-900 truncate">
-                            {event.title}
+                      {/* 이벤트 정보 */}
+                      <div className="flex-1 min-w-0 flex items-center gap-2">
+                        <span className="font-medium text-sm text-gray-900 truncate">
+                          {event.title}
+                        </span>
+                        {event.time && (
+                          <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded flex-shrink-0">
+                            {event.time}
                           </span>
-                          {event.time && (
-                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded flex-shrink-0">
-                              {event.time}
-                            </span>
-                          )}
-                        </div>
+                        )}
+                      </div>
 
-                        {/* 소스 타입 표시 */}
-                        <div className="flex-shrink-0">
-                          {event.sourceType === 'smart_matching' ? (
-                            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded font-medium">
-                              매칭
-                            </span>
-                          ) : (
-                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                              일정
-                            </span>
-                          )}
-                        </div>
+                      {/* 소스 타입 */}
+                      <div className="flex-shrink-0">
+                        {event.sourceType === 'smart_matching' ? (
+                          <span className="text-xs text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded font-medium">
+                            매칭
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                            일정
+                          </span>
+                        )}
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               ) : !isDragOver ? (
-                <div className="px-4 py-6 text-center text-sm text-gray-400">
-                  <div className="text-gray-300 mb-1">📅</div>
+                <div className="text-xs text-gray-400 py-2">
                   일정 없음
                 </div>
               ) : null}

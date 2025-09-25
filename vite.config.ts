@@ -8,13 +8,17 @@ export default defineConfig({
   base: process.env.VERCEL ? '/' : '/pocketbiz-platform/',
   assetsInclude: ['**/*.csv'],
   build: {
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 2000,
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['recharts', 'react-dnd', 'react-dnd-html5-backend'],
-          utils: ['date-fns', 'dompurify']
+          charts: ['chart.js', 'recharts', 'react-chartjs-2'],
+          motion: ['framer-motion'],
+          ui: ['react-dnd', 'react-dnd-html5-backend'],
+          utils: ['date-fns', 'dompurify', 'papaparse', 'jszip'],
+          pdf: ['jspdf', 'html2canvas'],
+          icons: ['lucide-react']
         }
       }
     }
