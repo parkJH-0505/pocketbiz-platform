@@ -1587,18 +1587,23 @@ export default function ProjectDetail() {
                             const meetingActionItems = getActionItemsByMeeting(meeting.id);
 
                             // 미팅 자체에 노트가 있으면 우선 사용, 없으면 context에서 가져온 것 사용
-                            const meetingNotes = meeting.meetingNotes?.content ? {
+                            // meeting.meetingNotes가 string이면 바로 사용, object면 content 사용
+                            const noteContent = typeof meeting.meetingNotes === 'string'
+                              ? meeting.meetingNotes
+                              : meeting.meetingNotes?.content;
+
+                            const meetingNotes = noteContent ? {
                               id: meeting.id,
                               meetingId: meeting.id,
-                              content: meeting.meetingNotes.content,
-                              lastModified: meeting.meetingNotes.updatedAt,
-                              modifiedBy: meeting.meetingNotes.updatedBy,
-                              createdAt: meeting.meetingNotes.updatedAt,
-                              createdBy: meeting.meetingNotes.updatedBy,
+                              content: noteContent,
+                              lastModified: meeting.meetingNotes?.updatedAt || new Date(),
+                              modifiedBy: meeting.meetingNotes?.updatedBy || 'System',
+                              createdAt: meeting.meetingNotes?.updatedAt || new Date(),
+                              createdBy: meeting.meetingNotes?.updatedBy || 'System',
                               version: 1,
                               // 간단한 형식의 노트로 표시
                               discussion: {
-                                keyPoints: [meeting.meetingNotes.content],
+                                keyPoints: [noteContent],
                                 concerns: []
                               },
                               outcomes: {

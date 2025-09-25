@@ -123,6 +123,14 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
         events.push(event);
       });
 
+    // 기존 스마트매칭 이벤트 변환 (마감일 기준으로 해당 주에 표시)
+    comprehensiveEvents.forEach((matchingResult) => {
+      const transformResult = transformSmartMatchingEvent(matchingResult);
+      if (transformResult.success && transformResult.event) {
+        events.push(transformResult.event);
+      }
+    });
+
     // 빌드업 일정 변환
     weeklySchedule.forEach(scheduleEvent => {
       const transformResult = transformBuildupEvent(scheduleEvent);
