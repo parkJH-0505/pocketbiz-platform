@@ -490,6 +490,9 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
                 addEventToCalendar={addEventToCalendarAPI}
                 setDraggedEvent={setDraggedEvent}
                 setRefreshKey={setRefreshKey}
+                handleDragOver={handleDragOver}
+                handleDragLeave={handleDragLeave}
+                handleDrop={handleDrop}
               />
             </div>
           )}
@@ -878,6 +881,9 @@ interface WeeklyAgendaProps {
   addEventToCalendar: (event: any, date: Date) => Promise<boolean>;
   setDraggedEvent: (event: any) => void;
   setRefreshKey: (fn: (prev: number) => number) => void;
+  handleDragOver: (e: React.DragEvent, dateString: string) => void;
+  handleDragLeave: () => void;
+  handleDrop: (e: React.DragEvent, date: Date) => void;
 }
 
 const WeeklyAgenda: React.FC<WeeklyAgendaProps> = React.memo(({
@@ -888,7 +894,10 @@ const WeeklyAgenda: React.FC<WeeklyAgendaProps> = React.memo(({
   draggedEvent,
   addEventToCalendar,
   setDraggedEvent,
-  setRefreshKey
+  setRefreshKey,
+  handleDragOver,
+  handleDragLeave,
+  handleDrop
 }) => {
   // 주간 날짜별 이벤트 데이터 메모이제이션
   const weeklyEventData = useMemo(() => {

@@ -42,7 +42,7 @@ import StartupDashboard from './pages/startup/Dashboard';
 import StartupOnboarding from './pages/startup/Onboarding';
 import StartupHistory from './pages/startup/History';
 import StartupSettings from './pages/startup/Settings';
-import TestPage from './pages/startup/TestPage';
+// import TestPage from './pages/startup/TestPage';
 import KPIDiagnosisPage from './pages/startup/KPIDiagnosisPage';
 
 // Smart Matching Pages
@@ -67,15 +67,8 @@ import PocketBuilder from './pages/startup/PocketBuilder';
 import ConnectAI from './pages/startup/ConnectAI';
 import NotificationCenterPage from './pages/startup/NotificationCenter';
 import VDR from './pages/startup/VDR';
-import Sprint1Verification from './pages/startup/Sprint1Verification';
-// Temporarily disabled for Vercel deployment issues
-// import ContextManagerTest from './pages/startup/ContextManagerTest';
-// import ContextRegistryTest from './pages/startup/ContextRegistryTest';
-// import ContextBridgeTest from './pages/startup/ContextBridgeTest';
-// Migration test pages removed - no longer needed in production
-// Test pages - not committed to git, commenting for Vercel deployment
-// import PhaseTransitionTest from './pages/startup/PhaseTransitionTest';
-// import Sprint5TestRunner from './pages/startup/Sprint5TestRunner';
+// import Sprint1Verification from './pages/startup/Sprint1Verification';
+// All test-related imports removed for Vercel deployment compatibility
 
 // Admin Pages
 import AdminKPILibrary from './pages/admin/KPILibrary';
@@ -167,7 +160,7 @@ function App() {
                             <Route index element={<Navigate to="/startup/dashboard" replace />} />
                             <Route path="dashboard" element={<StartupDashboard />} />
                             <Route path="onboarding" element={<StartupOnboarding />} />
-                            <Route path="test" element={<TestPage />} />
+                            {/* <Route path="test" element={<TestPage />} /> */}
 
                             {/* KPI 진단 통합 페이지 (Sprint 17) */}
                             <Route path="kpi" element={<KPIDiagnosisPage />} />
@@ -208,7 +201,7 @@ function App() {
                             <Route path="settings" element={<StartupSettings />} />
 
                             {/* Sprint 1 검증 페이지 */}
-                            <Route path="verify" element={<Sprint1Verification />} />
+                            {/* <Route path="verify" element={<Sprint1Verification />} /> */}
 
                             {/* Sprint 2 - Context Manager 테스트 페이지 - Temporarily disabled */}
                             {/* <Route path="context-test" element={<ContextManagerTest />} /> */}
