@@ -27,7 +27,8 @@ dist-ssr
 src/pages/startup/*Test*.tsx
 
 # Migration files (temporary)
-src/utils/migration*.ts
+# Migration files temporarily commented for Vercel deployment
+# src/utils/migration*.ts
 
 # Performance logs
 *.perf.log
