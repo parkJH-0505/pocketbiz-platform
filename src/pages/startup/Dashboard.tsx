@@ -2,9 +2,9 @@
  * Dashboard Page - 캘린더 중심 레이아웃
  *
  * "이벤트 발견 → 액션 → 트래킹" 중심의 인터랙티브 대시보드
- * - 상단: 확장된 인터랙티브 캘린더 + 통합 이벤트 센터 (70%)
- * - 하단: 성장 모멘텀 트래커 + 투자자 추천 (30%) - 50:50 비율
- * - 플로팅 버튼: 회사 생체신호 (기존 KPI + 새로운 기능 통합)
+ * - 메인: 확장된 인터랙티브 캘린더 (75%)
+ * - 하단: 투자자 추천 - 한 명씩 가로 스크롤 (25%)
+ * - 플로팅 버튼: 회사 생체신호 (KPI + 성장 모멘텀 통합)
  * - 드래그&드롭 기반 직관적 일정 관리
  */
 
@@ -15,8 +15,7 @@ import { DashboardProvider } from '../../contexts/DashboardContext';
 
 // 새로운 대시보드 컴포넌트들
 import InteractiveCalendarCenter from '../../components/dashboard/InteractiveCalendarCenter';
-import GrowthMomentumTracker from '../../components/dashboard/GrowthMomentumTracker';
-import CompanyVitalSigns from '../../components/dashboard/CompanyVitalSigns'; // 플로팅 버튼용
+import CompanyVitalSigns from '../../components/dashboard/CompanyVitalSigns'; // 플로팅 버튼용 (GrowthMomentumTracker 통합)
 import WeeklyVCRecommendation from '../../components/dashboard/WeeklyVCRecommendation';
 import ActionErrorBoundary from '../../components/dashboard/ActionErrorBoundary';
 import { DashboardInteractionProvider } from '../../contexts/DashboardInteractionContext';
@@ -74,29 +73,27 @@ const Dashboard: React.FC = () => {
       <DashboardProvider>
         <div className="min-h-screen bg-gray-50">
         <DashboardInteractionProvider>
-          <div className="max-w-7xl mx-auto p-6">
-            {/* 상단: 확장된 인터랙티브 캘린더 + 이벤트 센터 (70%) */}
+          <div className="max-w-7xl mx-auto p-6 space-y-6">
+            {/* 메인: 확장된 인터랙티브 캘린더 (75% 높이) */}
             <motion.section
-              className="mb-8"
+              className="flex-1"
+              style={{ minHeight: '70vh' }}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
               <ActionErrorBoundary>
-                <InteractiveCalendarCenter />
+                <InteractiveCalendarCenter className="h-full" />
               </ActionErrorBoundary>
             </motion.section>
 
-            {/* 하단: 2개 컴포넌트 그리드 (50:50 비율) */}
+            {/* 하단: 투자자 추천 (25% 높이 - 가로 전체) */}
             <motion.section
-              className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+              className="w-full"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
             >
-              <ActionErrorBoundary>
-                <GrowthMomentumTracker />
-              </ActionErrorBoundary>
               <ActionErrorBoundary>
                 <WeeklyVCRecommendation />
               </ActionErrorBoundary>

@@ -49,7 +49,8 @@
       "Bash(copy:*)",
       "Bash(rm:*)",
       "Bash(netstat:*)",
-      "Bash(clip)"
+      "Bash(clip)",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "ask": []
