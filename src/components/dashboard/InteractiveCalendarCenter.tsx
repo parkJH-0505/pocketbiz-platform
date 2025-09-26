@@ -17,10 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  AlertTriangle,
-  FileText,
   Clock,
-  Heart,
   ExternalLink,
   X,
   Search,
@@ -58,31 +55,21 @@ import type { MatchingResult } from '../../types/smartMatching/types';
 // 뷰 모드 정의
 type ViewMode = 'calendar' | 'agenda';
 
-// 탭 정의
-type TabType = 'smart_matching' | 'urgent' | 'todo_docs';
-
-interface Tab {
-  id: TabType;
-  title: string;
-  icon: any;
-  badge?: number;
-}
-
-
 interface InteractiveCalendarCenterProps {
   className?: string;
 }
 
 const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ className = '' }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('agenda'); // 기본값을 아젠다로 설정
-  const [activeTab, setActiveTab] = useState<TabType>('smart_matching');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [dropLoading, setDropLoading] = useState(false);
+  const [dropFeedback, setDropFeedback] = useState<{ type: 'success' | 'error'; message: string; targetDate?: string } | null>(null);
 
   // Contexts
-  const { draggedEvent, setDraggedEvent, hoveredDay, setHoveredDay, interestedEvents, dismissedEvents } = useDashboardInteraction();
+  const { draggedEvent, setDraggedEvent, hoveredDay, setHoveredDay, dismissedEvents } = useDashboardInteraction();
   const { overallScore, strongestAxis, progress } = useKPIDiagnosis();
-  const { cart } = useBuildupContext();
+  const { cart, activeProjects } = useBuildupContext();
   const { filesUploaded } = useVDRContext();
   const { weeklySchedule, currentWeek, navigateWeek } = useDashboard();
   const { schedules } = useScheduleContext();
@@ -96,7 +83,10 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
     apiError,
     addEventToCalendarAPI,
     tabCounts,
-    refreshSmartMatching
+    refreshSmartMatching,
+    draggedEvents,
+    addDraggedEvent,
+    removeDraggedEvent
   } = useCalendarContext();
 
   // 월간 날짜 생성
@@ -130,11 +120,19 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
     setHoveredDay(null);
   }, [setHoveredDay]);
 
-  const handleDrop = useCallback(async (e: React.DragEvent, date: Date) => {
-    e.preventDefault();
+  const handleDrop = useCallback(async (e: React.DragEvent | null, date: Date) => {
+    if (e) e.preventDefault();
     if (draggedEvent) {
+      const dateString = format(date, 'yyyy-MM-dd');
+
       try {
+        setDropLoading(true);
+
+        // CalendarContext의 addDraggedEvent를 호출하여 실제 데이터 저장
+        addDraggedEvent(draggedEvent, date);
+
         const success = await addEventToCalendarAPI(draggedEvent, date);
+
         if (success) {
           setRefreshKey(prev => prev + 1);
 
@@ -162,60 +160,212 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
           localStorage.setItem('calendarBackup', JSON.stringify(calendarBackup));
 
           console.log('💾 이벤트 드래그 저장 완료:', historyEntry);
+
+          // 성공 피드백 표시
+          setDropFeedback({
+            type: 'success',
+            message: `"${draggedEvent.title}"이 ${format(date, 'M월 d일', { locale: ko })}에 추가되었습니다`,
+            targetDate: dateString
+          });
+
+          // 3초 후 피드백 제거
+          setTimeout(() => setDropFeedback(null), 3000);
+        } else {
+          throw new Error('API 호출 실패');
         }
       } catch (error) {
         console.error('Failed to add event:', error);
+
+        // 에러 피드백 표시
+        setDropFeedback({
+          type: 'error',
+          message: '이벤트 추가에 실패했습니다. 다시 시도해주세요.',
+          targetDate: dateString
+        });
+
+        // 5초 후 피드백 제거
+        setTimeout(() => setDropFeedback(null), 5000);
       } finally {
+        setDropLoading(false);
         setDraggedEvent(null);
         setHoveredDay(null);
       }
     }
-  }, [draggedEvent, addEventToCalendarAPI, setDraggedEvent, setHoveredDay]);
+  }, [draggedEvent, addEventToCalendarAPI, addDraggedEvent, setDraggedEvent, setHoveredDay]);
+
+  // 터치 드롭 이벤트 리스너 (모바일 지원) - handleDrop이 정의된 후에 위치
+  useEffect(() => {
+    const handleTouchDrop = (e: CustomEvent) => {
+      const { dateString } = e.detail;
+      if (draggedEvent && dateString) {
+        const targetDate = new Date(dateString);
+        handleDrop(null as any, targetDate);
+      }
+    };
+
+    document.addEventListener('touchDrop', handleTouchDrop as EventListener);
+    return () => {
+      document.removeEventListener('touchDrop', handleTouchDrop as EventListener);
+    };
+  }, [draggedEvent, handleDrop]);
 
   // 통합된 캘린더 이벤트 생성
   const unifiedEvents = useMemo(() => {
     const events: UnifiedCalendarEvent[] = [];
 
-    // ScheduleContext에서 스케줄 추가
-    schedules
-      .filter(schedule => schedule.type === 'external_meeting' && schedule.metadata?.source === 'smart_matching')
-      .forEach(schedule => {
-        const event: UnifiedCalendarEvent = {
-          id: schedule.id,
-          sourceType: 'smart_matching',
-          title: schedule.title,
-          description: schedule.description || '',
-          date: new Date(schedule.date),
-          time: schedule.time,
-          category: schedule.metadata?.category || 'external_meeting',
-          priority: schedule.priority === 'high' ? 'high' : schedule.priority === 'medium' ? 'medium' : 'low',
-          status: schedule.status === 'completed' ? 'completed' : 'pending',
-          metadata: {
-            ...schedule.metadata,
-            addedByDragDrop: true
-          }
-        } as UnifiedCalendarEvent;
-        events.push(event);
-      });
+    // 디버그 로그
+    console.log('📊 캘린더 데이터 디버그:');
+    console.log('- activeProjects:', activeProjects?.length || 0, '개');
+    console.log('- activeProjects 상세:', activeProjects);
 
-    // 스마트매칭 이벤트 변환 (API 기반)
-    smartMatchingEvents.forEach((matchingResult) => {
-      const transformResult = transformSmartMatchingEvent(matchingResult);
-      if (transformResult.success && transformResult.event) {
-        events.push(transformResult.event);
-      }
+    // activeProjects의 구체적 구조 확인
+    activeProjects?.forEach((project, index) => {
+      console.log(`프로젝트 ${index + 1}:`, {
+        id: project.id,
+        title: project.title || project.name,
+        nextMeeting: project.nextMeeting,
+        meetings: project.meetings?.length || 0,
+        meetingsData: project.meetings
+      });
     });
 
-    // 빌드업 일정 변환
-    weeklySchedule.forEach(scheduleEvent => {
-      const transformResult = transformBuildupEvent(scheduleEvent);
-      if (transformResult.success && transformResult.event) {
-        events.push(transformResult.event);
+    console.log('- schedules:', schedules?.length || 0, '개');
+    console.log('- schedules 내용:', schedules);
+
+    // schedules 배열에서 빌드업 프로젝트 관련 일정 찾기
+    const buildupSchedules = schedules?.filter(schedule =>
+      schedule.projectId === 'PRJ-001' ||
+      schedule.projectId === 'PRJ-002' ||
+      schedule.type?.includes('buildup') ||
+      schedule.type?.includes('meeting') ||
+      schedule.category?.includes('buildup')
+    );
+    console.log('🔍 빌드업 관련 schedules:', buildupSchedules?.length || 0, '개');
+    console.log('🔍 빌드업 schedules 상세:', buildupSchedules);
+
+    // 최근 생성된 스케줄들 확인 (오늘 이후 날짜)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const recentSchedules = schedules?.filter(schedule => {
+      const scheduleDate = new Date(schedule.date);
+      return scheduleDate >= today;
+    });
+    console.log('📅 오늘 이후 schedules:', recentSchedules?.length || 0, '개');
+    recentSchedules?.slice(0, 5).forEach((schedule, index) => {
+      console.log(`📅 최근 스케줄 ${index + 1}:`, {
+        id: schedule.id,
+        title: schedule.title,
+        date: schedule.date,
+        type: schedule.type,
+        projectId: schedule.projectId,
+        category: schedule.category
+      });
+    });
+
+    console.log('- draggedEvents:', draggedEvents?.length || 0, '개');
+
+    // 1. 빌드업 프로젝트 실제 일정 (schedules 배열에서 진짜 데이터 사용!)
+    const buildupRelatedSchedules = schedules?.filter(schedule => {
+      // 명확한 빌드업 프로젝트 ID를 가진 일정만
+      if (schedule.projectId === 'PRJ-001' || schedule.projectId === 'PRJ-002') {
+        return true;
       }
+
+      // 빌드업 관련 타입들만 (일반 meeting은 제외)
+      if (schedule.type === 'buildup_project' || schedule.type?.includes('buildup')) {
+        return true;
+      }
+
+      // 카테고리가 명확히 buildup인 것만
+      if (schedule.category === 'buildup' || schedule.category?.includes('buildup')) {
+        return true;
+      }
+
+      return false;
+    });
+
+    // 중복 제거 (같은 title과 date를 가진 것들)
+    const uniqueBuildupSchedules = buildupRelatedSchedules?.filter((schedule, index, self) =>
+      index === self.findIndex(s =>
+        s.title === schedule.title &&
+        new Date(s.date).toDateString() === new Date(schedule.date).toDateString()
+      )
+    );
+
+    console.log('🔗 필터링 전 빌드업 스케줄:', buildupRelatedSchedules?.length || 0, '개');
+    console.log('🔗 중복 제거 후 빌드업 스케줄:', uniqueBuildupSchedules?.length || 0, '개');
+
+    uniqueBuildupSchedules?.forEach((schedule, index) => {
+      // 해당 프로젝트 정보 찾기
+      const relatedProject = activeProjects?.find(project =>
+        project.id === schedule.projectId
+      );
+
+      const event: UnifiedCalendarEvent = {
+        id: `real-schedule-${schedule.id}`,
+        sourceType: 'real_buildup_schedule',  // 진짜 데이터임을 표시
+        title: schedule.projectId
+          ? `[${relatedProject?.title || '프로젝트'}] ${schedule.title}`
+          : schedule.title,
+        description: schedule.description || '',
+        date: new Date(schedule.date),
+        time: schedule.time || '14:00',
+        category: 'buildup',
+        priority: schedule.priority === 'high' ? 'high' : schedule.priority === 'medium' ? 'medium' : 'low',
+        status: schedule.status === 'completed' ? 'completed' : 'pending',
+        metadata: {
+          projectId: schedule.projectId,
+          projectName: relatedProject?.title,
+          pmName: relatedProject?.team?.pm?.name,
+          meetingType: schedule.type,
+          isRealData: true  // 진짜 데이터임을 표시
+        }
+      } as UnifiedCalendarEvent;
+      events.push(event);
+    });
+
+    // 2. 외부 미팅 일정은 제거 (스마트 매칭 이벤트가 자동으로 들어가는 것을 방지)
+    // schedules
+    //   .filter(schedule => schedule.type === 'external_meeting')
+    //   .forEach(schedule => {
+    //     const event: UnifiedCalendarEvent = {
+    //       id: schedule.id,
+    //       sourceType: 'buildup_schedule',
+    //       title: schedule.title,
+    //       description: schedule.description || '',
+    //       date: new Date(schedule.date),
+    //       time: schedule.time,
+    //       category: 'external_meeting',
+    //       priority: schedule.priority === 'high' ? 'high' : schedule.priority === 'medium' ? 'medium' : 'low',
+    //       status: schedule.status === 'completed' ? 'completed' : 'pending',
+    //       metadata: schedule.metadata
+    //     } as UnifiedCalendarEvent;
+    //     events.push(event);
+    //   });
+
+    // 3. 사용자가 드래그로 추가한 스마트매칭 이벤트들만
+    draggedEvents.forEach((draggedEvent) => {
+      const event: UnifiedCalendarEvent = {
+        id: draggedEvent.id,
+        sourceType: draggedEvent.sourceType || 'smart_matching',
+        title: draggedEvent.title,
+        description: draggedEvent.description || '',
+        date: new Date(draggedEvent.date),
+        time: `${draggedEvent.startTime} - ${draggedEvent.endTime}`,
+        category: 'smart_matching',
+        priority: draggedEvent.priority || 'medium',
+        status: draggedEvent.status === 'completed' ? 'completed' : 'pending',
+        metadata: {
+          addedByDragDrop: true,
+          originalEventId: draggedEvent.originalEventId,
+          sourceType: draggedEvent.sourceType
+        }
+      } as UnifiedCalendarEvent;
+      events.push(event);
     });
 
     return events;
-  }, [weeklySchedule, schedules, refreshKey]);
+  }, [activeProjects, schedules, refreshKey, draggedEvents]);
 
   // 특정 날짜의 이벤트 가져오기
   const getEventsForDate = (date: Date) => {
@@ -241,146 +391,112 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
       });
   }, [smartMatchingEvents, searchQuery, dismissedEvents]);
 
-  // 로컬 탭별 카운트 업데이트 (API 카운트와 병합)
-  const localTabCounts = useMemo(() => {
-    const urgentCount = filteredEvents.filter(e => e.daysUntilDeadline <= 14).length;
-    const todoCount = (cart?.items?.length || 0) + (filesUploaded?.length || 0);
-
-    return {
-      smart_matching: tabCounts?.smart_matching || filteredEvents.length,
-      urgent: tabCounts?.urgent || (urgentCount + (overallScore < 70 ? 1 : 0)), // KPI 위험도 포함
-      todo_docs: tabCounts?.todo_docs || todoCount
-    };
-  }, [filteredEvents, cart, filesUploaded, overallScore, tabCounts]);
-
-  // TABS 업데이트
-  const TABS: Tab[] = [
-    {
-      id: 'smart_matching',
-      title: '스마트매칭',
-      icon: Sparkles,
-      badge: localTabCounts.smart_matching
-    },
-    {
-      id: 'urgent',
-      title: '긴급사항',
-      icon: AlertTriangle,
-      badge: localTabCounts.urgent
-    },
-    {
-      id: 'todo_docs',
-      title: '할일문서',
-      icon: FileText,
-      badge: localTabCounts.todo_docs
-    }
-  ];
+  // 스마트매칭 카운트
+  const smartMatchingCount = filteredEvents.length;
 
   return (
     <div className={`bg-white rounded-2xl shadow-sm overflow-hidden ${className}`}>
-      {/* 간단한 헤더 - 월/년도와 탭만 */}
-      <div className="px-6 py-3 bg-white border-b border-gray-100">
+      {/* 통합 헤더 - 단일 레이어 */}
+      <div className="px-6 py-3 bg-gradient-to-r from-gray-50 to-blue-50/30 border-b border-gray-100">
         <div className="flex items-center justify-between">
-          {/* 왼쪽: 간단한 날짜 헤더 */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigateWeek('prev')}
-              className="p-1 hover:bg-gray-100 rounded-md transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4 text-gray-600" />
-            </button>
-            <h3 className="font-semibold text-gray-900">
-              {format(currentWeek, 'yyyy년 M월', { locale: ko })}
-            </h3>
-            <button
-              onClick={() => navigateWeek('next')}
-              className="p-1 hover:bg-gray-100 rounded-md transition-colors"
-            >
-              <ChevronRight className="w-4 h-4 text-gray-600" />
-            </button>
+          {/* 왼쪽: 제목 + 뷰 모드 + 네비게이션 */}
+          <div className="flex items-center gap-6">
+            {/* 메인 타이틀 */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <Calendar className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="text-lg font-bold text-gray-900">성장 캘린더</h1>
+            </div>
+
+            {/* 구분선 */}
+            <div className="w-px h-6 bg-gray-300"></div>
+
+            {/* 뷰 모드 토글 */}
+            <div className="flex bg-white rounded-lg p-1 border border-gray-200">
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${
+                  viewMode === 'calendar'
+                    ? 'bg-gray-100 text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                월간캘린더
+              </button>
+              <button
+                onClick={() => setViewMode('agenda')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${
+                  viewMode === 'agenda'
+                    ? 'bg-gray-100 text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4" />
+                주간아젠다
+              </button>
+            </div>
+
+            {/* 날짜 네비게이션 */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigateWeek('prev')}
+                className="p-1.5 hover:bg-white rounded-md transition-colors border border-transparent hover:border-gray-200"
+              >
+                <ChevronLeft className="w-4 h-4 text-gray-600" />
+              </button>
+              <h3 className="font-semibold text-gray-900 min-w-[100px] text-center">
+                {viewMode === 'calendar'
+                  ? format(currentWeek, 'yyyy년 M월', { locale: ko })
+                  : `${format(startOfWeek(currentWeek, { weekStartsOn: 1 }), 'M/d', { locale: ko })} - ${format(addDays(startOfWeek(currentWeek, { weekStartsOn: 1 }), 6), 'M/d', { locale: ko })}`
+                }
+              </h3>
+              <button
+                onClick={() => navigateWeek('next')}
+                className="p-1.5 hover:bg-white rounded-md transition-colors border border-transparent hover:border-gray-200"
+              >
+                <ChevronRight className="w-4 h-4 text-gray-600" />
+              </button>
+            </div>
+
             <button
               onClick={() => navigateWeek('today')}
-              className="px-2 py-1 bg-blue-600 text-white rounded-md text-xs font-medium hover:bg-blue-700 transition-colors"
+              className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
             >
               오늘
             </button>
+          </div>
 
-            {/* API 상태 표시 */}
+          {/* 오른쪽: 통계 + KPI */}
+          <div className="flex items-center gap-4">
+            {/* API 상태 */}
             {apiLoading && (
-              <div className="flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-md text-xs">
-                <div className="w-3 h-3 border border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-lg text-sm">
+                <div className="w-3 h-3 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
                 로딩중
               </div>
             )}
             {apiError && (
-              <div className="px-2 py-1 bg-red-100 text-red-700 rounded-md text-xs" title={apiError}>
-                오류 발생
+              <div className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm" title={apiError}>
+                오류
               </div>
             )}
 
-            {/* 뷰 모드 토글 */}
-            <div className="flex bg-gray-100 rounded-lg p-1 ml-2">
-              <button
-                onClick={() => setViewMode('calendar')}
-                className={`px-2 py-1 text-xs font-medium rounded-md transition-all ${
-                  viewMode === 'calendar'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-                title="캘린더 뷰"
-              >
-                <Calendar className="w-3 h-3" />
-              </button>
-              <button
-                onClick={() => setViewMode('agenda')}
-                className={`px-2 py-1 text-xs font-medium rounded-md transition-all ${
-                  viewMode === 'agenda'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-                title="아젠다 뷰"
-              >
-                <BarChart3 className="w-3 h-3" />
-              </button>
+            {/* 매칭 카운트 */}
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-200">
+              <Sparkles className="w-4 h-4 text-blue-600" />
+              <span className="text-sm text-gray-700">매칭</span>
+              <span className="text-sm font-bold text-blue-600">{smartMatchingCount}개</span>
             </div>
-          </div>
-
-          {/* 오른쪽: 탭 선택기 (컴팩트) */}
-          <div className="flex gap-1 bg-gray-50 p-1 rounded-lg">
-            {TABS.map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-all ${
-                    isActive
-                      ? 'bg-white shadow-sm text-blue-600 font-medium'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  <span className="text-xs">{tab.title}</span>
-                  {tab.badge > 0 && (
-                    <span className={`px-1 py-0.5 text-xs rounded-full ${
-                      isActive
-                        ? 'bg-blue-100 text-blue-600'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {tab.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
           </div>
         </div>
       </div>
 
       {/* 통합 바디 - 경계선 없이 자연스럽게 */}
-      <div className="flex" style={{ minHeight: '600px' }}>
-        {/* 캘린더 영역 (75%) */}
-        <div className="flex-[75] p-6">
+      <div className="flex">
+        {/* 캘린더/아젠다 영역 (75%) */}
+        <div className="flex-[75] p-6 bg-gradient-to-br from-gray-50/30 to-white">
           {viewMode === 'calendar' ? (
             /* 기존 월간 캘린더 뷰 */
             <div className="grid grid-cols-7 gap-3">
@@ -404,11 +520,12 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
               return (
                 <motion.div
                   key={index}
-                  className={`min-h-[110px] rounded-xl border-2 transition-all overflow-hidden ${
+                  data-calendar-day={dateString}
+                  className={`min-h-[110px] rounded-xl border-2 transition-all duration-200 overflow-hidden ${
                     isCurrentDay
                       ? 'border-blue-400 bg-blue-50/50'
                       : isDragOver
-                      ? 'border-blue-400 bg-blue-50 scale-105'
+                      ? 'border-blue-500 bg-blue-50 scale-105 shadow-lg ring-2 ring-blue-200 ring-opacity-50'
                       : isCurrentMonth
                       ? 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
                       : 'border-gray-100 bg-gray-50/50 hover:border-gray-200'
@@ -454,27 +571,52 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
                           initial={{ opacity: 0, scale: 0.9 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.9 }}
-                          className="px-1.5 py-0.5 text-xs rounded-md cursor-pointer group hover:shadow-sm transition-all"
+                          className={`px-1.5 py-0.5 text-xs rounded-md cursor-pointer group hover:shadow-sm transition-all ${
+                            event.metadata?.addedByDragDrop
+                              ? 'ring-1 ring-blue-300 shadow-sm'
+                              : ''
+                          }`}
                           style={{
-                            backgroundColor: event.sourceType === 'smart_matching'
+                            backgroundColor: event.metadata?.addedByDragDrop
+                              ? '#dbeafe'
+                              : event.sourceType === 'smart_matching'
                               ? SMART_MATCHING_CATEGORY_STYLES[event.category]?.bgColor || '#f3f4f6'
                               : '#e0f2fe',
-                            color: event.sourceType === 'smart_matching'
+                            color: event.metadata?.addedByDragDrop
+                              ? '#1e40af'
+                              : event.sourceType === 'smart_matching'
                               ? SMART_MATCHING_CATEGORY_STYLES[event.category]?.textColor || '#374151'
                               : '#0369a1'
                           }}
                         >
-                          <div className="flex items-center gap-1">
-                            {event.sourceType === 'smart_matching' ? (
-                              <span className="text-[10px]">
-                                {SMART_MATCHING_CATEGORY_STYLES[event.category]?.icon || '📅'}
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1">
+                              {event.metadata?.addedByDragDrop ? (
+                                <span className="text-[10px] text-blue-600">📋</span>
+                              ) : event.sourceType === 'smart_matching' ? (
+                                <span className="text-[10px]">
+                                  {SMART_MATCHING_CATEGORY_STYLES[event.category]?.icon || '📅'}
+                                </span>
+                              ) : (
+                                <Users className="w-3 h-3" />
+                              )}
+                              <span className="truncate font-medium">
+                                {event.title.length > 8 ? event.title.substring(0, 8) + '...' : event.title}
                               </span>
-                            ) : (
-                              <Users className="w-3 h-3" />
+                            </div>
+                            {/* 드래그로 추가된 이벤트에만 삭제 버튼 표시 */}
+                            {event.metadata?.addedByDragDrop && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeDraggedEvent(event.id);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 p-0.5 rounded-sm hover:bg-red-100 hover:text-red-600 transition-all"
+                                title="캘린더에서 제거"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
                             )}
-                            <span className="truncate font-medium">
-                              {event.title.length > 8 ? event.title.substring(0, 8) + '...' : event.title}
-                            </span>
                           </div>
                         </motion.div>
                       ))}
@@ -519,63 +661,35 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
                 handleDragOver={handleDragOver}
                 handleDragLeave={handleDragLeave}
                 handleDrop={handleDrop}
+                removeDraggedEvent={removeDraggedEvent}
               />
             </div>
           )}
         </div>
 
-        {/* 이벤트 패널 (25%) - 경계선 대신 배경색으로 구분 */}
-        <div className="flex-[25] bg-gradient-to-b from-gray-50/50 to-white p-4">
-          {/* 검색 바 */}
-          {activeTab === 'smart_matching' && (
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="이벤트 검색..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
+        {/* 스마트매칭 패널 (25%) */}
+        <div className="flex-[25] bg-gradient-to-br from-blue-50/40 via-white to-purple-50/30 border-l-2 border-blue-100 p-4 flex flex-col self-start shadow-sm">
+          {/* 검색 바만 */}
+          <div className="mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="지원사업 검색..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-300 bg-white/80"
+              />
             </div>
-          )}
+          </div>
 
-          {/* 탭 컨텐츠 */}
-          <div className="overflow-y-auto" style={{ maxHeight: 'calc(600px - 80px)' }}>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-3"
-              >
-                {activeTab === 'smart_matching' && (
-                  <SmartMatchingTab
-                    events={filteredEvents}
-                    searchQuery={searchQuery}
-                    onSearchChange={setSearchQuery}
-                    interestedEvents={interestedEvents}
-                  />
-                )}
-                {activeTab === 'urgent' && (
-                  <UrgentTab
-                    urgentEvents={filteredEvents.filter(e => e.daysUntilDeadline <= 14)}
-                    kpiScore={overallScore}
-                    strongestAxis={strongestAxis}
-                  />
-                )}
-                {activeTab === 'todo_docs' && (
-                  <TodoDocsTab
-                    cartItems={cart?.items || []}
-                    uploadedFiles={filesUploaded || []}
-                  />
-                )}
-              </motion.div>
-            </AnimatePresence>
+          {/* 스마트매칭 컨텐츠 */}
+          <div className="overflow-y-auto" style={{ maxHeight: '500px' }}>
+            <SmartMatchingTab
+              events={filteredEvents}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+            />
           </div>
         </div>
       </div>
@@ -607,6 +721,48 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
           </div>
         </div>
       </div>
+
+      {/* 드래그&드롭 로딩 오버레이 */}
+      {dropLoading && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/20 flex items-center justify-center z-50"
+        >
+          <div className="bg-white rounded-lg p-6 shadow-lg flex items-center gap-3">
+            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-gray-900 font-medium">이벤트를 추가하는 중...</span>
+          </div>
+        </motion.div>
+      )}
+
+      {/* 성공/실패 피드백 토스트 */}
+      <AnimatePresence>
+        {dropFeedback && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-4 right-4 z-50"
+          >
+            <div className={`px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 ${
+              dropFeedback.type === 'success'
+                ? 'bg-green-50 border border-green-200 text-green-800'
+                : 'bg-red-50 border border-red-200 text-red-800'
+            }`}>
+              {dropFeedback.type === 'success' ? (
+                <Check className="w-5 h-5 text-green-600" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              )}
+              <div>
+                <p className="font-medium text-sm">{dropFeedback.message}</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -615,10 +771,27 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
 const SmartMatchingTab: React.FC<{
   events: MatchingResult[],
   searchQuery: string,
-  onSearchChange: (query: string) => void,
-  interestedEvents: Set<string>
-}> = React.memo(({ events, searchQuery, onSearchChange, interestedEvents }) => {
-  const { setDraggedEvent, markEventInterested } = useDashboardInteraction();
+  onSearchChange: (query: string) => void
+}> = React.memo(({ events, searchQuery, onSearchChange }) => {
+  const { setDraggedEvent } = useDashboardInteraction();
+  const [touchData, setTouchData] = useState<{ startX: number; startY: number; isDragging: boolean; element: HTMLElement | null } | null>(null);
+
+  // 스타일 적용/복원 헬퍼 함수들 - 먼저 정의
+  const applyDragStyle = (target: HTMLElement) => {
+    target.style.transform = 'rotate(3deg) scale(0.95)';
+    target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
+    target.style.opacity = '0.8';
+    target.style.zIndex = '1000';
+    target.style.transition = 'all 0.2s ease';
+  };
+
+  const resetDragStyle = (target: HTMLElement) => {
+    target.style.transform = '';
+    target.style.boxShadow = '';
+    target.style.opacity = '';
+    target.style.zIndex = '';
+    target.style.transition = '';
+  };
 
   const handleDragStart = (event: MatchingResult) => (e: React.DragEvent) => {
     const dragData = {
@@ -631,11 +804,91 @@ const SmartMatchingTab: React.FC<{
     };
     setDraggedEvent(dragData);
     e.dataTransfer.effectAllowed = 'copy';
-    e.currentTarget.classList.add('opacity-50');
+
+    // 향상된 드래그 시각 효과
+    const target = e.currentTarget as HTMLElement;
+    applyDragStyle(target);
   };
 
   const handleDragEnd = (e: React.DragEvent) => {
-    e.currentTarget.classList.remove('opacity-50');
+    // 드래그 종료 시 스타일 복원
+    const target = e.currentTarget as HTMLElement;
+    resetDragStyle(target);
+  };
+
+  // 터치 이벤트 핸들러들 (모바일 지원)
+  const handleTouchStart = (event: MatchingResult) => (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const target = e.currentTarget as HTMLElement;
+
+    setTouchData({
+      startX: touch.clientX,
+      startY: touch.clientY,
+      isDragging: false,
+      element: target
+    });
+
+    // 드래그 데이터 설정
+    const dragData = {
+      id: event.event.id,
+      title: event.event.title,
+      description: event.event.description,
+      daysUntilDeadline: event.daysUntilDeadline,
+      matchingScore: event.score,
+      urgencyLevel: event.urgencyLevel
+    };
+    setDraggedEvent(dragData);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchData) return;
+
+    const touch = e.touches[0];
+    const deltaX = Math.abs(touch.clientX - touchData.startX);
+    const deltaY = Math.abs(touch.clientY - touchData.startY);
+
+    // 10px 이상 움직이면 드래그로 인식
+    if ((deltaX > 10 || deltaY > 10) && !touchData.isDragging) {
+      setTouchData(prev => prev ? { ...prev, isDragging: true } : null);
+      if (touchData.element) {
+        applyDragStyle(touchData.element);
+      }
+      e.preventDefault(); // 스크롤 방지
+    }
+
+    if (touchData.isDragging) {
+      // 드래그 중일 때 요소를 따라다니게 할 수도 있음 (옵션)
+      e.preventDefault();
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchData) return;
+
+    if (touchData.isDragging) {
+      const touch = e.changedTouches[0];
+      const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+
+      // 캘린더 날짜 영역에 드롭되었는지 확인
+      const calendarDay = elementBelow?.closest('[data-calendar-day]');
+      if (calendarDay) {
+        const dateString = calendarDay.getAttribute('data-calendar-day');
+        if (dateString) {
+          // 드롭 이벤트 시뮬레이션
+          const dropEvent = new CustomEvent('touchDrop', {
+            detail: { dateString }
+          });
+          document.dispatchEvent(dropEvent);
+        }
+      }
+    }
+
+    if (touchData.element) {
+      resetDragStyle(touchData.element);
+    }
+
+    setTouchData(null);
+    setDraggedEvent(null);
   };
 
   const getUrgencyColor = (urgencyLevel: string, daysUntil: number) => {
@@ -661,7 +914,6 @@ const SmartMatchingTab: React.FC<{
         ) : (
           events.slice(0, 10).map((matchingResult) => {
             const event = matchingResult.event;
-            const isInterested = interestedEvents.has(event.id);
 
             return (
               <div
@@ -669,6 +921,9 @@ const SmartMatchingTab: React.FC<{
                 draggable
                 onDragStart={handleDragStart(matchingResult)}
                 onDragEnd={handleDragEnd}
+                onTouchStart={handleTouchStart(matchingResult)}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
                 className={`group p-2 border rounded-lg cursor-grab active:cursor-grabbing hover:shadow-md transition-all relative ${getBorderColor(matchingResult.urgencyLevel)}`}
               >
                 <div className="flex items-start justify-between mb-1">
@@ -681,29 +936,17 @@ const SmartMatchingTab: React.FC<{
                     </span>
                   </div>
 
-                  {/* 호버시에만 나타나는 액션 버튼 */}
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1 ml-2">
+                  {/* 캘린더 추가 버튼만 표시 */}
+                  <div className="opacity-70 hover:opacity-100 transition-opacity duration-200 ml-2">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        // Calendar add functionality - drag and drop to calendar instead
+                        // 드래그 앤 드롭 대신 클릭으로도 캘린더에 추가 가능하도록 개선 예정
                       }}
                       className="w-6 h-6 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors flex items-center justify-center"
                       title="드래그해서 캘린더에 추가"
                     >
                       <Plus className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        markEventInterested(event.id);
-                      }}
-                      className={`w-6 h-6 border text-xs rounded hover:bg-gray-50 transition-colors flex items-center justify-center ${
-                        isInterested ? 'bg-red-50 border-red-200 text-red-600' : 'border-gray-200'
-                      }`}
-                      title={isInterested ? "관심 해제" : "관심 추가"}
-                    >
-                      <Heart className={`w-3 h-3 ${isInterested ? 'fill-current' : ''}`} />
                     </button>
                   </div>
                 </div>
@@ -910,6 +1153,7 @@ interface WeeklyAgendaProps {
   handleDragOver: (e: React.DragEvent, dateString: string) => void;
   handleDragLeave: () => void;
   handleDrop: (e: React.DragEvent, date: Date) => void;
+  removeDraggedEvent: (eventId: string) => void;
 }
 
 const WeeklyAgenda: React.FC<WeeklyAgendaProps> = React.memo(({
@@ -923,7 +1167,8 @@ const WeeklyAgenda: React.FC<WeeklyAgendaProps> = React.memo(({
   setRefreshKey,
   handleDragOver,
   handleDragLeave,
-  handleDrop
+  handleDrop,
+  removeDraggedEvent
 }) => {
   // 주간 날짜별 이벤트 데이터 메모이제이션
   const weeklyEventData = useMemo(() => {
@@ -953,6 +1198,7 @@ const WeeklyAgenda: React.FC<WeeklyAgendaProps> = React.memo(({
         return (
           <div
             key={dayIndex}
+            data-calendar-day={dateString}
             className={`flex border-b border-gray-100 hover:bg-gray-50 transition-colors ${
               isDragOver ? 'bg-blue-50' : ''
             }`}
@@ -996,10 +1242,13 @@ const WeeklyAgenda: React.FC<WeeklyAgendaProps> = React.memo(({
                       key={eventIndex}
                       className="flex items-center gap-2 p-2 rounded hover:bg-white border border-transparent hover:border-gray-200 cursor-pointer group transition-all"
                     >
-                      {/* 우선순위 점 */}
+                      {/* 일정/매칭 구분 점 */}
                       <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                        event.priority === 'high' ? 'bg-red-500' :
-                        event.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                        event.sourceType === 'smart_matching'
+                          ? 'bg-blue-500'  // 매칭 이벤트는 파란색
+                          : (event.sourceType === 'real_buildup_schedule' || event.sourceType === 'buildup_schedule')
+                          ? 'bg-green-500'  // 빌드업 일정은 초록색
+                          : 'bg-gray-500'   // 기타는 회색
                       }`}></div>
 
                       {/* 이벤트 정보 */}
@@ -1014,8 +1263,8 @@ const WeeklyAgenda: React.FC<WeeklyAgendaProps> = React.memo(({
                         )}
                       </div>
 
-                      {/* 소스 타입 */}
-                      <div className="flex-shrink-0">
+                      {/* 소스 타입과 삭제 버튼 */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         {event.sourceType === 'smart_matching' ? (
                           <span className="text-xs text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded font-medium">
                             매칭
@@ -1024,6 +1273,20 @@ const WeeklyAgenda: React.FC<WeeklyAgendaProps> = React.memo(({
                           <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
                             일정
                           </span>
+                        )}
+
+                        {/* 드래그로 추가된 이벤트에만 삭제 버튼 표시 */}
+                        {event.metadata?.addedByDragDrop && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeDraggedEvent(event.id);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded-sm hover:bg-red-100 hover:text-red-600 transition-all"
+                            title="캘린더에서 제거"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
                         )}
                       </div>
                     </div>

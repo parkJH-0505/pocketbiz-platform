@@ -319,7 +319,7 @@ export interface DashboardContextType {
 
   // 액션
   updateTodaysAction: () => Promise<void>;
-  navigateWeek: (direction: 'prev' | 'next') => void;
+  navigateWeek: (direction: 'prev' | 'next' | 'today') => void;
   markActionCompleted: (actionId: string) => Promise<void>;
   markEventCompleted: (eventId: string) => Promise<void>;
   refreshData: () => Promise<void>;

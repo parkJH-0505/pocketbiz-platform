@@ -6,6 +6,23 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
+import { useProjectChangeDetection, summarizeChanges } from '../utils/projectChangeDetection';
+import { syncTransactionManager, SyncErrorType } from '../utils/syncTransaction';
+import type { SyncOperation } from '../utils/syncTransaction';
+import {
+  useSafeAsync,
+  useEventListener,
+  useTimer,
+  abortControllerManager,
+  memoryMonitor
+} from '../utils/memoryManager';
+import {
+  useOptimisticUpdate,
+  useOptimisticUpdates,
+  optimisticUpdateManager,
+  UpdateStatus,
+  UpdateType
+} from '../utils/optimisticUpdate';
 import type {
   CalendarEvent,
   CalendarEventInput,
@@ -43,6 +60,10 @@ import {
 } from '../utils/calendarMeetingIntegration';
 import type { GuideMeetingRecord } from '../types/meeting.types';
 import { useCalendarAPI } from '../hooks/useCalendarAPI';
+import {
+  calendarEcosystemConnector,
+  type CalendarContextBridge
+} from '../services/ecosystem/connectors/CalendarEcosystemConnector';
 // import { PhaseTransitionService } from '../services/phaseTransitionService';
 
 interface CalendarContextType {
@@ -65,6 +86,11 @@ interface CalendarContextType {
     urgent: number;
     todo_docs: number;
   };
+
+  // 드래그로 추가된 이벤트들
+  draggedEvents: CalendarEvent[];
+  addDraggedEvent: (eventData: any, date: Date) => void;
+  removeDraggedEvent: (eventId: string) => void;
 
   // CRUD Operations
   createEvent: (input: CalendarEventInput) => Promise<CalendarEvent>;
@@ -122,6 +148,10 @@ interface CalendarContextType {
   onPhaseTransition: (projectId: string, fromPhase: string, toPhase: string, triggeredBy: string) => void;
   getIntegrationStatus: (projectId: string) => any;
   integrationEvents: IntegrationEvent[];
+
+  // Ecosystem Integration
+  reportExternalFactor: (factor: string, impact: number, confidence: number, affectedAreas: string[]) => Promise<void>;
+  getEcosystemStats: () => any;
 }
 
 const CalendarContext = createContext<CalendarContextType | undefined>(undefined);
@@ -142,6 +172,12 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   const [filter, setFilterState] = useState<CalendarFilter>({});
   const [integrationEvents, setIntegrationEvents] = useState<IntegrationEvent[]>([]);
 
+  // 드래그로 추가된 이벤트들 상태 관리
+  const [draggedEvents, setDraggedEvents] = useState<CalendarEvent[]>(() => {
+    const stored = localStorage.getItem('draggedCalendarEvents');
+    return stored ? JSON.parse(stored) : [];
+  });
+
   // useCalendarAPI 훅 통합 - API 모드와 더미 데이터 모드 자동 전환
   const {
     smartMatchingEvents,
@@ -156,8 +192,10 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     tabCounts
   } = useCalendarAPI();
 
-  // 통합 이벤트 리스너 등록
+  // Phase 3: 안전한 이벤트 리스너 등록 및 Ecosystem 연동
   useEffect(() => {
+    const controller = abortControllerManager.create('calendar-integration');
+
     const handleIntegrationEvent = (event: IntegrationEvent) => {
       setIntegrationEvents(prev => [...prev, event]);
 
@@ -167,12 +205,91 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    // 기존 통합 시스템 연동
     globalIntegrationManager.addEventListener(handleIntegrationEvent);
 
+    // 새로운 Ecosystem 연동 설정
+    const calendarBridge: CalendarContextBridge = {
+      createEvent: async (input: CalendarEventInput) => {
+        // createEvent 함수를 직접 사용할 수 없으므로 임시 구현
+        const project = projects.find(p => p.id === input.projectId);
+        const newEvent: CalendarEvent = {
+          id: `evt-${Date.now()}`,
+          title: input.title,
+          type: 'meeting',
+          date: input.date,
+          time: input.time,
+          duration: input.duration,
+          projectId: input.projectId,
+          projectTitle: project?.title || '',
+          projectPhase: project?.phase || 'planning',
+          pmId: project?.team?.pm?.id || '',
+          pmName: project?.team?.pm?.name || '',
+          status: 'scheduled',
+          priority: input.priority || 'medium',
+          meetingData: input.meetingData as any,
+          actionHistory: [{
+            type: 'created',
+            by: 'ecosystem',
+            byName: 'Ecosystem Auto',
+            at: new Date()
+          }],
+          tags: input.tags,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: 'ecosystem',
+          updatedBy: 'ecosystem'
+        };
+
+        const addedEvent = CalendarService.addEvent(newEvent);
+        globalIntegrationManager.registerCalendarEvent(addedEvent);
+        setEvents(CalendarService.getAllEvents());
+        return addedEvent;
+      },
+      updateEvent: async (eventId: string, updates: Partial<CalendarEvent>) => {
+        const updatedEvent = CalendarService.updateEvent(eventId, {
+          ...updates,
+          updatedAt: new Date(),
+          updatedBy: 'ecosystem'
+        });
+        if (updatedEvent) {
+          setEvents(CalendarService.getAllEvents());
+        }
+      },
+      deleteEvent: async (eventId: string) => {
+        const success = CalendarService.deleteEvent(eventId);
+        if (success) {
+          setEvents(CalendarService.getAllEvents());
+        }
+      },
+      getEvents: () => events,
+      syncWithProjects: () => {
+        const serviceEvents = CalendarService.initialize(activeProjects);
+        setEvents(serviceEvents);
+      }
+    };
+
+    // Ecosystem Connector에 CalendarContext 연결
+    calendarEcosystemConnector.connectCalendarContext(calendarBridge);
+
+    console.log('🔗 CalendarContext가 Ecosystem에 연결되었습니다');
+
+    // Phase 3: cleanup 함수에서 모든 리소스 정리
     return () => {
       globalIntegrationManager.removeEventListener(handleIntegrationEvent);
+      abortControllerManager.abort('calendar-integration');
+
+      // 메모리 통계 로깅 (dev only)
+      if (import.meta.env.DEV) {
+        const stats = memoryMonitor.getStatistics();
+        console.log('📦 CalendarContext 언마운트 - 메모리 통계:', {
+          current: `${(stats.current / 1024 / 1024).toFixed(2)}MB`,
+          peak: `${(stats.peak / 1024 / 1024).toFixed(2)}MB`,
+          trend: stats.trend
+        });
+      }
     };
-  }, []);
+  }, [projects, events, activeProjects]);
 
   /**
    * 프로젝트에서 이벤트 생성
@@ -374,66 +491,67 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoadingEvents(false);
     }
-  }, [activeProjects]);
+  }, [activeProjects.length]); // length만 체크하여 불필요한 재생성 방지
 
-  // API 데이터와 캘린더 이벤트 동기화
-  useEffect(() => {
-    // API 모드가 활성화되어 있고 데이터가 있을 때
-    if (smartMatchingEvents.length > 0 || urgentItems.length > 0 || todoItems.length > 0) {
-      const apiEvents: CalendarEvent[] = [];
+  // API 데이터와 캘린더 이벤트 동기화 - 자동 추가 비활성화
+  // Smart matching 이벤트는 드래그 앤 드롭으로만 추가되도록 변경
+  // useEffect(() => {
+  //   // API 모드가 활성화되어 있고 데이터가 있을 때
+  //   if (smartMatchingEvents.length > 0 || urgentItems.length > 0 || todoItems.length > 0) {
+  //     const apiEvents: CalendarEvent[] = [];
 
-      // Smart Matching 이벤트 변환
-      smartMatchingEvents.forEach(item => {
-        if (item.date) {
-          apiEvents.push({
-            id: `sm-${item.id || Math.random().toString(36).substr(2, 9)}`,
-            type: 'meeting',
-            title: item.company || item.title || 'Smart Matching Event',
-            description: item.description || '',
-            date: new Date(item.date),
-            time: item.time || '14:00',
-            projectId: 'smart-matching',
-            pmId: 'system',
-            pmName: 'Smart Matching',
-            status: 'pending',
-            priority: item.priority || 'medium',
-            tags: item.tags || [],
-            metadata: {
-              source: 'smart_matching',
-              category: item.category,
-              addedByDragDrop: false
-            }
-          });
-        }
-      });
+  //     // Smart Matching 이벤트 변환
+  //     smartMatchingEvents.forEach(item => {
+  //       if (item.date) {
+  //         apiEvents.push({
+  //           id: `sm-${item.id || Math.random().toString(36).substr(2, 9)}`,
+  //           type: 'meeting',
+  //           title: item.company || item.title || 'Smart Matching Event',
+  //           description: item.description || '',
+  //           date: new Date(item.date),
+  //           time: item.time || '14:00',
+  //           projectId: 'smart-matching',
+  //           pmId: 'system',
+  //           pmName: 'Smart Matching',
+  //           status: 'pending',
+  //           priority: item.priority || 'medium',
+  //           tags: item.tags || [],
+  //           metadata: {
+  //             source: 'smart_matching',
+  //             category: item.category,
+  //             addedByDragDrop: false
+  //           }
+  //         });
+  //       }
+  //     });
 
-      // Urgent Items 변환
-      urgentItems.forEach(item => {
-        apiEvents.push({
-          id: `urgent-${item.id || Math.random().toString(36).substr(2, 9)}`,
-          type: 'task',
-          title: item.title || 'Urgent Task',
-          description: item.description || '',
-          date: new Date(item.dueDate || new Date()),
-          time: '09:00',
-          projectId: 'urgent',
-          pmId: 'system',
-          pmName: 'System',
-          status: item.status || 'pending',
-          priority: 'high',
-          tags: ['urgent'],
-          metadata: {
-            source: 'urgent_items'
-          }
-        });
-      });
+  //     // Urgent Items 변환
+  //     urgentItems.forEach(item => {
+  //       apiEvents.push({
+  //         id: `urgent-${item.id || Math.random().toString(36).substr(2, 9)}`,
+  //         type: 'task',
+  //         title: item.title || 'Urgent Task',
+  //         description: item.description || '',
+  //         date: new Date(item.dueDate || new Date()),
+  //         time: '09:00',
+  //         projectId: 'urgent',
+  //         pmId: 'system',
+  //         pmName: 'System',
+  //         status: item.status || 'pending',
+  //         priority: 'high',
+  //         tags: ['urgent'],
+  //         metadata: {
+  //           source: 'urgent_items'
+  //         }
+  //       });
+  //     });
 
-      // API 이벤트와 기존 이벤트 병합
-      const existingEvents = CalendarService.getAllEvents();
-      const mergedEvents = [...existingEvents, ...apiEvents];
-      setEvents(mergedEvents);
-    }
-  }, [smartMatchingEvents, urgentItems, todoItems]);
+  //     // API 이벤트와 기존 이벤트 병합
+  //     const existingEvents = CalendarService.getAllEvents();
+  //     const mergedEvents = [...existingEvents, ...apiEvents];
+  //     setEvents(mergedEvents);
+  //   }
+  // }, [smartMatchingEvents, urgentItems, todoItems]);
 
   // 프로젝트 변경 시 자동 동기화
   useEffect(() => {
@@ -444,41 +562,154 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
       const currentEvents = CalendarService.getAllEvents();
       initializeIntegrationSystem(currentEvents, []);
     }
-  }, [activeProjects, syncWithProjects]);
+  }, [activeProjects]); // syncWithProjects는 activeProjects를 의존하므로 제거
 
-  // 🔄 BuildupContext의 프로젝트 데이터 변경 감지 (실시간 동기화)
-  const projectsSnapshot = useRef(JSON.stringify(projects));
-  useEffect(() => {
-    const currentSnapshot = JSON.stringify(projects);
-    if (projectsSnapshot.current !== currentSnapshot) {
-      projectsSnapshot.current = currentSnapshot;
-      // 프로젝트 데이터가 실제로 변경되었을 때만 동기화
-      console.log('📅 프로젝트 데이터 변경 감지 - 캘린더 동기화 실행');
-      syncWithProjects();
+  // 🔄 Phase 1: 효율적인 프로젝트 변경 감지 시스템
+  const { detectChanges, getStatistics } = useProjectChangeDetection({
+    deepCompare: false,
+    batchDelay: 200
+  });
 
-      // 프로젝트 마일스톤 자동 생성
-      projects.forEach(project => {
-        if (project.phase && project.startDate) {
-          const milestoneEvent = {
+  // Phase 3: 메모리 관리를 위한 타이머 훅
+  const { setTimeout: setTimeoutSafe, clearTimeout: clearTimeoutSafe } = useTimer();
+  const syncTimeoutRef = useRef<string>('sync-timeout');
+
+  // Phase 2: 트랜잭션 기반 안전한 동기화 (Phase 3 개선)
+  const performSafeSync = useCallback(async (signal?: AbortSignal) => {
+    // 취소 시그널 체크
+    if (signal?.aborted) return;
+    const changes = detectChanges(projects);
+
+    // 변경사항이 없으면 종료
+    if (changes.added.length === 0 && changes.modified.length === 0 && changes.removed.length === 0) {
+      return;
+    }
+
+    console.log('🔄 효율적 변경 감지:', summarizeChanges(changes));
+    console.log('📊 변경 감지 통계:', getStatistics);
+
+    // 트랜잭션 작업 준비
+    const operations: SyncOperation[] = [];
+
+    // 추가된 프로젝트 처리
+    changes.added.forEach(project => {
+      // 새 프로젝트의 이벤트 생성
+      const projectEvents = generateEventsFromProject(project);
+      projectEvents.forEach(event => {
+        operations.push({
+          id: `add-event-${event.id}`,
+          type: 'create',
+          target: 'calendar',
+          data: event,
+          priority: 3
+        });
+      });
+
+      // 마일스톤 자동 생성
+      if (project.phase && project.startDate) {
+        operations.push({
+          id: `milestone-${project.id}`,
+          type: 'create',
+          target: 'milestone',
+          data: {
             id: `milestone-${project.id}-${project.phase}`,
-            type: 'milestone' as const,
-            title: `[${project.title}] ${project.phase} 단계 마일스톤`,
+            type: 'milestone',
+            title: `[${project.title}] ${project.phase} 단계`,
             projectId: project.id,
             startDate: new Date(),
             endDate: new Date(),
-            status: 'pending' as const,
-            priority: 'high' as const,
-            description: `프로젝트 ${project.phase} 단계 진행 중`
-          };
-          // 기존 마일스톤이 없으면 추가
-          const existingMilestone = events.find(e => e.id === milestoneEvent.id);
-          if (!existingMilestone) {
-            CalendarService.addEvent(milestoneEvent);
-          }
-        }
+            status: 'pending',
+            priority: 'high'
+          },
+          priority: 2
+        });
+      }
+    });
+
+    // 수정된 프로젝트 처리
+    changes.modified.forEach(project => {
+      operations.push({
+        id: `update-${project.id}`,
+        type: 'update',
+        target: 'project',
+        data: project,
+        priority: 2
       });
+    });
+
+    // 삭제된 프로젝트 처리
+    changes.removed.forEach(projectId => {
+      // 관련 이벤트 삭제
+      const relatedEvents = events.filter(e => e.projectId === projectId);
+      relatedEvents.forEach(event => {
+        operations.push({
+          id: `remove-event-${event.id}`,
+          type: 'delete',
+          target: 'calendar',
+          data: { id: event.id },
+          priority: 1
+        });
+      });
+    });
+
+    try {
+      // 트랜잭션 실행
+      await syncTransactionManager.executeTransaction(operations);
+
+      // 성공 시 캘린더 동기화
+      syncWithProjects();
+
+      console.log('✅ 동기화 트랜잭션 성공:', syncTransactionManager.getStatistics());
+    } catch (error: any) {
+      console.error('❌ 동기화 트랜잭션 실패:', error);
+
+      // 에러 타입에 따른 처리
+      if (error.type === SyncErrorType.NETWORK_ERROR) {
+        console.log('🔄 네트워크 오류 - 재시도 예정');
+        // 재시도 로직 추가 가능
+      } else if (error.type === SyncErrorType.CONFLICT_ERROR) {
+        console.log('⚠️ 데이터 충돌 - 수동 해결 필요');
+        // 충돌 해결 UI 표시
+      }
     }
-  }, [projects, syncWithProjects, events]);
+  }, [projects, events]); // 함수 의존성 제거하여 무한 루프 방지
+
+  // Phase 3: 메모리 안전 비동기 작업
+  const { execute: executeSafeSync, cancel: cancelSync } = useSafeAsync(
+    async (signal) => {
+      // 메모리 측정 시작
+      if (import.meta.env.DEV) {
+        memoryMonitor.measure();
+      }
+
+      await performSafeSync(signal);
+
+      // 메모리 누수 체크
+      if (import.meta.env.DEV) {
+        const stats = memoryMonitor.getStatistics();
+        if (stats.trend === 'increasing' && memoryMonitor.detectLeak()) {
+          console.warn('⚠️ 메모리 누수 가능성 감지:', stats);
+        }
+      }
+    }
+  );
+
+  // 프로젝트 변경 시 안전한 동기화 실행 (Phase 3 개선)
+  useEffect(() => {
+    if (activeProjects.length > 0) {
+      // 디바운싱을 위한 타이머 사용
+      clearTimeoutSafe(syncTimeoutRef.current);
+      setTimeoutSafe(() => {
+        executeSafeSync();
+      }, 300, syncTimeoutRef.current);
+    }
+
+    // cleanup: 컨텍스트 언마운트 시 동기화 취소
+    return () => {
+      // cleanup에서는 AbortController만 취소하고 setState는 하지 않음
+      clearTimeoutSafe(syncTimeoutRef.current);
+    };
+  }, [projects, activeProjects.length]); // 함수 의존성 제거
 
   /**
    * 필터링된 이벤트
@@ -671,16 +902,85 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   }, [projects]);
 
   /**
+   * 드래그로 추가된 이벤트 관리
+   */
+  const addDraggedEvent = useCallback((eventData: any, date: Date) => {
+    const newDraggedEvent: CalendarEvent = {
+      id: `dragged_${Date.now()}_${eventData.id}`,
+      title: eventData.title,
+      description: eventData.description || '',
+      date,
+      startTime: `09:00`,
+      endTime: `10:00`,
+      type: eventData.type || 'smart_matching',
+      projectId: eventData.projectId,
+      projectTitle: eventData.projectTitle || eventData.title,
+      pmId: eventData.pmId,
+      pmName: eventData.pmName || '',
+      status: 'scheduled',
+      priority: eventData.priority || 'medium',
+      actionHistory: [{
+        type: 'created',
+        by: 'drag_drop',
+        byName: 'Drag & Drop',
+        at: new Date()
+      }],
+      tags: eventData.tags || [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      createdBy: 'user',
+      updatedBy: 'user',
+      // 원본 이벤트 정보 저장
+      originalEventId: eventData.id,
+      sourceType: eventData.sourceType || 'smart_matching'
+    };
+
+    const updatedDraggedEvents = [...draggedEvents, newDraggedEvent];
+    setDraggedEvents(updatedDraggedEvents);
+
+    // localStorage에 저장
+    localStorage.setItem('draggedCalendarEvents', JSON.stringify(updatedDraggedEvents));
+
+    console.log('Added dragged event:', newDraggedEvent);
+  }, [draggedEvents]);
+
+  const removeDraggedEvent = useCallback((eventId: string) => {
+    const updatedDraggedEvents = draggedEvents.filter(event => event.id !== eventId);
+    setDraggedEvents(updatedDraggedEvents);
+
+    // localStorage 업데이트
+    localStorage.setItem('draggedCalendarEvents', JSON.stringify(updatedDraggedEvents));
+
+    console.log('Removed dragged event:', eventId);
+  }, [draggedEvents]);
+
+  /**
    * 이벤트 업데이트
    */
-  const updateEvent = useCallback(async (eventId: string, updates: Partial<CalendarEvent>) => {
-    const updatedEvent = CalendarService.updateEvent(eventId, {
-      ...updates,
-      updatedAt: new Date(),
-      updatedBy: 'user'
-    });
+  // Phase 4: 낙관적 업데이트 패턴 적용
+  const { items: optimisticEvents, updateItem, deleteItem, isUpdating } = useOptimisticUpdates<CalendarEvent>();
 
-    if (updatedEvent) {
+  const updateEvent = useCallback(async (eventId: string, updates: Partial<CalendarEvent>) => {
+    // Phase 4: 낙관적 업데이트 수행
+    const result = await updateItem(
+      eventId,
+      {
+        ...updates,
+        updatedAt: new Date(),
+        updatedBy: 'user'
+      },
+      async (id, updates) => {
+        // 실제 업데이트 로직
+        const updatedEvent = CalendarService.updateEvent(id, updates);
+        if (!updatedEvent) {
+          throw new Error('Failed to update event');
+        }
+        return updatedEvent;
+      }
+    );
+
+    if (result.success && result.data) {
+      const updatedEvent = result.data;
       setEvents(CalendarService.getAllEvents());
 
       // 🔄 CalendarContext → BuildupContext 역방향 동기화
@@ -711,8 +1011,15 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
           updateProject(updatedEvent.projectId, { progress: Math.round(progress) });
         }
       }
+
+      // Phase 4: 성공 피드백
+      console.log('✅ 낙관적 업데이트 성공:', updatedEvent.title);
+    } else if (result.error) {
+      // Phase 4: 실패 피드백
+      console.error('❌ 낙관적 업데이트 실패:', result.error);
+      // 롤백되었으므로 UI는 자동 복구됨
     }
-  }, [updateProjectMeeting, updateProject, projects, events]);
+  }, [updateProjectMeeting, updateProject, projects, events, updateItem]);
 
   /**
    * 이벤트 완료 처리
@@ -860,23 +1167,44 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     addEventToCalendarAPI,
     tabCounts,
 
+    // 드래그로 추가된 이벤트들
+    draggedEvents,
+    addDraggedEvent,
+    removeDraggedEvent,
+
     createEvent,
     updateEvent,
     deleteEvent: async (id) => {
       // 삭제할 이벤트 정보 미리 가져오기
       const eventToDelete = events.find(e => e.id === id);
 
-      CalendarService.deleteEvent(id);
-      setEvents(CalendarService.getAllEvents());
-
-      // 🔄 CalendarContext → BuildupContext 역방향 동기화
-      // 미팅 삭제 시 프로젝트에서도 제거
-      if (eventToDelete?.type === 'meeting' && eventToDelete.projectId) {
-        const meetingData = eventToDelete.data as any;
-        if (meetingData?.meetingId) {
-          console.log('🔄 캘린더 → 프로젝트: 미팅 삭제 동기화', meetingData.meetingId);
-          removeProjectMeeting(eventToDelete.projectId, meetingData.meetingId);
+      // Phase 4: 낙관적 삭제
+      const result = await deleteItem(
+        id,
+        async (eventId) => {
+          const success = CalendarService.deleteEvent(eventId);
+          if (!success) {
+            throw new Error('Failed to delete event');
+          }
         }
+      );
+
+      if (result.success) {
+        setEvents(CalendarService.getAllEvents());
+
+        // 🔄 CalendarContext → BuildupContext 역방향 동기화
+        // 미팅 삭제 시 프로젝트에서도 제거
+        if (eventToDelete?.type === 'meeting' && eventToDelete.projectId) {
+          const meetingData = eventToDelete.data as any;
+          if (meetingData?.meetingId) {
+            console.log('🔄 캘린더 → 프로젝트: 미팅 삭제 동기화', meetingData.meetingId);
+            removeProjectMeeting(eventToDelete.projectId, meetingData.meetingId);
+          }
+        }
+
+        console.log('✅ 낙관적 삭제 성공');
+      } else {
+        console.error('❌ 낙관적 삭제 실패:', result.error);
       }
     },
     completeEvent,
@@ -934,7 +1262,16 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
       return globalIntegrationManager.getProjectIntegrationStatus(projectId);
     },
 
-    integrationEvents
+    integrationEvents,
+
+    // Ecosystem Integration
+    reportExternalFactor: async (factor: string, impact: number, confidence: number, affectedAreas: string[]) => {
+      await calendarEcosystemConnector.reportExternalFactor(factor, impact, confidence, affectedAreas);
+    },
+
+    getEcosystemStats: () => {
+      return calendarEcosystemConnector.getConnectionStats();
+    }
   };
 
   return (

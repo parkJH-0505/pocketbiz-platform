@@ -57,7 +57,9 @@ export function useContextRegistration(options: UseContextRegistrationOptions): 
    */
   const register = useCallback(() => {
     if (registrationRef.current) {
-      console.warn(`Context "${name}" is already registered`);
+      if (process.env.NODE_ENV === 'development') {
+        console.debug(`[Development] Context "${name}" registration skipped (already registered)`);
+      }
       return;
     }
 

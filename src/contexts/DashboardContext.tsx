@@ -803,9 +803,13 @@ export const DashboardProvider: React.FC<DashboardProviderProps> = ({ children }
     }
   };
 
-  const navigateWeek = (direction: 'prev' | 'next') => {
-    const days = direction === 'next' ? 7 : -7;
-    setCurrentWeek(prev => addDays(prev, days));
+  const navigateWeek = (direction: 'prev' | 'next' | 'today') => {
+    if (direction === 'today') {
+      setCurrentWeek(new Date());
+    } else {
+      const days = direction === 'next' ? 7 : -7;
+      setCurrentWeek(prev => addDays(prev, days));
+    }
   };
 
   const markActionCompleted = async (actionId: string) => {

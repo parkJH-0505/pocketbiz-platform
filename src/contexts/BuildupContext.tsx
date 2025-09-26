@@ -89,6 +89,10 @@ import {
   removeMeetingFromArray,
   findMeetingById
 } from '../utils/dataConverters';
+import {
+  buildupEcosystemConnector,
+  type BuildupContextBridge
+} from '../services/ecosystem/connectors/BuildupEcosystemConnector';
 
 interface BuildupContextType {
   // Services
@@ -110,6 +114,11 @@ interface BuildupContextType {
   completedProjects: Project[];
   createProject: (data: Partial<Project>) => void;
   updateProject: (projectId: string, data: Partial<Project>) => void;
+
+  // Project File Management
+  addFileToProject: (projectId: string, file: File, category?: string) => Promise<void>;
+  removeFileFromProject: (projectId: string, fileId: string) => void;
+  updateProjectFile: (projectId: string, fileId: string, updates: Partial<ProjectFile>) => void;
 
   // Project calculations
   calculateDDay: (project: Project) => { days: number; isUrgent: boolean; isWarning: boolean; text: string } | null;
@@ -171,6 +180,11 @@ interface BuildupContextType {
   removeProjectMeeting: (projectId: string, meetingId: string) => void;
   syncProjectMeetings: (projectId: string, meetings: Meeting[]) => void;
   getProjectMeetings: (projectId: string) => Meeting[];
+
+  // Ecosystem Integration
+  reportMilestoneCompleted: (projectId: string, milestoneId: string, kpiImpact: Partial<Record<AxisKey, number>>, completedBy: string) => Promise<void>;
+  reportProjectStatusChanged: (projectId: string, oldStatus: string, newStatus: string, reason?: string) => Promise<void>;
+  getEcosystemStats: () => any;
 }
 
 const BuildupContext = createContext<BuildupContextType | undefined>(undefined);
@@ -199,7 +213,29 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
   
   // Initialize with all mock projects
   const getInitialProjects = (): Project[] => {
-    return mockProjects; // 모든 프로젝트 활성화
+    // 로컬스토리지에서 파일 로드
+    try {
+      const stored = localStorage.getItem('buildup_project_files');
+      if (stored) {
+        const storedFiles = JSON.parse(stored);
+        // Date 필드들을 Date 객체로 복원
+        Object.keys(storedFiles).forEach(projectId => {
+          storedFiles[projectId] = storedFiles[projectId].map((file: any) => ({
+            ...file,
+            uploaded_at: new Date(file.uploaded_at)
+          }));
+        });
+
+        return mockProjects.map(project => ({
+          ...project,
+          files: storedFiles[project.id] || project.files || []
+        }));
+      }
+    } catch (error) {
+      console.error('[BuildupContext] Failed to load files from localStorage during init:', error);
+    }
+
+    return mockProjects; // 기본값
   };
 
   const [projects, setProjects] = useState<Project[]>(getInitialProjects());
@@ -412,6 +448,86 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     }
   }, [scheduleContext?.isLoading, initialSyncCompleted, performInitialSync]);
 
+  // Ecosystem Integration Setup
+  useEffect(() => {
+    const buildupBridge: BuildupContextBridge = {
+      createProject: (data: Partial<Project>) => {
+        const newProject: Project = {
+          id: data.id || `project-${Date.now()}`,
+          title: data.title || '새 프로젝트',
+          description: data.description || '',
+          status: data.status || 'active',
+          phase: data.phase || 'planning',
+          priority: data.priority || 'normal',
+          startDate: data.startDate || new Date().toISOString(),
+          endDate: data.endDate,
+          progress: data.progress || 0,
+          deliverables: data.deliverables || [],
+          team: data.team || { pm: defaultBusinessSupportPM, members: [] },
+          tags: data.tags || [],
+          metadata: data.metadata || {},
+          meetings: data.meetings || [],
+          ...data
+        };
+
+        setProjects(prev => [...prev, newProject]);
+        console.log(`[BuildupContext] Created project from ecosystem: ${newProject.title}`);
+      },
+
+      updateProject: (projectId: string, data: Partial<Project>) => {
+        setProjects(prev =>
+          prev.map(project =>
+            project.id === projectId
+              ? { ...project, ...data, updatedAt: new Date().toISOString() }
+              : project
+          )
+        );
+      },
+
+      getProjects: () => projects,
+
+      addMeetingToProject: (projectId: string, meeting: Meeting) => {
+        setProjects(prev =>
+          prev.map(project =>
+            project.id === projectId
+              ? {
+                  ...project,
+                  meetings: [...(project.meetings || []), meeting]
+                }
+              : project
+          )
+        );
+      },
+
+      updateProjectMeeting: (projectId: string, meetingId: string, updates: Partial<Meeting>) => {
+        setProjects(prev =>
+          prev.map(project =>
+            project.id === projectId
+              ? {
+                  ...project,
+                  meetings: updateMeetingInArray(project.meetings || [], meetingId, updates)
+                }
+              : project
+          )
+        );
+      },
+
+      calculateProjectProgress: (project: Project) => {
+        return getProjectProgress(project);
+      }
+    };
+
+    // Ecosystem Connector에 BuildupContext 연결
+    buildupEcosystemConnector.connectBuildupContext(buildupBridge);
+
+    console.log('🔗 BuildupContext가 Ecosystem에 연결되었습니다');
+
+    // Cleanup
+    return () => {
+      // Connector cleanup은 BuildupProvider unmount 시에만
+    };
+  }, [projects]);
+
   // Save cart to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('buildup_cart', JSON.stringify(cart));
@@ -425,7 +541,34 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     setLoadingServices(true);
     try {
       const loadedServices = await loadBuildupServices();
-      setServices(loadedServices);
+
+      // target_axis 필드가 없는 서비스들에 대해 kpi_improvement를 기반으로 자동 생성
+      const servicesWithTargetAxis = loadedServices.map(service => {
+        if (!service.target_axis && service.benefits?.kpi_improvement) {
+          // kpi_improvement에서 개선도가 5 이상인 축들을 target_axis로 설정
+          const targetAxes: AxisKey[] = [];
+          Object.entries(service.benefits.kpi_improvement).forEach(([axis, improvement]) => {
+            if (typeof improvement === 'number' && improvement >= 5) {
+              targetAxes.push(axis as AxisKey);
+            }
+          });
+
+          return {
+            ...service,
+            target_axis: targetAxes,
+            expected_improvement: Math.max(...Object.values(service.benefits.kpi_improvement) as number[])
+          };
+        }
+        return service;
+      });
+
+      console.log('✅ 서비스 로드 완료:', servicesWithTargetAxis.slice(0, 3).map(s => ({
+        name: s.name,
+        target_axis: s.target_axis,
+        expected_improvement: s.expected_improvement
+      })));
+
+      setServices(servicesWithTargetAxis as BuildupService[]);
       setError(null);
     } catch (err) {
       console.error('Failed to load services:', err);
@@ -991,6 +1134,150 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     setProjects(projects.map(project =>
       project.id === projectId ? { ...project, ...data } : project
     ));
+  };
+
+  // 로컬스토리지에서 파일 데이터를 저장/로드하는 유틸리티 함수들
+  const saveProjectFilesToStorage = (updatedProjects: Project[]) => {
+    try {
+      const projectFiles: Record<string, ProjectFile[]> = {};
+      updatedProjects.forEach(project => {
+        if (project.files && project.files.length > 0) {
+          projectFiles[project.id] = project.files.map(file => ({
+            ...file,
+            uploaded_at: new Date(file.uploaded_at), // Date 객체로 변환
+          }));
+        }
+      });
+      localStorage.setItem('buildup_project_files', JSON.stringify(projectFiles));
+    } catch (error) {
+      console.error('[BuildupContext] Failed to save files to localStorage:', error);
+    }
+  };
+
+  const loadProjectFilesFromStorage = (): Record<string, ProjectFile[]> => {
+    try {
+      const stored = localStorage.getItem('buildup_project_files');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Date 필드들을 Date 객체로 복원
+        Object.keys(parsed).forEach(projectId => {
+          parsed[projectId] = parsed[projectId].map((file: any) => ({
+            ...file,
+            uploaded_at: new Date(file.uploaded_at)
+          }));
+        });
+        return parsed;
+      }
+    } catch (error) {
+      console.error('[BuildupContext] Failed to load files from localStorage:', error);
+    }
+    return {};
+  };
+
+  // 프로젝트 파일 관리 함수들
+  const addFileToProject = async (projectId: string, file: File, category: string = 'document'): Promise<void> => {
+    try {
+      // 파일 검증
+      const maxSize = 100 * 1024 * 1024; // 100MB
+      if (file.size > maxSize) {
+        throw new Error('파일 크기는 100MB를 초과할 수 없습니다.');
+      }
+
+      const allowedTypes = [
+        'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'text/plain', 'text/csv', 'image/png', 'image/jpeg', 'image/gif', 'image/svg+xml',
+        'application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed'
+      ];
+
+      if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|csv|png|jpg|jpeg|gif|svg|zip|rar|7z)$/i)) {
+        throw new Error('지원하지 않는 파일 형식입니다.');
+      }
+
+      // 파일을 Base64로 인코딩 (localStorage 저장용)
+      const fileData = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      // 파일 객체 생성
+      const newFile: ProjectFile = {
+        id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        url: fileData, // Base64 데이터 저장
+        uploaded_by: {
+          id: 'current-user',
+          name: '현재 사용자',
+          role: 'pm',
+          avatar: ''
+        },
+        uploaded_at: new Date(),
+        version: 1,
+        category: category as 'document' | 'design' | 'code' | 'report' | 'other'
+      };
+
+      // 프로젝트에 파일 추가
+      const updatedProjects = projects.map(project =>
+        project.id === projectId
+          ? { ...project, files: [...(project.files || []), newFile] }
+          : project
+      );
+
+      setProjects(updatedProjects);
+
+      // 로컬스토리지에 저장
+      saveProjectFilesToStorage(updatedProjects);
+
+      showSuccess?.(`파일 "${file.name}"이 성공적으로 업로드되었습니다.`);
+
+      console.log(`[BuildupContext] File added to project ${projectId}:`, newFile);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '파일 업로드 중 오류가 발생했습니다.';
+      showError?.(errorMessage);
+      console.error('[BuildupContext] File upload error:', error);
+      throw error;
+    }
+  };
+
+  const removeFileFromProject = (projectId: string, fileId: string) => {
+    const updatedProjects = projects.map(project =>
+      project.id === projectId
+        ? { ...project, files: (project.files || []).filter(file => file.id !== fileId) }
+        : project
+    );
+
+    setProjects(updatedProjects);
+
+    // 로컬스토리지 업데이트
+    saveProjectFilesToStorage(updatedProjects);
+
+    showSuccess?.('파일이 삭제되었습니다.');
+    console.log(`[BuildupContext] File ${fileId} removed from project ${projectId}`);
+  };
+
+  const updateProjectFile = (projectId: string, fileId: string, updates: Partial<ProjectFile>) => {
+    const updatedProjects = projects.map(project =>
+      project.id === projectId
+        ? {
+            ...project,
+            files: (project.files || []).map(file =>
+              file.id === fileId ? { ...file, ...updates } : file
+            )
+          }
+        : project
+    );
+
+    setProjects(updatedProjects);
+
+    // 로컬스토리지 업데이트
+    saveProjectFilesToStorage(updatedProjects);
+
+    console.log(`[BuildupContext] File ${fileId} updated in project ${projectId}:`, updates);
   };
 
   // Stage C-3: Initialize new Phase Transition Module
@@ -1644,12 +1931,18 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       .filter(([_, score]) => score < 70)
       .map(([axis, _]) => axis);
 
-    return services
-      .filter(service =>
-        service.target_axis.some(axis => weakAxes.includes(axis))
-      )
-      .sort((a, b) => b.expected_improvement - a.expected_improvement)
+    const filteredServices = services
+      .filter(service => {
+        // 방어 코드: target_axis가 없거나 배열이 아닌 경우 처리
+        if (!service.target_axis || !Array.isArray(service.target_axis)) {
+          return false;
+        }
+        return service.target_axis.some(axis => weakAxes.includes(axis));
+      })
+      .sort((a, b) => (b.expected_improvement || 0) - (a.expected_improvement || 0))
       .slice(0, 5);
+
+    return filteredServices;
   };
 
   // 추천 서비스 가져오기 (높은 평점과 리뷰 수 기준)
@@ -2116,6 +2409,11 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     createProject,
     updateProject,
 
+    // 프로젝트 파일 관리
+    addFileToProject,
+    removeFileFromProject,
+    updateProjectFile,
+
     // 프로젝트 계산 함수
     calculateDDay,
     getUrgentProjects,
@@ -2156,7 +2454,20 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     updateProjectMeeting,
     removeProjectMeeting,
     syncProjectMeetings,
-    getProjectMeetings
+    getProjectMeetings,
+
+    // Ecosystem Integration
+    reportMilestoneCompleted: async (projectId: string, milestoneId: string, kpiImpact: Partial<Record<AxisKey, number>>, completedBy: string) => {
+      await buildupEcosystemConnector.reportMilestoneCompleted(projectId, milestoneId, kpiImpact, completedBy);
+    },
+
+    reportProjectStatusChanged: async (projectId: string, oldStatus: string, newStatus: string, reason?: string) => {
+      await buildupEcosystemConnector.reportProjectStatusChanged(projectId, oldStatus, newStatus, reason);
+    },
+
+    getEcosystemStats: () => {
+      return buildupEcosystemConnector.getConnectionStats();
+    }
   };
 
   // Window 객체에 BuildupContext 노출 (Phase 전환 및 크로스 컨텍스트 통신용)
@@ -2444,6 +2755,25 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
       });
     }
   }, [isRegistered, status]);
+
+  // VDR 문서 동기화 이벤트 리스너
+  useEffect(() => {
+    const handleVDRSync = (event: CustomEvent) => {
+      console.log('[BuildupContext] VDR sync event received:', event.detail);
+
+      // 프로젝트 목록을 새로고침하여 VDR 문서들이 반영되도록 함
+      const refreshedProjects = getInitialProjects();
+      setProjects(refreshedProjects);
+
+      showSuccess(`VDR에서 ${Object.keys(event.detail.projectDocsMap).length}개 프로젝트로 문서가 동기화되었습니다.`);
+    };
+
+    window.addEventListener('vdr-project-sync-complete', handleVDRSync as EventListener);
+
+    return () => {
+      window.removeEventListener('vdr-project-sync-complete', handleVDRSync as EventListener);
+    };
+  }, [showSuccess]);
 
   return (
     <BuildupContext.Provider value={value}>

@@ -14,7 +14,8 @@ import {
   XCircle,
   AlertCircle,
   Star,
-  Plus
+  Plus,
+  MousePointer2
 } from 'lucide-react';
 import type { CalendarEvent } from '../../types/calendar.types';
 import type { UnifiedSchedule } from '../../types/schedule.types';
@@ -133,26 +134,37 @@ export default function CalendarContent({
 
                   {/* Events */}
                   <div className="space-y-1">
-                    {dayEvents.slice(0, 2).map(event => (
-                      <div
-                        key={event.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEventClick(event);
-                        }}
-                        className={`
-                          text-xs px-1.5 py-0.5 rounded border truncate cursor-pointer
-                          ${getEventColor(event)}
-                          ${event.status === 'completed' ? 'opacity-60 line-through' : ''}
-                          hover:shadow-sm transition-colors
-                        `}
-                      >
-                        <div className="flex items-center gap-1">
-                          {getEventIcon(event)}
-                          <span className="truncate">{event.title}</span>
+                    {dayEvents.slice(0, 2).map(event => {
+                      const isDraggedEvent = event.metadata?.sourceType === 'smart_matching' && event.metadata?.draggedFrom;
+
+                      return (
+                        <div
+                          key={event.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEventClick(event);
+                          }}
+                          className={`
+                            text-xs px-1.5 py-0.5 rounded border truncate cursor-pointer
+                            ${isDraggedEvent
+                              ? 'bg-blue-50 border-blue-200 text-blue-800 ring-1 ring-blue-300'
+                              : getEventColor(event)
+                            }
+                            ${event.status === 'completed' ? 'opacity-60 line-through' : ''}
+                            hover:shadow-sm transition-colors
+                          `}
+                        >
+                          <div className="flex items-center gap-1">
+                            {isDraggedEvent ? (
+                              <MousePointer2 className="w-3 h-3 text-blue-600" />
+                            ) : (
+                              getEventIcon(event)
+                            )}
+                            <span className="truncate">{event.title}</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {dayEvents.length > 2 && (
                       <div className="text-xs text-gray-300 text-center">
                         +{dayEvents.length - 2}
@@ -211,7 +223,7 @@ export default function CalendarContent({
                 const isToday = date.toDateString() === new Date().toDateString();
 
                 return (
-                  <div key={dateKey}>
+                  <div key={`date-${dateKey}-${dateEvents[0]?.id || Math.random()}`}>
                     <div className="flex items-center gap-3 mb-3">
                       <h3 className={`font-semibold ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
                         {date.toLocaleDateString('ko-KR', {
@@ -234,21 +246,43 @@ export default function CalendarContent({
                       {dateEvents.map(event => {
                         const meetingData = event.meetingData as EnhancedMeetingData | undefined;
                         const importance = EventMetadataUtils.calculateImportanceScore(event);
+                        const isDraggedEvent = event.metadata?.sourceType === 'smart_matching' && event.metadata?.draggedFrom;
 
                         return (
                           <div
                             key={event.id}
                             onClick={() => onEventClick(event)}
-                            className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-colors cursor-pointer"
+                            className={`
+                              rounded-lg p-4 hover:shadow-md transition-colors cursor-pointer
+                              ${isDraggedEvent
+                                ? 'bg-blue-50 border-2 border-blue-200 ring-1 ring-blue-300'
+                                : 'bg-white border border-gray-200'
+                              }
+                            `}
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex items-start gap-3">
-                                <div className={`p-2 rounded-lg ${getEventColor(event)}`}>
-                                  {getEventIcon(event)}
+                                <div className={`p-2 rounded-lg ${
+                                  isDraggedEvent
+                                    ? 'bg-blue-100 text-blue-600'
+                                    : getEventColor(event)
+                                }`}>
+                                  {isDraggedEvent ? (
+                                    <MousePointer2 className="w-4 h-4" />
+                                  ) : (
+                                    getEventIcon(event)
+                                  )}
                                 </div>
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-1">
-                                    <h4 className="font-medium text-gray-900">{event.title}</h4>
+                                    <h4 className={`font-medium ${isDraggedEvent ? 'text-blue-900' : 'text-gray-900'}`}>
+                                      {event.title}
+                                    </h4>
+                                    {isDraggedEvent && (
+                                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
+                                        드래그됨
+                                      </span>
+                                    )}
                                     {importance >= 70 && <Star className="w-3 h-3 text-yellow-500" />}
                                     {event.status === 'completed' && <CheckCircle className="w-4 h-4 text-green-600" />}
                                     {event.status === 'cancelled' && <XCircle className="w-4 h-4 text-red-600" />}

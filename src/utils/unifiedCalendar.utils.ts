@@ -36,8 +36,8 @@ export function transformSmartMatchingEvent(
 
     // 마감일 정보 계산
     const deadline = {
-      applicationStartDate: event.applicationStartDate,
-      applicationEndDate: event.applicationEndDate,
+      applicationStartDate: new Date(event.applicationStartDate),
+      applicationEndDate: new Date(event.applicationEndDate),
       daysUntilDeadline,
       urgencyLevel,
       isExpired: daysUntilDeadline < 0
@@ -94,7 +94,7 @@ export function transformSmartMatchingEvent(
       originalEventId: event.id,
 
       title,
-      date: event.applicationEndDate,
+      date: new Date(event.applicationEndDate),
       description: event.description,
 
       category: event.category,
@@ -151,7 +151,7 @@ export function transformBuildupEvent(
       originalEventId: calendarEvent.id,
 
       title: calendarEvent.title,
-      date: calendarEvent.date,
+      date: new Date(calendarEvent.date),
       time: calendarEvent.time,
       description: calendarEvent.meetingData?.agenda || calendarEvent.title,
 

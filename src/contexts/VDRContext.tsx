@@ -1016,7 +1016,7 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               name: file.name || file.filename || 'Unknown File',
               path: `/companies/buildup/projects/${project.id}/library/${file.name || file.filename}`,
               size: file.size || 524288,
-              uploadDate: new Date(file.uploadDate || Date.now()),
+              uploadDate: new Date(file.uploaded_at || file.uploadDate || Date.now()),
               lastModified: new Date(file.lastModified || Date.now()),
               category: file.category || 'buildup_deliverable',
               source: 'buildup',
@@ -1057,11 +1057,282 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         })));
       }
 
+      // 개발용: 문서가 적을 때 더미 문서 추가
+      if (aggregatedDocs.length < 10) {
+        const dummyDocs: VDRDocument[] = [
+          {
+            id: 'dummy-1',
+            name: '포켓전자 사업계획서.pdf',
+            path: '/dummy/business-plan.pdf',
+            size: 2048000,
+            uploadDate: new Date(),
+            lastModified: new Date(),
+            category: 'business_plan',
+            source: 'manual',
+            visibility: 'private',
+            isRepresentative: true,
+            representativeType: 'business_plan'
+          },
+          {
+            id: 'dummy-2',
+            name: '2024_Q3_재무제표.xlsx',
+            path: '/dummy/financial-statement.xlsx',
+            size: 512000,
+            uploadDate: new Date(Date.now() - 86400000),
+            lastModified: new Date(Date.now() - 86400000),
+            category: 'financial',
+            source: 'manual',
+            visibility: 'team',
+            tags: ['재무', 'Q3', '2024'],
+            isRepresentative: true,
+            representativeType: 'financial'
+          },
+          {
+            id: 'dummy-3',
+            name: '제품 설명서_v3.2.pdf',
+            path: '/dummy/product-guide.pdf',
+            size: 4096000,
+            uploadDate: new Date(Date.now() - 259200000),
+            lastModified: new Date(Date.now() - 259200000),
+            category: 'ir_deck',
+            source: 'manual',
+            visibility: 'investors',
+            projectId: 'PRJ-001',
+            projectName: 'MVP 개발 프로젝트',
+            isRepresentative: true,
+            representativeType: 'ir_deck'
+          },
+          {
+            id: 'dummy-4',
+            name: '마케팅 분석 보고서.pptx',
+            path: '/dummy/marketing-report.pptx',
+            size: 8192000,
+            uploadDate: new Date(Date.now() - 604800000),
+            lastModified: new Date(Date.now() - 604800000),
+            category: 'marketing',
+            source: 'manual',
+            visibility: 'public',
+            tags: ['마케팅', '전략', 'Q4'],
+            isRepresentative: true,
+            representativeType: 'marketing'
+          },
+          {
+            id: 'dummy-5',
+            name: '기술 개발 계획서.pdf',
+            path: '/dummy/tech-plan.pdf',
+            size: 3072000,
+            uploadDate: new Date(Date.now() - 172800000),
+            lastModified: new Date(Date.now() - 172800000),
+            category: 'business_plan',
+            source: 'buildup_deliverable',
+            visibility: 'private',
+            projectName: '포켓전자 기술혁신 프로젝트'
+          },
+          {
+            id: 'dummy-6',
+            name: '투자제안서_v2.pptx',
+            path: '/dummy/investment-proposal.pptx',
+            size: 5120000,
+            uploadDate: new Date(Date.now() - 432000000),
+            lastModified: new Date(Date.now() - 432000000),
+            category: 'ir_deck',
+            source: 'manual',
+            visibility: 'investors'
+          },
+          {
+            id: 'dummy-7',
+            name: '법적 검토 의견서.doc',
+            path: '/dummy/legal-review.doc',
+            size: 256000,
+            uploadDate: new Date(Date.now() - 864000000),
+            lastModified: new Date(Date.now() - 864000000),
+            category: 'contract',
+            source: 'manual',
+            visibility: 'private'
+          },
+          {
+            id: 'dummy-8',
+            name: 'KPI 진단 보고서_202401.pdf',
+            path: '/dummy/kpi-report.pdf',
+            size: 1536000,
+            uploadDate: new Date(Date.now() - 1209600000),
+            lastModified: new Date(Date.now() - 1209600000),
+            category: 'kpi_report',
+            source: 'kpi',
+            visibility: 'team'
+          },
+          {
+            id: 'dummy-9',
+            name: '고객 피드백 분석.csv',
+            path: '/dummy/customer-feedback.csv',
+            size: 128000,
+            uploadDate: new Date(Date.now() - 345600000),
+            lastModified: new Date(Date.now() - 345600000),
+            category: 'marketing',
+            source: 'manual',
+            visibility: 'public'
+          },
+          {
+            id: 'dummy-10',
+            name: '팀 조직도.png',
+            path: '/dummy/org-chart.png',
+            size: 1024000,
+            uploadDate: new Date(Date.now() - 691200000),
+            lastModified: new Date(Date.now() - 691200000),
+            category: 'marketing',
+            source: 'manual',
+            visibility: 'team'
+          },
+          {
+            id: 'dummy-11',
+            name: '로고 디자인.png',
+            path: '/dummy/logo-design.png',
+            size: 2048000,
+            uploadDate: new Date(Date.now() - 172800000),
+            lastModified: new Date(Date.now() - 172800000),
+            category: 'marketing',
+            source: 'manual',
+            visibility: 'public',
+            projectId: 'PRJ-001',
+            projectName: 'MVP 개발 프로젝트',
+            tags: ['로고', '디자인', 'MVP']
+          }
+        ];
+
+        // 더미 문서 중 중복되지 않은 것만 추가
+        dummyDocs.forEach(dummy => {
+          if (!aggregatedDocs.find(doc => doc.id === dummy.id)) {
+            aggregatedDocs.push(dummy);
+          }
+        });
+      }
+
+      console.log('[VDR] Documents aggregated:', {
+        total: aggregatedDocs.length,
+        fromBuildup: aggregatedDocs.filter(d => d.source === 'buildup').length,
+        fromKPI: aggregatedDocs.filter(d => d.source === 'kpi').length,
+        fromManual: aggregatedDocs.filter(d => d.source === 'manual').length
+      });
+
       setDocuments(aggregatedDocs);
+
+      // VDR 문서들을 프로젝트별로 동기화
+      syncVDRDocumentsToProjects(aggregatedDocs);
     } catch (error) {
       console.error('Failed to aggregate documents:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // VDR 문서들을 프로젝트 파일로 동기화하는 함수
+  const syncVDRDocumentsToProjects = (vdrDocs: VDRDocument[]) => {
+    try {
+      // projectId를 가진 VDR 문서들을 프로젝트별로 그룹화
+      const projectDocsMap: Record<string, any[]> = {};
+
+      vdrDocs.forEach(doc => {
+        if (doc.projectId) {
+          if (!projectDocsMap[doc.projectId]) {
+            projectDocsMap[doc.projectId] = [];
+          }
+
+          // VDR 문서를 ProjectFile 형식으로 변환
+          const projectFile = {
+            id: `vdr-sync-${doc.id}`,
+            name: doc.name,
+            type: doc.fileType || getFileTypeFromName(doc.name),
+            size: doc.size,
+            url: doc.path,
+            uploaded_by: {
+              id: doc.uploadedById || 'vdr-user',
+              name: doc.uploadedBy || 'VDR 업로드',
+              role: 'member',
+              avatar: null
+            },
+            uploaded_at: doc.uploadDate,
+            version: 1,
+            category: mapVDRCategoryToProjectCategory(doc.category),
+            // VDR에서 온 파일임을 표시
+            _source: 'vdr',
+            _vdrId: doc.id,
+            _vdrCategory: doc.category
+          };
+
+          projectDocsMap[doc.projectId].push(projectFile);
+        }
+      });
+
+      // 기존 프로젝트 파일 데이터 로드
+      const existingProjectFiles = loadProjectFilesFromStorage();
+
+      // 각 프로젝트에 VDR 문서들 추가 (중복 제거)
+      Object.entries(projectDocsMap).forEach(([projectId, vdrFiles]) => {
+        const currentFiles = existingProjectFiles[projectId] || [];
+
+        // VDR에서 온 기존 파일들 제거 (재동기화)
+        const filteredFiles = currentFiles.filter(file => !file._source || file._source !== 'vdr');
+
+        // 새로운 VDR 파일들 추가
+        existingProjectFiles[projectId] = [...filteredFiles, ...vdrFiles];
+      });
+
+      // localStorage에 업데이트된 파일 목록 저장
+      localStorage.setItem('buildup_project_files', JSON.stringify(existingProjectFiles));
+
+      console.log('[VDR] Synced documents to projects:', {
+        projectCount: Object.keys(projectDocsMap).length,
+        totalFiles: Object.values(projectDocsMap).reduce((sum, files) => sum + files.length, 0)
+      });
+
+      // BuildupContext에 동기화 완료 이벤트 발송
+      window.dispatchEvent(new CustomEvent('vdr-project-sync-complete', {
+        detail: { projectDocsMap }
+      }));
+
+    } catch (error) {
+      console.error('[VDR] Failed to sync documents to projects:', error);
+    }
+  };
+
+  // 헬퍼 함수들
+  const getFileTypeFromName = (name: string): string => {
+    const extension = name.split('.').pop()?.toLowerCase();
+    const typeMap: Record<string, string> = {
+      'pdf': 'application/pdf',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg'
+    };
+    return typeMap[extension || ''] || 'application/octet-stream';
+  };
+
+  const mapVDRCategoryToProjectCategory = (vdrCategory: VDRDocument['category']): 'document' | 'design' | 'code' | 'report' | 'other' => {
+    const categoryMap: Record<VDRDocument['category'], 'document' | 'design' | 'code' | 'report' | 'other'> = {
+      'buildup_deliverable': 'document',
+      'kpi_report': 'report',
+      'vdr_upload': 'document',
+      'contract': 'document',
+      'ir_deck': 'document',
+      'business_plan': 'document',
+      'financial': 'report',
+      'marketing': 'design'
+    };
+    return categoryMap[vdrCategory] || 'other';
+  };
+
+  // localStorage에서 프로젝트 파일 로드
+  const loadProjectFilesFromStorage = (): Record<string, any[]> => {
+    try {
+      const stored = localStorage.getItem('buildup_project_files');
+      return stored ? JSON.parse(stored) : {};
+    } catch (error) {
+      console.error('Failed to load project files from storage:', error);
+      return {};
     }
   };
 

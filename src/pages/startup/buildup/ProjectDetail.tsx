@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useChatContext } from '../../../contexts/ChatContext';
 import { useScheduleContext } from '../../../contexts/ScheduleContext';
@@ -8,7 +8,6 @@ import type { GuideMeetingRecord, GuideMeetingComment } from '../../../types/mee
 import type { BuildupProjectMeeting } from '../../../types/schedule.types';
 import { EventSourceTracker } from '../../../types/events.types';
 import { MEETING_TYPE_CONFIG } from '../../../types/meeting.enhanced.types';
-import ProjectPhaseIndicator from '../../../components/project/ProjectPhaseIndicator';
 import PhaseHistoryDisplay from '../../../components/project/PhaseHistoryDisplay';
 import ProjectPhaseTransition from '../../../components/phaseTransition/ProjectPhaseTransition';
 import {
@@ -39,7 +38,10 @@ import {
   File,
   Video,
   Music,
-  Archive
+  Archive,
+  ChevronDown,
+  ChevronUp,
+  User
 } from 'lucide-react';
 import { useBuildupContext } from '../../../contexts/BuildupContext';
 import { useToast } from '../../../contexts/ToastContext';
@@ -90,7 +92,7 @@ interface Activity {
 export default function ProjectDetail() {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const { projects, updateProject } = useBuildupContext();
+  const { projects, updateProject, addFileToProject, removeFileFromProject } = useBuildupContext();
   const {
     openChatForProject,
     getUnreadCountByProject,
@@ -120,7 +122,24 @@ export default function ProjectDetail() {
   const [newComment, setNewComment] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // 파일 업로드 상태
+  const [fileCategory, setFileCategory] = useState('document');
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [rightPanelTab, setRightPanelTab] = useState<'summary' | 'comments'>('comments'); // 기본값을 댓글로
+  const [isProgressBarCollapsed, setIsProgressBarCollapsed] = useState(() => {
+    // localStorage에서 접힌 상태 복원
+    const saved = localStorage.getItem(`project-${projectId}-progress-collapsed`);
+    return saved === 'true';
+  });
+
+  // 진행바 접기/펼치기 토글
+  const toggleProgressBar = () => {
+    const newState = !isProgressBarCollapsed;
+    setIsProgressBarCollapsed(newState);
+    localStorage.setItem(`project-${projectId}-progress-collapsed`, String(newState));
+  };
 
   // 미팅별 댓글 저장 (로컬 상태)
   const [meetingComments, setMeetingComments] = useState<Record<string, Array<{
@@ -155,6 +174,52 @@ export default function ProjectDetail() {
   // Sprint 5: 다음 미팅 타입 결정 함수
   const getNextMeetingType = (currentPhase: string): string => {
     return PHASE_TO_MEETING[currentPhase as keyof typeof PHASE_TO_MEETING] || 'general_meeting';
+  };
+
+  // 파일 업로드 핸들러
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || !project) return;
+
+    setIsUploading(true);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        await addFileToProject(project.id, files[i], fileCategory);
+      }
+    } catch (error) {
+      console.error('File upload error:', error);
+    } finally {
+      setIsUploading(false);
+      // 파일 입력 초기화
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleFileDelete = (fileId: string) => {
+    if (project && window.confirm('이 파일을 삭제하시겠습니까?')) {
+      removeFileFromProject(project.id, fileId);
+    }
+  };
+
+  const handleUploadButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileDownload = (file: any) => {
+    if (file.url.startsWith('data:')) {
+      // Base64 데이터인 경우 다운로드 링크 생성
+      const link = document.createElement('a');
+      link.href = file.url;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      // 일반 URL인 경우
+      window.open(file.url, '_blank');
+    }
   };
 
   // Sprint 5: 미팅 예약 핸들러
@@ -703,6 +768,15 @@ export default function ProjectDetail() {
     return timestamp.toLocaleDateString('ko-KR');
   };
 
+  // D-day 계산 함수
+  const getDaysUntilMeeting = (meetingDateTime: string): number => {
+    const now = new Date();
+    const meetingDate = new Date(meetingDateTime);
+    const diffInTime = meetingDate.getTime() - now.getTime();
+    const diffInDays = Math.ceil(diffInTime / (1000 * 60 * 60 * 24));
+    return diffInDays;
+  };
+
   if (!project) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -861,91 +935,276 @@ export default function ProjectDetail() {
     { id: 'overview', label: '개요', icon: Briefcase },
     { id: 'files', label: '파일', icon: FileText },
     { id: 'meetings', label: '미팅 기록', icon: Calendar },
-    { id: 'phase-history', label: '단계 이력', icon: Activity }
+    { id: 'phase-history', label: '🔧 개발자 모드', icon: Activity, isDev: true }
   ];
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate('/startup/buildup/projects')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{project.title}</h1>
-              <div className="flex items-center gap-3 mt-1">
-                <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(project.status)}`}>
-                  {project.status === 'active' ? '진행중' : 
-                   project.status === 'completed' ? '완료' : 
-                   project.status === 'review' ? '검토중' : '준비중'}
-                </span>
-                <span className="text-sm text-gray-600">{project.category}</span>
-                <span className="text-sm text-gray-500">
-                  {new Date(project.contract.start_date).toLocaleDateString()} - {new Date(project.contract.end_date).toLocaleDateString()}
-                </span>
+      {/* Header - 3분할 Grid 구조 (좌상단, 좌하단, 우측) */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="grid grid-cols-2 auto-rows-min">
+          {/* 좌상단: 프로젝트 정보 (50% 너비) */}
+          <div className="col-span-1 px-6 py-6 border-b border-gray-100">
+            <div className="flex items-start gap-4">
+              <button
+                onClick={() => navigate('/startup/buildup/projects')}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+
+              <div className="flex-1 space-y-2">
+                <h1 className="text-2xl font-bold text-gray-900 leading-tight">{project.title}</h1>
+
+                <div className="flex items-center gap-4">
+                  <span className={`px-3 py-1 text-sm rounded-full font-medium ${getStatusColor(project.status)}`}>
+                    {project.status === 'active' ? '진행중' :
+                     project.status === 'completed' ? '완료' :
+                     project.status === 'review' ? '검토중' : '준비중'}
+                  </span>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-700">카테고리:</span>
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-md">
+                      {project.category}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm font-semibold text-gray-700">기간:</span>
+                    <span className="text-sm text-gray-600">
+                      {new Date(project.contract.start_date).toLocaleDateString('ko-KR')} - {new Date(project.contract.end_date).toLocaleDateString('ko-KR')}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm font-semibold text-gray-700">팀:</span>
+                    <span className="text-sm text-gray-600">
+                      {project.team ? Object.keys(project.team).length : 0}명
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          
-          <div className="flex items-center gap-2">
-            {/* 채팅방 바로가기 버튼 */}
-            <button
-              onClick={handleOpenChat}
-              className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors group"
-              title="프로젝트 채팅방"
-            >
-              <MessageSquare className="w-5 h-5 text-gray-600 group-hover:text-blue-600" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
+
+          {/* 우측: 2열 서브그리드 (50% 너비) */}
+          <div className="col-span-1 row-span-2 border-l border-gray-100 grid grid-cols-2 grid-rows-1">
+            {/* 위치 2-5 통합: 미팅 박스 (우측 왼쪽 열, 세로형) */}
+            <div className="col-span-1 p-4 border-r border-gray-100">
+            {nextMeeting ? (
+              <div className="bg-gradient-to-b from-emerald-50 to-teal-50 p-4 rounded-xl border border-emerald-200 shadow-sm flex flex-col">
+                <div className="flex flex-row items-start gap-3">
+                  {/* 미팅 아이콘 */}
+                  <div className="relative flex-shrink-0">
+                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-lg flex items-center justify-center text-white">
+                      <Calendar className="w-6 h-6" />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-orange-500 border-2 border-white rounded-full flex items-center justify-center">
+                      <span className="text-xs font-bold text-white">
+                        {getDaysUntilMeeting(nextMeeting.startDateTime)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 미팅 정보 */}
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500 mb-1">다음 프로젝트 일정</p>
+                    <h3 className="text-sm font-bold text-gray-900 mb-1">
+                      {nextMeeting.meetingSequence ?
+                        `${nextMeeting.meetingSequence.type === 'guide' ? '가이드' : nextMeeting.meetingSequence.type === 'premeeting' ? '프리미팅' : nextMeeting.meetingSequence.type} ${nextMeeting.meetingSequence.sequence}차` :
+                        nextMeeting.title}
+                    </h3>
+                    <span className="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full mb-2">
+                      D-{getDaysUntilMeeting(nextMeeting.startDateTime)}
+                    </span>
+
+                    <p className="text-xs text-gray-600 mb-2">
+                      {new Date(nextMeeting.startDateTime).toLocaleDateString('ko-KR', {
+                        month: 'long', day: 'numeric', weekday: 'short'
+                      })} {new Date(nextMeeting.startDateTime).toLocaleTimeString('ko-KR', {
+                        hour: '2-digit', minute: '2-digit'
+                      })}
+                    </p>
+
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                      <span>예정된 미팅</span>
+                    </div>
+                  </div>
+
+                </div>
+                <button
+                  onClick={() => {
+                    setIsScheduleModalOpen(true);
+                    setShowScheduleModal(true);
+                    setScheduleModalMode('create');
+                  }}
+                  className="mt-3 p-2 w-full bg-white hover:bg-emerald-50 rounded-lg transition-colors shadow-sm flex items-center justify-center gap-2"
+                >
+                  <PlusCircle className="w-4 h-4 text-emerald-600" />
+                  <span className="text-sm text-emerald-600">일정 추가</span>
+                </button>
+              </div>
+              ) : (
+                <div className="bg-gradient-to-b from-gray-50 to-slate-50 p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col">
+                  <div className="flex flex-row items-start gap-3 flex-1">
+                    <div className="w-12 h-12 bg-gradient-to-br from-gray-400 to-slate-400 rounded-lg flex items-center justify-center text-white flex-shrink-0">
+                      <Calendar className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-500 mb-1">다음 프로젝트 일정</p>
+                      <h3 className="text-sm font-bold text-gray-900 mb-1">예정된 일정이 없습니다</h3>
+                      <p className="text-xs text-gray-600">새로운 미팅을 예약해보세요</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsScheduleModalOpen(true);
+                      setShowScheduleModal(true);
+                      setScheduleModalMode('create');
+                    }}
+                    className="mt-3 p-2 w-full bg-white hover:bg-blue-50 rounded-lg transition-colors shadow-sm flex items-center justify-center gap-2"
+                  >
+                    <PlusCircle className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm text-blue-600">일정 추가</span>
+                  </button>
+                </div>
               )}
-            </button>
-            <button className="p-2 hover:bg-gray-100 rounded-lg">
-              <Bell className="w-5 h-5 text-gray-600" />
-            </button>
-            <button className="p-2 hover:bg-gray-100 rounded-lg">
-              <Share2 className="w-5 h-5 text-gray-600" />
-            </button>
-            <button className="p-2 hover:bg-gray-100 rounded-lg">
-              <MoreVertical className="w-5 h-5 text-gray-600" />
-            </button>
+            </div>
+
+            {/* 위치 3-6 통합: 빌더 프로필 카드 (우측 오른쪽 열, 세로형) */}
+            <div className="col-span-1 p-4">
+              {project.team?.pm && (
+              <div className="bg-gradient-to-b from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200 shadow-sm flex flex-col">
+                <div className="flex flex-row items-start gap-3">
+                  {/* 빌더 아바타 */}
+                  <div className="relative flex-shrink-0">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white text-lg font-bold">
+                      {project.team.pm.name[0]}
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+                  </div>
+
+                  {/* 빌더 정보 */}
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500 mb-1">담당 빌더</p>
+                    <h3 className="text-sm font-bold text-gray-900 mb-1">{project.team.pm.name}</h3>
+                    <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full mb-2">
+                      {project.team.pm.role || '빌더'}
+                    </span>
+
+                    <p className="text-xs text-gray-600 mb-2">
+                      {project.team.pm.email || '전담 PM입니다'}
+                    </p>
+
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                      <span>현재 온라인</span>
+                    </div>
+                  </div>
+
+                </div>
+                <button
+                  onClick={handleOpenChat}
+                  className="mt-3 p-2 w-full bg-white hover:bg-blue-50 rounded-lg transition-colors shadow-sm relative flex items-center justify-center gap-2"
+                >
+                  <MessageSquare className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm text-blue-600">메시지</span>
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-2 w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
+            </div>
+          </div>
+
+          {/* 좌하단: 탭 네비게이션 (50% 너빔) */}
+          <div className="col-span-1 px-6 py-4 bg-gray-50/50">
+            <nav className="flex gap-2">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2.5 ${
+                      tab.isDev
+                        ? activeTab === tab.id
+                          ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-400 shadow-sm'
+                          : 'text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 border-2 border-yellow-300 border-dashed bg-yellow-50/50'
+                        : activeTab === tab.id
+                        ? 'bg-gray-900 text-white shadow-lg transform scale-105'
+                        : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200 hover:shadow-md hover:scale-102'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </nav>
           </div>
         </div>
 
-        {/* 🔥 Sprint 3 Phase 3: 애니메이션이 적용된 7단계 진행률 시스템 */}
-        {progressData && (
-          <div className={`space-y-4 transition-all duration-500 ${
-            isPhaseTransitioning ? 'transform scale-105 shadow-lg' : ''
-          }`}>
-            {/* 상단 정보 */}
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">프로젝트 단계</span>
-              <div className="flex items-center gap-6">
-                <div>
-                  <span className="text-gray-600">현재 단계</span>
-                  <span className={`ml-2 font-medium transition-all duration-300 ${
-                    isPhaseTransitioning ? 'animate-pulse text-blue-600' : ''
-                  }`}>
-                    {progressData.phaseInfo.label}
+        {/* 3층: 진행바 + PM 상세 정보 (전체 너비) */}
+        <div className="border-t border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100/50">
+          {/* 접기/펼치기 헤더 - 향상된 시각적 계층 */}
+          <button
+            onClick={toggleProgressBar}
+            className="w-full px-6 py-4 flex items-center justify-between hover:bg-white/50 transition-all duration-200"
+          >
+            <div className="flex items-center gap-6">
+              {/* 프로젝트 진행 정보 */}
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-semibold text-gray-800">프로젝트 진행 상황</span>
+                {progressData && (
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="bg-white px-3 py-1.5 rounded-lg shadow-sm border">
+                      <span className="text-gray-600">현재: </span>
+                      <span className="font-semibold text-gray-900">{progressData.phaseInfo.label}</span>
+                    </div>
+                    <div className="bg-white px-3 py-1.5 rounded-lg shadow-sm border">
+                      <span className="text-gray-600">진행률: </span>
+                      <span className="font-semibold text-blue-600">{progressData.phaseIndex + 1}/7 단계</span>
+                      <span className="text-gray-500"> ({Math.round(progressData.progress)}%)</span>
+                    </div>
                     {lastPhaseChange && (
-                      <span className="ml-2 text-xs text-green-600 animate-fadeIn">
-                        새로 변경됨!
+                      <span className="px-3 py-1.5 text-xs bg-green-100 text-green-800 rounded-lg font-medium border border-green-200 animate-fadeIn shadow-sm">
+                        🎉 새로 변경됨
                       </span>
                     )}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-600">진행률</span>
-                  <span className="ml-2 font-medium">{progressData.phaseIndex + 1}/7 단계</span>
-                </div>
+                  </div>
+                )}
               </div>
+
+              {/* PM 정보는 1층 프로필 카드로 이동 */}
             </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500 font-medium">
+                {isProgressBarCollapsed ? '펼치기' : '접기'}
+              </span>
+              {isProgressBarCollapsed ? (
+                <ChevronDown className="w-5 h-5 text-gray-500 transition-transform" />
+              ) : (
+                <ChevronUp className="w-5 h-5 text-gray-500 transition-transform" />
+              )}
+            </div>
+          </button>
+
+          {/* Collapsible Content */}
+          {!isProgressBarCollapsed && progressData && (
+            <div className={`px-6 pb-4 space-y-4 transition-all duration-500 ${
+              isPhaseTransitioning ? 'transform scale-105 shadow-lg' : ''
+            }`}>
 
             {/* 7단계 진행바 */}
             <div className="relative">
@@ -1029,29 +1288,9 @@ export default function ProjectDetail() {
                 );
               })}
             </div>
-          </div>
-        )}
-
-        {/* Tab Navigation */}
-        <nav className="flex gap-1 mt-4">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                  activeTab === tab.id
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            );
-          })}
-        </nav>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Content */}
@@ -1062,54 +1301,9 @@ export default function ProjectDetail() {
             <div className="grid grid-cols-12 gap-6">
               {/* Main Content */}
               <div className="col-span-8 space-y-6">
-                {/* Phase Transition Controls */}
-                {project && (
-                  <div className="bg-white rounded-xl border border-gray-200">
-                    <div className="p-4 border-b border-gray-200">
-                      <h3 className="font-semibold text-gray-900">프로젝트 단계 관리</h3>
-                      <p className="text-xs text-gray-500 mt-1">현재 단계 및 단계 전환 관리</p>
-                    </div>
-                    <div className="p-4">
-                      <ProjectPhaseTransition project={project} />
-                    </div>
-                  </div>
-                )}
+                {/* Phase Transition Controls - Moved to phase-history tab */}
 
-                {/* Quick Stats */}
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="bg-white p-4 rounded-lg border border-gray-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <Target className="w-5 h-5 text-blue-600" />
-                      <span className="text-xs text-gray-500">이번주</span>
-                    </div>
-                    <p className="text-2xl font-bold text-gray-900">12</p>
-                    <p className="text-xs text-gray-600">완료 작업</p>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg border border-gray-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <Clock className="w-5 h-5 text-yellow-600" />
-                      <span className="text-xs text-gray-500">진행중</span>
-                    </div>
-                    <p className="text-2xl font-bold text-gray-900">5</p>
-                    <p className="text-xs text-gray-600">활성 작업</p>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg border border-gray-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <Users className="w-5 h-5 text-green-600" />
-                      <span className="text-xs text-gray-500">팀</span>
-                    </div>
-                    <p className="text-2xl font-bold text-gray-900">8</p>
-                    <p className="text-xs text-gray-600">참여 인원</p>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg border border-gray-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <FileText className="w-5 h-5 text-purple-600" />
-                      <span className="text-xs text-gray-500">파일</span>
-                    </div>
-                    <p className="text-2xl font-bold text-gray-900">24</p>
-                    <p className="text-xs text-gray-600">총 문서</p>
-                  </div>
-                </div>
+                {/* Quick Stats - Removed (의미없는 하드코딩 숫자들) */}
 
                 {/* 프로젝트 활동 */}
                 <div className="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all">
@@ -1193,193 +1387,16 @@ export default function ProjectDetail() {
 
               {/* Sidebar */}
               <div className="col-span-4 space-y-6">
-                {/* Project Phase Indicator */}
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
-                  <ProjectPhaseIndicator
-                    currentPhase={project.phase}
-                    progress={calculatePhaseProgress(project)}
-                  />
-                </div>
+                {/* ProjectPhaseIndicator - Removed (헤더에 이미 동일 정보 표시) */}
 
-                {/* Phase History */}
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
-                  <PhaseHistoryDisplay
-                    history={project.phaseHistory}
-                    currentPhase={project.phase}
-                    compact={true}
-                  />
-                </div>
+                {/* Phase History - Removed (duplicate in phase-history tab) */}
 
-                {/* Next Meeting - ✅ ScheduleContext 기반 개선 */}
-                {nextMeeting ? (
-                  <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Calendar className="w-5 h-5 text-blue-600" />
-                      <h3 className="font-semibold text-blue-900">다음 미팅</h3>
-                      {/* Sprint 5: 미팅 예약 버튼 추가 */}
-                      <button
-                        onClick={() => {
-                          setIsScheduleModalOpen(true);
-                          setShowScheduleModal(true);
-                          setScheduleModalMode('create');
-                        }}
-                        className="ml-auto px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md font-medium flex items-center gap-1.5 transition-colors"
-                      >
-                        <PlusCircle className="w-4 h-4" />
-                        미팅 예약
-                      </button>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="font-semibold text-gray-900">
-                        {nextMeeting.title}
-                      </p>
-                      <p className="text-sm text-gray-700">
-                        {(() => {
-                          try {
-                            const meetingDate = new Date(nextMeeting.date || nextMeeting.startDateTime);
-                            return (
-                              meetingDate.toLocaleDateString('ko-KR', {
-                                month: 'long',
-                                day: 'numeric',
-                                weekday: 'short'
-                              }) + ' ' + meetingDate.toLocaleTimeString('ko-KR', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
-                            );
-                          } catch (error) {
-                            console.error('Date formatting error:', error);
-                            return '날짜 정보 오류';
-                          }
-                        })()}
-                      </p>
-                      <p className="text-sm text-gray-700">
-                        장소: {nextMeeting.location || '미정'}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span>상태: {nextMeeting.status || 'scheduled'}</span>
-                        {nextMeeting.meetingSequence && (
-                          <span>• {
-                            typeof nextMeeting.meetingSequence === 'string'
-                              ? nextMeeting.meetingSequence
-                              : nextMeeting.meetingSequence.type || '미팅'
-                          }</span>
-                        )}
-                      </div>
-                      {nextMeeting.onlineLink && (
-                        <a
-                          href={nextMeeting.onlineLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
-                        >
-                          미팅 참여하기
-                          <ArrowLeft className="w-3 h-3 transform rotate-180" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Calendar className="w-5 h-5 text-gray-400" />
-                      <h3 className="font-semibold text-gray-700">다음 미팅</h3>
-                      {/* Sprint 5: 미팅 예약 버튼 추가 */}
-                      <button
-                        onClick={() => {
-                          setIsScheduleModalOpen(true);
-                          setShowScheduleModal(true);
-                          setScheduleModalMode('create');
-                        }}
-                        className="ml-auto px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md font-medium flex items-center gap-1.5 transition-colors"
-                      >
-                        <PlusCircle className="w-4 h-4" />
-                        미팅 예약
-                      </button>
-                    </div>
-                    <div className="text-center py-4">
-                      <p className="text-gray-500 text-sm mb-3">예정된 미팅이 없습니다.</p>
-                      <button
-                        onClick={() => {
-                          setIsScheduleModalOpen(true);
-                          setShowScheduleModal(true);
-                          setScheduleModalMode('create');
-                        }}
-                        className="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors"
-                      >
-                        첫 미팅 예약하기
-                      </button>
-                      <p className="text-xs text-gray-400 mt-3">
-                        총 {projectMeetings.length}개 미팅 중 {upcomingMeetings.length}개 예정
-                      </p>
-                    </div>
-                  </div>
-                )}
+                {/* Next Meeting - Completely moved to header */}
 
-                {/* Team Members */}
-                <div className="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">팀 멤버</h3>
-                  <div className="space-y-3">
-                    {project.team?.pm && (
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm">
-                          {project.team.pm.name[0]}
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">{project.team.pm.name}</p>
-                          <p className="text-xs text-gray-600">{project.team.pm.role}</p>
-                        </div>
-                        <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">PM</span>
-                      </div>
-                    )}
-                    {project.team?.members?.map(member => (
-                      <div key={member.id} className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white text-sm">
-                          {member.name[0]}
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">{member.name}</p>
-                          <p className="text-xs text-gray-600">{member.role}</p>
-                        </div>
-                      </div>
-                    ))}
-                    <button className="w-full py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-400">
-                      + 멤버 추가
-                    </button>
-                  </div>
-                </div>
+                {/* Team Members - PM 정보는 헤더로 이동, mock 멤버들 제거 */}
 
 
-                {/* Quick Actions */}
-                <div className="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">빠른 작업</h3>
-                  <div className="space-y-2">
-                    <button className="w-full py-2 px-3 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-blue-600">
-                      <PlusCircle className="w-4 h-4" />
-                      새 작업 추가
-                    </button>
-                    <button className="w-full py-2 px-3 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-blue-600">
-                      <Upload className="w-4 h-4" />
-                      파일 업로드
-                    </button>
-                    <button className="w-full py-2 px-3 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-blue-600">
-                      <Calendar className="w-4 h-4" />
-                      가이드 미팅 요청
-                    </button>
-                    <button
-                      onClick={handleOpenChat}
-                      className="w-full py-2 px-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm font-medium relative"
-                    >
-                      <MessageSquare className="w-4 h-4" />
-                      <span>PM과 대화하기</span>
-                      {unreadCount > 0 && (
-                        <span className="ml-auto px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
-                          {unreadCount}
-                        </span>
-                      )}
-                    </button>
-                  </div>
-                </div>
+                {/* Quick Actions - Removed (실제 기능 없는 버튼들, PM 대화는 헤더로 이동) */}
               </div>
             </div>
           </div>
@@ -2473,9 +2490,19 @@ export default function ProjectDetail() {
           </div>
         )}
 
-        {/* 🔥 Sprint 3 Phase 3: 개선된 Phase History Tab */}
+        {/* 🔧 개발자 모드: 프로젝트 단계-일정 연동 시스템 */}
         {activeTab === 'phase-history' && (
           <div className="p-6 max-w-4xl mx-auto">
+            {/* 개발자 모드 안내 */}
+            <div className="mb-6 p-4 bg-yellow-50 border-2 border-yellow-300 border-dashed rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">⚠️</span>
+                <h2 className="font-bold text-yellow-800">개발자 모드 - 프로젝트 단계/일정 연동 시스템</h2>
+              </div>
+              <p className="text-sm text-yellow-700">
+                이 탭은 개발 및 테스트용입니다. 실제 서비스에서는 표시되지 않습니다.
+              </p>
+            </div>
             {/* 최근 변경사항 알림 */}
             {lastPhaseChange && (
               <div className="mb-6 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-xl p-4 animate-fadeIn">
@@ -2493,6 +2520,20 @@ export default function ProjectDetail() {
               </div>
             )}
 
+            {/* 프로젝트 단계 관리 - 개요 탭에서 이동 */}
+            {project && (
+              <div className="mb-6 bg-white rounded-xl border border-gray-200">
+                <div className="p-4 border-b border-gray-200">
+                  <h3 className="font-semibold text-gray-900">프로젝트 단계 관리</h3>
+                  <p className="text-xs text-gray-500 mt-1">현재 단계 및 단계 전환 관리</p>
+                </div>
+                <div className="p-4">
+                  <ProjectPhaseTransition project={project} />
+                </div>
+              </div>
+            )}
+
+            {/* 단계 이력 표시 */}
             <div className={`bg-white rounded-xl border border-gray-200 p-6 transition-all duration-300 ${
               isPhaseTransitioning ? 'ring-2 ring-blue-200 shadow-lg' : ''
             }`}>
@@ -2508,6 +2549,16 @@ export default function ProjectDetail() {
         {/* Files Tab */}
         {activeTab === 'files' && (
           <div className="p-6">
+            {/* 숨겨진 파일 입력 */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg,.gif,.svg,.zip,.rar,.7z"
+              className="hidden"
+            />
+
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <input
@@ -2515,17 +2566,25 @@ export default function ProjectDetail() {
                   placeholder="파일 검색..."
                   className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-64"
                 />
-                <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                  <option>모든 파일</option>
-                  <option>문서</option>
-                  <option>이미지</option>
-                  <option>비디오</option>
-                  <option>기타</option>
+                <select
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  value={fileCategory}
+                  onChange={(e) => setFileCategory(e.target.value)}
+                >
+                  <option value="document">문서</option>
+                  <option value="design">이미지/디자인</option>
+                  <option value="code">코드</option>
+                  <option value="report">보고서</option>
+                  <option value="other">기타</option>
                 </select>
               </div>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+              <button
+                onClick={handleUploadButtonClick}
+                disabled={isUploading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+              >
                 <Upload className="w-4 h-4" />
-                파일 업로드
+                {isUploading ? '업로드 중...' : '파일 업로드'}
               </button>
             </div>
 
@@ -2551,7 +2610,9 @@ export default function ProjectDetail() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {project.files.map(file => {
+                  {project.files
+                    .sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()) // 최신 순 정렬
+                    .map(file => {
                     const Icon = getFileIcon(file.name);
                     return (
                       <tr key={file.id} className="hover:bg-gray-50">
@@ -2568,20 +2629,35 @@ export default function ProjectDetail() {
                           {(file.size / 1024).toFixed(1)}KB
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(file.uploaded_at).toLocaleDateString()}
+                          <div>
+                            <div className="font-medium text-gray-900">
+                              {new Date(file.uploaded_at).toLocaleDateString('ko-KR')}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {new Date(file.uploaded_at).toLocaleTimeString('ko-KR', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </div>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {file.uploaded_by}
+                          {file.uploaded_by?.name || file.uploaded_by}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center justify-end gap-2">
-                            <button className="text-gray-400 hover:text-gray-600">
+                            <button
+                              onClick={() => handleFileDownload(file)}
+                              className="text-gray-400 hover:text-gray-600"
+                              title="다운로드"
+                            >
                               <Download className="w-4 h-4" />
                             </button>
-                            <button className="text-gray-400 hover:text-gray-600">
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button className="text-gray-400 hover:text-red-600">
+                            <button
+                              onClick={() => handleFileDelete(file.id)}
+                              className="text-gray-400 hover:text-red-600"
+                              title="삭제"
+                            >
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -2936,7 +3012,8 @@ export default function ProjectDetail() {
           }
 
           // 성공 토스트 표시
-          showSuccess(`미팅이 성공적으로 ${operation === 'created' ? '생성' : '수정'}되었습니다: ${schedule.title}`);
+          const operationText = operation === 'created' ? '생성' : '수정';
+          showSuccess(`미팅이 성공적으로 ${operationText}되었습니다: ${schedule.title}`);
         }}
       />
     </div>

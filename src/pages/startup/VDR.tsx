@@ -155,7 +155,7 @@ const DraggableTableRow: React.FC<{
         isDragging ? 'opacity-50' : ''
       }`}
     >
-      <div className="grid grid-cols-9 gap-4 items-center">
+      <div className="grid grid-cols-10 gap-4 items-center">
         {/* Checkbox + Drag Handle */}
         <div className="col-span-1 flex items-center gap-2">
           <input
@@ -200,6 +200,15 @@ const DraggableTableRow: React.FC<{
           <span className="px-2 py-1 bg-gray-100 rounded text-xs">
             {getCategoryLabel(doc.category)}
           </span>
+        </div>
+
+        {/* 프로젝트 */}
+        <div className="col-span-1">
+          {doc.projectName ? (
+            <span className="text-sm text-blue-600 font-medium">{doc.projectName}</span>
+          ) : (
+            <span className="text-sm text-gray-400">-</span>
+          )}
         </div>
 
         {/* 공유 상태 - 새로 추가된 열 */}
@@ -715,16 +724,20 @@ const VDR: React.FC = () => {
 
   // 모든 문서를 표시 - 단일 뷰 구조 (filteredDocs를 먼저 정의)
   const filteredDocs = useMemo(() => {
-    return (searchQuery ? searchDocuments(searchQuery) : documents).filter(doc => {
-      const matchesFilter = filterCategory === 'all' || doc.category === filterCategory;
-      const matchesProject = selectedProjectId === 'all' || doc.projectId === selectedProjectId;
-      return matchesFilter && matchesProject;
-    });
+    return (searchQuery ? searchDocuments(searchQuery) : documents)
+      .filter(doc => {
+        const matchesFilter = filterCategory === 'all' || doc.category === filterCategory;
+        const matchesProject = selectedProjectId === 'all' || doc.projectId === selectedProjectId;
+        return matchesFilter && matchesProject;
+      })
+      .sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()); // 최신 순 정렬
   }, [documents, searchQuery, filterCategory, selectedProjectId, searchDocuments]);
 
   // 공유중인 문서만 별도로 추출
   const sharedDocs = useMemo(() => {
-    return documents.filter(doc => doc.sharedSessions && doc.sharedSessions.length > 0);
+    return documents
+      .filter(doc => doc.sharedSessions && doc.sharedSessions.length > 0)
+      .sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()); // 최신 순 정렬
   }, [documents]);
 
   // 키보드 단축키 지원
@@ -1217,7 +1230,7 @@ const VDR: React.FC = () => {
 
           {/* 문서 테이블 */}
           <div className="bg-gray-50 px-4 py-3 border-b">
-            <div className="grid grid-cols-9 gap-4 text-xs font-medium text-gray-600 uppercase tracking-wider">
+            <div className="grid grid-cols-10 gap-4 text-xs font-medium text-gray-600 uppercase tracking-wider">
               <div className="col-span-1 flex items-center">
                 <input
                   type="checkbox"
@@ -1233,6 +1246,7 @@ const VDR: React.FC = () => {
               </div>
               <div className="col-span-3">파일명</div>
               <div className="col-span-1">카테고리</div>
+              <div className="col-span-1">프로젝트</div>
               <div className="col-span-1">공유 상태</div>
               <div className="col-span-1">업로더</div>
               <div className="col-span-1">크기</div>

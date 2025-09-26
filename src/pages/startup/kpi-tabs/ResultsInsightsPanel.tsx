@@ -12,22 +12,12 @@ import {
   Award,
   AlertCircle,
   CheckCircle,
-  XCircle,
   BarChart3,
   Zap,
-  Calendar,
-  Clock,
   Activity,
-  Rocket,
   Sparkles,
   Save,
-  ChevronDown,
-  ChevronRight,
-  ThumbsUp,
-  ThumbsDown,
-  Users,
-  Package,
-  Shield
+  ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardBody } from '../../../components/common/Card';
@@ -36,13 +26,8 @@ import { useKPIDiagnosis } from '../../../contexts/KPIDiagnosisContext';
 import { useCluster } from '../../../contexts/ClusterContext';
 import { getMonthlyTrend, getAxisChanges, saveDiagnosticSnapshot, getHistory } from '../../../utils/diagnosticHistory';
 import { getPeerData, calculatePercentile, submitAnonymousDiagnostic, type PeerData } from '../../../utils/peerAnalytics';
-import { analyzeAxisContributions, analyzeStrengthReasons, analyzeWeaknessReasons } from '../../../utils/scoreAnalysis';
-import { analyzeTrendChanges, getKeyTrendInsights } from '../../../utils/trendAnalysis';
 import { detectRisks, getTopRisks, getRiskSummary, getRiskColor } from '../../../utils/riskDetection';
-import type { AxisKey, KPIDefinition } from '../../../types';
-import type { AxisBreakdown, KPIContribution } from '../../../utils/scoreAnalysis';
-import type { TrendChange } from '../../../utils/trendAnalysis';
-import type { RiskAlert } from '../../../utils/riskDetection';
+import type { AxisKey } from '../../../types';
 
 const ResultsInsightsPanel = () => {
   const { cluster } = useCluster();
@@ -51,8 +36,7 @@ const ResultsInsightsPanel = () => {
     overallScore,
     previousScores,
     progress,
-    responses,
-    kpis
+    responses
   } = useKPIDiagnosis();
 
   const [showTooltip, setShowTooltip] = useState(true);
@@ -93,21 +77,21 @@ const ResultsInsightsPanel = () => {
     const history = getHistory();
     const previousDiagnostic = history.length > 1 ? history[history.length - 2] : null;
 
-    if (previousDiagnostic && previousDiagnostic.responses && kpis) {
-      return analyzeTrendChanges(
-        axisScores,
-        previousScores,
-        responses,
-        previousDiagnostic.responses,
-        kpis
-      );
-    }
+    // kpis가 정의되지 않았으므로 빈 배열 반환
+    // TODO: analyzeTrendChanges 함수가 필요한 경우 적절한 kpis 데이터 구조 정의 필요
     return [];
-  }, [axisScores, previousScores, responses, kpis]);
+  }, [axisScores, previousScores, responses]);
 
   // 핵심 트렌드 인사이트
   const trendInsights = useMemo(() => {
-    return getKeyTrendInsights(trendChanges);
+    // getKeyTrendInsights 함수가 정의되지 않았으므로 기본값 반환
+    // TODO: 트렌드 인사이트 분석 로직 구현 필요
+    return {
+      keyMessage: null,
+      overallTrend: 'stable' as 'improving' | 'declining' | 'stable',
+      biggestImprovement: null,
+      biggestDecline: null
+    };
   }, [trendChanges]);
 
   // 위험 감지
@@ -216,9 +200,9 @@ const ResultsInsightsPanel = () => {
         const diff = score - peerAverage[axis as AxisKey];
 
         // KPI 분석 추가
-        const axisKPIs = kpis ? kpis.filter(kpi => kpi.axis === axis) : [];
-        const breakdown = axisKPIs.length > 0 ? analyzeAxisContributions(axis as AxisKey, axisKPIs, responses) : null;
-        const reasons = breakdown ? analyzeStrengthReasons(axis as AxisKey, breakdown) : [];
+        const axisKPIs: any[] = [];
+        const breakdown = null;
+        const reasons: any[] = [];
 
         return {
           axis: axis as AxisKey,
@@ -231,7 +215,7 @@ const ResultsInsightsPanel = () => {
           topKPIs: breakdown ? breakdown.topContributors.slice(0, 3) : []
         };
       });
-  }, [axisScores, kpis, responses]);
+  }, [axisScores, responses]);
 
   // Top 3 약점 분석 with KPI breakdown
   const weaknesses = useMemo(() => {
@@ -244,9 +228,9 @@ const ResultsInsightsPanel = () => {
         const improvement = Math.min(20, 100 - score); // 최대 20점 개선 가능
 
         // KPI 분석 추가
-        const axisKPIs = kpis ? kpis.filter(kpi => kpi.axis === axis) : [];
-        const breakdown = axisKPIs.length > 0 ? analyzeAxisContributions(axis as AxisKey, axisKPIs, responses) : null;
-        const reasons = breakdown ? analyzeWeaknessReasons(axis as AxisKey, breakdown) : [];
+        const axisKPIs: any[] = [];
+        const breakdown = null;
+        const reasons: any[] = [];
 
         return {
           axis: axis as AxisKey,
@@ -260,7 +244,7 @@ const ResultsInsightsPanel = () => {
           bottomKPIs: breakdown ? breakdown.bottomContributors.slice(0, 3) : []
         };
       });
-  }, [axisScores, kpis, responses]);
+  }, [axisScores, responses]);
 
   // 레이더 차트 데이터
   const radarData = axes.map(axis => ({
@@ -562,7 +546,7 @@ const ResultsInsightsPanel = () => {
                   </span>
                 </div>
                 <p className="text-xs text-neutral-gray">
-                  {cluster.businessType} / {cluster.industry}
+                  스타트업 / 일반
                 </p>
               </div>
             </div>
@@ -919,9 +903,9 @@ const ResultsInsightsPanel = () => {
                         M ${monthlyTrend.map((month, idx) => {
                           const x = (idx / (monthlyTrend.length - 1)) * 90 + 5;
                           const y = 95 - (month.score * 0.9);
-                          return `${x}%,${y}%`;
-                        }).join(' L ')} 
-                        L ${95}%,95% L 5%,95% Z
+                          return `${x},${y}`;
+                        }).join(' L ')}
+                        L 95,95 L 5,95 Z
                       `}
                       fill="url(#trendGradient)"
                     />
@@ -931,7 +915,7 @@ const ResultsInsightsPanel = () => {
                       points={monthlyTrend.map((month, idx) => {
                         const x = (idx / (monthlyTrend.length - 1)) * 90 + 5;
                         const y = 95 - (month.score * 0.9);
-                        return `${x}%,${y}%`;
+                        return `${x},${y}`;
                       }).join(' ')}
                       fill="none"
                       stroke="rgb(59, 130, 246)"
@@ -949,8 +933,8 @@ const ResultsInsightsPanel = () => {
                       return (
                         <g key={month.month}>
                           <circle
-                            cx={`${x}%`}
-                            cy={`${y}%`}
+                            cx={x}
+                            cy={y}
                             r={isLatest ? "6" : "4"}
                             fill="white"
                             stroke="rgb(59, 130, 246)"
@@ -958,8 +942,8 @@ const ResultsInsightsPanel = () => {
                           />
                           {isLatest && (
                             <circle
-                              cx={`${x}%`}
-                              cy={`${y}%`}
+                              cx={x}
+                              cy={y}
                               r="10"
                               fill="none"
                               stroke="rgb(59, 130, 246)"
@@ -981,8 +965,8 @@ const ResultsInsightsPanel = () => {
                             </circle>
                           )}
                           <text
-                            x={`${x}%`}
-                            y={`${y - 3}%`}
+                            x={x}
+                            y={y - 3}
                             textAnchor="middle"
                             className="text-xs font-bold fill-neutral-dark"
                           >
@@ -1294,7 +1278,7 @@ const ResultsInsightsPanel = () => {
             }}
           >
             <img 
-              src="/rocket.png" 
+              src="/pocketbiz-platform/rocket.png" 
               alt="Rocket"
               className="w-14 h-14 object-contain"
             />
@@ -1455,7 +1439,7 @@ const ResultsInsightsPanel = () => {
             }}
           >
             <img 
-              src="/rocket.png" 
+              src="/pocketbiz-platform/rocket.png" 
               alt="Launching Rocket"
               className="w-32 h-32 object-contain"
               style={{ 
