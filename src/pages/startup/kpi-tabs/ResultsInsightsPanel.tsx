@@ -20,7 +20,14 @@ import {
   Activity,
   Rocket,
   Sparkles,
-  Save
+  Save,
+  ChevronDown,
+  ChevronRight,
+  ThumbsUp,
+  ThumbsDown,
+  Users,
+  Package,
+  Shield
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardBody } from '../../../components/common/Card';
@@ -28,24 +35,36 @@ import { RadarChart } from '../../../components/charts/RadarChart';
 import { useKPIDiagnosis } from '../../../contexts/KPIDiagnosisContext';
 import { useCluster } from '../../../contexts/ClusterContext';
 import { getMonthlyTrend, getAxisChanges, saveDiagnosticSnapshot, getHistory } from '../../../utils/diagnosticHistory';
-import type { AxisKey } from '../../../types';
+import { getPeerData, calculatePercentile, submitAnonymousDiagnostic, type PeerData } from '../../../utils/peerAnalytics';
+import { analyzeAxisContributions, analyzeStrengthReasons, analyzeWeaknessReasons } from '../../../utils/scoreAnalysis';
+import { analyzeTrendChanges, getKeyTrendInsights } from '../../../utils/trendAnalysis';
+import { detectRisks, getTopRisks, getRiskSummary, getRiskColor } from '../../../utils/riskDetection';
+import type { AxisKey, KPIDefinition } from '../../../types';
+import type { AxisBreakdown, KPIContribution } from '../../../utils/scoreAnalysis';
+import type { TrendChange } from '../../../utils/trendAnalysis';
+import type { RiskAlert } from '../../../utils/riskDetection';
 
 const ResultsInsightsPanel = () => {
   const { cluster } = useCluster();
-  const { 
-    axisScores, 
-    overallScore, 
+  const {
+    axisScores,
+    overallScore,
     previousScores,
     progress,
-    responses 
+    responses,
+    kpis
   } = useKPIDiagnosis();
-  
+
   const [showTooltip, setShowTooltip] = useState(true);
   const [isLaunching, setIsLaunching] = useState(false);
   const [targetPosition, setTargetPosition] = useState({ top: 120, left: window.innerWidth / 2 + 200 });
   const [showSmoke, setShowSmoke] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [peerData, setPeerData] = useState<PeerData | null>(null);
+  const [isLoadingPeer, setIsLoadingPeer] = useState(true);
+  const [expandedStrength, setExpandedStrength] = useState<string | null>(null);
+  const [expandedWeakness, setExpandedWeakness] = useState<string | null>(null);
   
   // 주간 변화 계산 (이전 진단과 비교)
   const weeklyChange = useMemo(() => {
@@ -63,6 +82,63 @@ const ResultsInsightsPanel = () => {
   
   // 축별 변화 데이터
   const axisChanges = useMemo(() => getAxisChanges(), []);
+
+  // 트렌드 변화 원인 분석
+  const trendChanges = useMemo(() => {
+    if (!previousScores || Object.keys(previousScores).length === 0) {
+      return [];
+    }
+
+    // 이전 진단 데이터 가져오기 (가장 최근 것)
+    const history = getHistory();
+    const previousDiagnostic = history.length > 1 ? history[history.length - 2] : null;
+
+    if (previousDiagnostic && previousDiagnostic.responses && kpis) {
+      return analyzeTrendChanges(
+        axisScores,
+        previousScores,
+        responses,
+        previousDiagnostic.responses,
+        kpis
+      );
+    }
+    return [];
+  }, [axisScores, previousScores, responses, kpis]);
+
+  // 핵심 트렌드 인사이트
+  const trendInsights = useMemo(() => {
+    return getKeyTrendInsights(trendChanges);
+  }, [trendChanges]);
+
+  // 위험 감지
+  const risks = useMemo(() => {
+    return detectRisks(axisScores, overallScore, previousScores, monthlyTrend);
+  }, [axisScores, overallScore, previousScores, monthlyTrend]);
+
+  const topRisks = useMemo(() => getTopRisks(risks, 3), [risks]);
+  const riskSummary = useMemo(() => getRiskSummary(risks), [risks]);
+
+  // 피어 데이터 로드
+  useEffect(() => {
+    const loadPeerData = async () => {
+      setIsLoadingPeer(true);
+      try {
+        const data = await getPeerData(cluster);
+        setPeerData(data);
+        console.log('📊 피어 데이터 로드:', data.isRealData ? '실제 데이터' : '참고용 데이터', data.sampleSize + '개');
+      } catch (error) {
+        console.error('피어 데이터 로드 실패:', error);
+        // 에러 시 폴백 데이터 사용
+        setPeerData(null);
+      } finally {
+        setIsLoadingPeer(false);
+      }
+    };
+
+    if (cluster) {
+      loadPeerData();
+    }
+  }, [cluster]);
 
   // 디버깅: axisScores 확인
   useEffect(() => {
@@ -85,18 +161,26 @@ const ResultsInsightsPanel = () => {
     { key: 'TO', label: 'Team & Org', color: '#ef4444', description: '팀·조직 역량', fullName: '팀·조직 역량' }
   ];
 
-  // 피어 평균 데이터
-  // TODO: 실제 서비스에서는 클러스터별 평균 데이터를 API에서 가져와야 함
-  // 현재는 MVP를 위해 하드코딩된 데이터 사용
-  // NOTE: 현재 단계에서는 모수가 없어 실제 데이터 마련이 어려움
-  // 추후 충분한 진단 데이터가 축적되면 실제 피어 그룹 평균값으로 교체 필요
-  const peerAverage = {
-    GO: 65,  // 성장 지향성 평균 (하드코딩)
-    EC: 62,  // 경제성 평균 (하드코딩)
-    PT: 68,  // 제품/기술 평균 (하드코딩)
-    PF: 63,  // 성과 평균 (하드코딩)
-    TO: 66   // 팀/조직 평균 (하드코딩)
+  // 축 라벨 헬퍼 함수
+  const getAxisLabel = (axis: AxisKey): string => {
+    const found = axes.find(a => a.key === axis);
+    return found ? found.fullName : axis;
   };
+
+  // 피어 평균 데이터 (실제 또는 폴백)
+  const peerAverage = useMemo(() => {
+    if (peerData) {
+      return peerData.averages;
+    }
+    // 폴백 데이터
+    return {
+      GO: 65,
+      EC: 62,
+      PT: 68,
+      PF: 63,
+      TO: 66
+    };
+  }, [peerData]);
 
   // 다음 단계 정보
   const getNextStage = () => {
@@ -121,7 +205,7 @@ const ResultsInsightsPanel = () => {
     return pointsNeeded.toFixed(1);
   };
 
-  // Top 3 강점 분석
+  // Top 3 강점 분석 with KPI breakdown
   const strengths = useMemo(() => {
     return Object.entries(axisScores)
       .filter(([_, score]) => score > 0)
@@ -130,17 +214,26 @@ const ResultsInsightsPanel = () => {
       .map(([axis, score]) => {
         const axisInfo = axes.find(a => a.key === axis);
         const diff = score - peerAverage[axis as AxisKey];
+
+        // KPI 분석 추가
+        const axisKPIs = kpis ? kpis.filter(kpi => kpi.axis === axis) : [];
+        const breakdown = axisKPIs.length > 0 ? analyzeAxisContributions(axis as AxisKey, axisKPIs, responses) : null;
+        const reasons = breakdown ? analyzeStrengthReasons(axis as AxisKey, breakdown) : [];
+
         return {
           axis: axis as AxisKey,
           label: axisInfo?.fullName || axis,
           score: Math.round(score),
           diff: diff > 0 ? `+${Math.round(diff)}` : `${Math.round(diff)}`,
-          color: axisInfo?.color || '#666'
+          color: axisInfo?.color || '#666',
+          breakdown,
+          reasons,
+          topKPIs: breakdown ? breakdown.topContributors.slice(0, 3) : []
         };
       });
-  }, [axisScores]);
+  }, [axisScores, kpis, responses]);
 
-  // Top 3 약점 분석
+  // Top 3 약점 분석 with KPI breakdown
   const weaknesses = useMemo(() => {
     return Object.entries(axisScores)
       .filter(([_, score]) => score > 0)
@@ -149,16 +242,25 @@ const ResultsInsightsPanel = () => {
       .map(([axis, score]) => {
         const axisInfo = axes.find(a => a.key === axis);
         const improvement = Math.min(20, 100 - score); // 최대 20점 개선 가능
+
+        // KPI 분석 추가
+        const axisKPIs = kpis ? kpis.filter(kpi => kpi.axis === axis) : [];
+        const breakdown = axisKPIs.length > 0 ? analyzeAxisContributions(axis as AxisKey, axisKPIs, responses) : null;
+        const reasons = breakdown ? analyzeWeaknessReasons(axis as AxisKey, breakdown) : [];
+
         return {
           axis: axis as AxisKey,
           label: axisInfo?.fullName || axis,
           score: Math.round(score),
           potential: Math.round(score + improvement),
           improvement: `+${improvement}`,
-          color: axisInfo?.color || '#666'
+          color: axisInfo?.color || '#666',
+          breakdown,
+          reasons,
+          bottomKPIs: breakdown ? breakdown.bottomContributors.slice(0, 3) : []
         };
       });
-  }, [axisScores]);
+  }, [axisScores, kpis, responses]);
 
   // 레이더 차트 데이터
   const radarData = axes.map(axis => ({
@@ -167,7 +269,7 @@ const ResultsInsightsPanel = () => {
     fullMark: 100
   }));
 
-  const peerData = axes.map(axis => ({
+  const peerRadarData = axes.map(axis => ({
     axis: axis.label,
     value: peerAverage[axis.key as AxisKey] || 0,
     fullMark: 100
@@ -205,7 +307,10 @@ const ResultsInsightsPanel = () => {
       );
       
       setSaveMessage('진단 결과가 성공적으로 저장되었습니다!');
-      
+
+      // 익명 진단 데이터 제출 (피어 분석용)
+      submitAnonymousDiagnostic(cluster, axisScores, overallScore);
+
       // 3초 후 메시지 제거
       setTimeout(() => {
         setSaveMessage(null);
@@ -290,39 +395,157 @@ const ResultsInsightsPanel = () => {
           </p>
         </div>
       )}
-      
-      {/* 상단: 핵심 지표 - 컴팩트 디자인 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {/* 종합 점수 */}
-        <Card>
-          <CardBody className="text-center p-4">
-            <div className="flex items-center justify-center gap-3">
-              <Award className="text-primary-main" size={24} />
-              <div className="text-left">
-                <p className="text-xs text-neutral-gray">종합 점수</p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-primary-main">
-                    {Math.round(overallScore)}
-                  </span>
-                  <span className="text-sm text-neutral-gray">점</span>
+
+      {/* 위험 알림 시스템 */}
+      {topRisks.length > 0 && progress?.percentage >= 50 && (
+        <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertCircle className="text-red-500" size={20} />
+            <h3 className="font-semibold text-red-800">위험 신호 감지</h3>
+            <span className="text-sm text-red-600 ml-auto">{riskSummary}</span>
+          </div>
+
+          <div className="space-y-2">
+            {topRisks.map((risk, idx) => (
+              <div
+                key={risk.id}
+                className="flex items-start gap-3 p-3 bg-white rounded-lg border-l-4"
+                style={{ borderLeftColor: getRiskColor(risk.level) }}
+              >
+                <div className="flex-shrink-0">
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                    style={{ backgroundColor: getRiskColor(risk.level) }}
+                  >
+                    {idx + 1}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 text-xs">
-                  {weeklyChange > 0 ? (
-                    <>
-                      <TrendingUp className="text-success-main" size={12} />
-                      <span className="text-success-main">+{weeklyChange.toFixed(1)}</span>
-                    </>
-                  ) : weeklyChange < 0 ? (
-                    <>
-                      <TrendingDown className="text-error-main" size={12} />
-                      <span className="text-error-main">{weeklyChange.toFixed(1)}</span>
-                    </>
-                  ) : (
-                    <span className="text-neutral-gray">-</span>
-                  )}
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="font-medium text-neutral-dark text-sm">
+                      {risk.title}
+                    </h4>
+                    {risk.axis && (
+                      <span className="px-2 py-1 text-xs bg-neutral-light rounded-full text-neutral-gray">
+                        {getAxisLabel(risk.axis)}
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-sm text-neutral-gray mb-2">
+                    {risk.message}
+                  </p>
+
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-blue-600 font-medium">
+                      💡 {risk.recommendation}
+                    </p>
+
+                    {risk.metric && (
+                      <div className="flex items-center gap-1 text-xs text-neutral-gray">
+                        <span>{Math.round(risk.metric.current)}</span>
+                        {risk.metric.trend === 'worsening' && (
+                          <>
+                            <TrendingDown size={12} className="text-red-500" />
+                            <span className="text-red-500">
+                              {Math.round(risk.metric.threshold)}
+                            </span>
+                          </>
+                        )}
+                        {!risk.metric.trend && (
+                          <>
+                            <span className="text-neutral-gray">/</span>
+                            <span className="font-medium">
+                              {Math.round(risk.metric.threshold)}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
+            ))}
+          </div>
+
+          {risks.length > 3 && (
+            <div className="mt-3 text-center">
+              <span className="text-sm text-neutral-gray">
+                +{risks.length - 3}개 추가 위험 요소 발견
+              </span>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* 상단: 핵심 지표 - 컴팩트 디자인 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {/* 종합 점수 - 상대적 위치 추가 */}
+        <Card>
+          <CardBody className="p-4">
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-3">
+                <Award className="text-primary-main" size={24} />
+                <div>
+                  <p className="text-xs text-neutral-gray">종합 점수</p>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold text-primary-main">
+                      {Math.round(overallScore)}
+                    </span>
+                    <span className="text-sm text-neutral-gray">점</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs">
+                    {weeklyChange > 0 ? (
+                      <>
+                        <TrendingUp className="text-success-main" size={12} />
+                        <span className="text-success-main">+{weeklyChange.toFixed(1)}</span>
+                      </>
+                    ) : weeklyChange < 0 ? (
+                      <>
+                        <TrendingDown className="text-error-main" size={12} />
+                        <span className="text-error-main">{weeklyChange.toFixed(1)}</span>
+                      </>
+                    ) : (
+                      <span className="text-neutral-gray">-</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 상대적 위치 표시 */}
+              {peerData && (
+                <div className="text-right">
+                  <p className="text-xs text-neutral-gray mb-1">내 위치</p>
+                  <div className="text-lg font-bold text-blue-600">
+                    상위 {calculatePercentile(overallScore, peerData)}%
+                  </div>
+                  <div className="text-xs text-neutral-gray">
+                    {peerData.sampleSize > 0 ? `${peerData.sampleSize}개 기업 중` : '비교 그룹'}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 미니 분포 막대 */}
+            {peerData && (
+              <div className="mt-3 relative">
+                <div className="h-2 bg-gradient-to-r from-red-200 via-yellow-200 to-green-200 rounded-full relative">
+                  <div
+                    className="absolute w-3 h-3 bg-primary-main rounded-full border-2 border-white shadow-md"
+                    style={{
+                      left: `${Math.min(95, Math.max(5, (overallScore / 100) * 100))}%`,
+                      top: '-2px'
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-neutral-gray mt-1">
+                  <span>0</span>
+                  <span>{Math.round(peerData.median.GO || 65)}</span>
+                  <span>100</span>
+                </div>
+              </div>
+            )}
           </CardBody>
         </Card>
 
@@ -375,9 +598,9 @@ const ResultsInsightsPanel = () => {
           <CardBody>
             <h3 className="text-lg font-semibold text-neutral-dark mb-4">5축 평가 결과</h3>
             <div className="h-80">
-              <RadarChart 
+              <RadarChart
                 data={radarData}
-                compareData={peerData}
+                compareData={peerRadarData}
                 showComparison={true}
               />
             </div>
@@ -391,6 +614,29 @@ const ResultsInsightsPanel = () => {
                 <span className="text-sm text-neutral-gray">피어 평균</span>
               </div>
             </div>
+
+            {/* 데이터 신뢰도 표시 */}
+            {peerData && (
+              <div className="flex justify-center mt-2">
+                <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs ${
+                  peerData.isRealData
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-yellow-100 text-yellow-700'
+                }`}>
+                  {peerData.isRealData ? (
+                    <>
+                      <CheckCircle size={12} />
+                      실제 {peerData.sampleSize}개 기업 데이터 기반
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle size={12} />
+                      참고용 평균값 (데이터 수집중)
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
             
             {/* 축별 점수 및 변화 표시 */}
             <div className="mt-4 pt-4 border-t border-neutral-border">
@@ -450,17 +696,83 @@ const ResultsInsightsPanel = () => {
                 </h3>
                 <div className="space-y-2">
                   {strengths.map((item, idx) => (
-                    <div key={item.axis} className="flex items-center justify-between p-3 bg-success-light/20 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg font-bold text-success-main">#{idx + 1}</span>
-                        <div>
-                          <p className="font-medium text-neutral-dark">{item.label}</p>
-                          <p className="text-sm text-neutral-gray">피어 대비 {item.diff}점</p>
+                    <div key={item.axis}>
+                      <div
+                        className="flex items-center justify-between p-3 bg-success-light/20 rounded-lg cursor-pointer hover:bg-success-light/30 transition-colors"
+                        onClick={() => setExpandedStrength(expandedStrength === item.axis ? null : item.axis)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg font-bold text-success-main">#{idx + 1}</span>
+                          <div className="flex-1">
+                            <p className="font-medium text-neutral-dark">{item.label}</p>
+                            <p className="text-sm text-neutral-gray">피어 대비 {item.diff}점</p>
+                            {item.reasons.length > 0 && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <CheckCircle size={12} className="text-success-main" />
+                                <span className="text-xs text-success-dark">{item.reasons[0]}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-2xl font-bold" style={{ color: item.color }}>
+                            {item.score}
+                          </div>
+                          <motion.div
+                            animate={{ rotate: expandedStrength === item.axis ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <ChevronDown size={16} className="text-neutral-gray" />
+                          </motion.div>
                         </div>
                       </div>
-                      <div className="text-2xl font-bold" style={{ color: item.color }}>
-                        {item.score}
-                      </div>
+
+                      {/* KPI 세부 분석 */}
+                      <AnimatePresence>
+                        {expandedStrength === item.axis && item.topKPIs.length > 0 && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="mt-2 p-3 bg-white rounded-lg border border-success-light">
+                              <p className="text-sm font-semibold text-neutral-dark mb-2">
+                                주요 기여 KPI
+                              </p>
+                              <div className="space-y-2">
+                                {item.topKPIs.map((kpi, kpiIdx) => (
+                                  <div key={kpi.kpiId} className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-1 h-1 rounded-full bg-success-main" />
+                                      <span className="text-neutral-dark">{kpi.kpiName}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-20 h-2 bg-neutral-light rounded-full overflow-hidden">
+                                        <div
+                                          className="h-full bg-gradient-to-r from-success-light to-success-main"
+                                          style={{ width: `${kpi.score}%` }}
+                                        />
+                                      </div>
+                                      <span className="font-medium text-success-dark w-10 text-right">
+                                        {kpi.score}점
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              {item.reasons.length > 1 && (
+                                <div className="mt-2 pt-2 border-t border-neutral-border">
+                                  <p className="text-xs text-neutral-gray">
+                                    {item.reasons.slice(1).join(' / ')}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   ))}
                 </div>
@@ -474,21 +786,92 @@ const ResultsInsightsPanel = () => {
                 </h3>
                 <div className="space-y-2">
                   {weaknesses.map((item, idx) => (
-                    <div key={item.axis} className="flex items-center justify-between p-3 bg-accent-orange-light/20 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg font-bold text-accent-orange">#{idx + 1}</span>
-                        <div>
-                          <p className="font-medium text-neutral-dark">{item.label}</p>
-                          <p className="text-sm text-neutral-gray">개선 가능 {item.improvement}점</p>
+                    <div key={item.axis}>
+                      <div
+                        className="flex items-center justify-between p-3 bg-accent-orange-light/20 rounded-lg cursor-pointer hover:bg-accent-orange-light/30 transition-colors"
+                        onClick={() => setExpandedWeakness(expandedWeakness === item.axis ? null : item.axis)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg font-bold text-accent-orange">#{idx + 1}</span>
+                          <div className="flex-1">
+                            <p className="font-medium text-neutral-dark">{item.label}</p>
+                            <p className="text-sm text-neutral-gray">개선 가능 {item.improvement}점</p>
+                            {item.reasons.length > 0 && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <AlertCircle size={12} className="text-accent-orange" />
+                                <span className="text-xs text-accent-orange-dark">{item.reasons[0]}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl text-neutral-gray">{item.score}</span>
+                            <span className="text-sm text-neutral-gray">→</span>
+                            <span className="text-xl font-bold" style={{ color: item.color }}>
+                              {item.potential}
+                            </span>
+                          </div>
+                          <motion.div
+                            animate={{ rotate: expandedWeakness === item.axis ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <ChevronDown size={16} className="text-neutral-gray" />
+                          </motion.div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl text-neutral-gray">{item.score}</span>
-                        <span className="text-sm text-neutral-gray">→</span>
-                        <span className="text-xl font-bold" style={{ color: item.color }}>
-                          {item.potential}
-                        </span>
-                      </div>
+
+                      {/* KPI 세부 분석 */}
+                      <AnimatePresence>
+                        {expandedWeakness === item.axis && item.bottomKPIs.length > 0 && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="mt-2 p-3 bg-white rounded-lg border border-accent-orange-light">
+                              <p className="text-sm font-semibold text-neutral-dark mb-2">
+                                개선 필요 KPI
+                              </p>
+                              <div className="space-y-2">
+                                {item.bottomKPIs.map((kpi, kpiIdx) => (
+                                  <div key={kpi.kpiId} className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-1 h-1 rounded-full bg-accent-orange" />
+                                      <span className="text-neutral-dark">{kpi.kpiName}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-20 h-2 bg-neutral-light rounded-full overflow-hidden">
+                                        <div
+                                          className="h-full bg-gradient-to-r from-accent-orange-light to-accent-orange"
+                                          style={{ width: `${kpi.score}%` }}
+                                        />
+                                      </div>
+                                      <span className="font-medium text-accent-orange-dark w-10 text-right">
+                                        {kpi.score}점
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              {item.reasons.length > 1 && (
+                                <div className="mt-2 pt-2 border-t border-neutral-border">
+                                  <p className="text-xs text-neutral-gray">
+                                    {item.reasons.slice(1).join(' / ')}
+                                  </p>
+                                </div>
+                              )}
+                              <div className="mt-2 pt-2 border-t border-neutral-border">
+                                <p className="text-xs font-medium text-accent-orange-dark">
+                                  💡 개선 시 예상 효과: +{item.breakdown ? Math.round(item.breakdown.averageScore * 0.2) : 10}점
+                                </p>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   ))}
                 </div>
@@ -629,30 +1012,73 @@ const ResultsInsightsPanel = () => {
                 </div>
                 
                 {/* 통계 요약 */}
-                <div className="pt-4 border-t border-neutral-border grid grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <div className="text-xs text-neutral-gray mb-1">평균 점수</div>
-                    <div className="text-lg font-bold text-neutral-dark">
-                      {(monthlyTrend.reduce((sum, m) => sum + m.score, 0) / monthlyTrend.length).toFixed(1)}
+                <div className="pt-4 border-t border-neutral-border">
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div className="text-center">
+                      <div className="text-xs text-neutral-gray mb-1">평균 점수</div>
+                      <div className="text-lg font-bold text-neutral-dark">
+                        {(monthlyTrend.reduce((sum, m) => sum + m.score, 0) / monthlyTrend.length).toFixed(1)}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-neutral-gray mb-1">최고 점수</div>
+                      <div className="text-lg font-bold text-success-main">
+                        {Math.max(...monthlyTrend.map(m => m.score))}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-neutral-gray mb-1">이전 대비</div>
+                      <div className={`text-lg font-bold ${
+                        monthlyTrend[monthlyTrend.length - 1].change > 0 ? 'text-success-main' :
+                        monthlyTrend[monthlyTrend.length - 1].change < 0 ? 'text-error-main' :
+                        'text-neutral-gray'
+                      }`}>
+                        {monthlyTrend[monthlyTrend.length - 1].change > 0 ? '+' : ''}
+                        {monthlyTrend[monthlyTrend.length - 1].change.toFixed(1)}%
+                      </div>
                     </div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-xs text-neutral-gray mb-1">최고 점수</div>
-                    <div className="text-lg font-bold text-success-main">
-                      {Math.max(...monthlyTrend.map(m => m.score))}
+
+                  {/* 트렌드 변화 원인 분석 */}
+                  {trendInsights.keyMessage && (
+                    <div className="p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Activity size={16} className={`${
+                          trendInsights.overallTrend === 'improving' ? 'text-success-main' :
+                          trendInsights.overallTrend === 'declining' ? 'text-error-main' :
+                          'text-neutral-gray'
+                        }`} />
+                        <span className="text-sm font-semibold text-neutral-dark">
+                          트렌드 분석
+                        </span>
+                      </div>
+                      <p className="text-sm text-neutral-dark mb-2">
+                        {trendInsights.keyMessage}
+                      </p>
+
+                      {/* 주요 변화 상세 */}
+                      <div className="space-y-1 mt-2">
+                        {trendInsights.biggestImprovement && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <TrendingUp size={12} className="text-success-main" />
+                            <span className="text-success-dark">
+                              {getAxisLabel(trendInsights.biggestImprovement.axis)}:
+                              {' '}{trendInsights.biggestImprovement.causes.join(', ')}
+                            </span>
+                          </div>
+                        )}
+                        {trendInsights.biggestDecline && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <TrendingDown size={12} className="text-error-main" />
+                            <span className="text-error-dark">
+                              {getAxisLabel(trendInsights.biggestDecline.axis)}:
+                              {' '}{trendInsights.biggestDecline.causes.join(', ')}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xs text-neutral-gray mb-1">이전 대비</div>
-                    <div className={`text-lg font-bold ${
-                      monthlyTrend[monthlyTrend.length - 1].change > 0 ? 'text-success-main' : 
-                      monthlyTrend[monthlyTrend.length - 1].change < 0 ? 'text-error-main' : 
-                      'text-neutral-gray'
-                    }`}>
-                      {monthlyTrend[monthlyTrend.length - 1].change > 0 ? '+' : ''}
-                      {monthlyTrend[monthlyTrend.length - 1].change.toFixed(1)}%
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
             ) : (

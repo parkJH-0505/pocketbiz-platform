@@ -5,7 +5,7 @@
  * BuildupContext와 연동하여 프로젝트 기반 일정 관리
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import type {
   CalendarEvent,
   CalendarEventInput,
@@ -42,12 +42,29 @@ import {
   type IntegrationEvent
 } from '../utils/calendarMeetingIntegration';
 import type { GuideMeetingRecord } from '../types/meeting.types';
+import { useCalendarAPI } from '../hooks/useCalendarAPI';
 // import { PhaseTransitionService } from '../services/phaseTransitionService';
 
 interface CalendarContextType {
   // Events
   events: CalendarEvent[];
   loadingEvents: boolean;
+
+  // API Data Integration
+  smartMatchingEvents: any[];
+  urgentItems: any[];
+  todoItems: any[];
+  apiLoading: boolean;
+  apiError: string | null;
+  refreshSmartMatching: () => Promise<void>;
+  refreshUrgentItems: () => Promise<void>;
+  refreshTodoItems: () => Promise<void>;
+  addEventToCalendarAPI: (eventData: any, date: Date) => Promise<boolean>;
+  tabCounts: {
+    smart_matching: number;
+    urgent: number;
+    todo_docs: number;
+  };
 
   // CRUD Operations
   createEvent: (input: CalendarEventInput) => Promise<CalendarEvent>;
@@ -110,13 +127,34 @@ interface CalendarContextType {
 const CalendarContext = createContext<CalendarContextType | undefined>(undefined);
 
 export function CalendarProvider({ children }: { children: ReactNode }) {
-  const { projects, activeProjects } = useBuildupContext();
+  const {
+    projects,
+    activeProjects,
+    updateProjectMeeting,
+    removeProjectMeeting,
+    syncProjectMeetings,
+    updateProject
+  } = useBuildupContext();
   const { openChatWithPM } = useChatContext();
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [filter, setFilterState] = useState<CalendarFilter>({});
   const [integrationEvents, setIntegrationEvents] = useState<IntegrationEvent[]>([]);
+
+  // useCalendarAPI 훅 통합 - API 모드와 더미 데이터 모드 자동 전환
+  const {
+    smartMatchingEvents,
+    urgentItems,
+    todoItems,
+    isLoading: apiLoading,
+    error: apiError,
+    refreshSmartMatching,
+    refreshUrgentItems,
+    refreshTodoItems,
+    addEventToCalendar: addEventToCalendarAPI,
+    tabCounts
+  } = useCalendarAPI();
 
   // 통합 이벤트 리스너 등록
   useEffect(() => {
@@ -338,6 +376,65 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     }
   }, [activeProjects]);
 
+  // API 데이터와 캘린더 이벤트 동기화
+  useEffect(() => {
+    // API 모드가 활성화되어 있고 데이터가 있을 때
+    if (smartMatchingEvents.length > 0 || urgentItems.length > 0 || todoItems.length > 0) {
+      const apiEvents: CalendarEvent[] = [];
+
+      // Smart Matching 이벤트 변환
+      smartMatchingEvents.forEach(item => {
+        if (item.date) {
+          apiEvents.push({
+            id: `sm-${item.id || Math.random().toString(36).substr(2, 9)}`,
+            type: 'meeting',
+            title: item.company || item.title || 'Smart Matching Event',
+            description: item.description || '',
+            date: new Date(item.date),
+            time: item.time || '14:00',
+            projectId: 'smart-matching',
+            pmId: 'system',
+            pmName: 'Smart Matching',
+            status: 'pending',
+            priority: item.priority || 'medium',
+            tags: item.tags || [],
+            metadata: {
+              source: 'smart_matching',
+              category: item.category,
+              addedByDragDrop: false
+            }
+          });
+        }
+      });
+
+      // Urgent Items 변환
+      urgentItems.forEach(item => {
+        apiEvents.push({
+          id: `urgent-${item.id || Math.random().toString(36).substr(2, 9)}`,
+          type: 'task',
+          title: item.title || 'Urgent Task',
+          description: item.description || '',
+          date: new Date(item.dueDate || new Date()),
+          time: '09:00',
+          projectId: 'urgent',
+          pmId: 'system',
+          pmName: 'System',
+          status: item.status || 'pending',
+          priority: 'high',
+          tags: ['urgent'],
+          metadata: {
+            source: 'urgent_items'
+          }
+        });
+      });
+
+      // API 이벤트와 기존 이벤트 병합
+      const existingEvents = CalendarService.getAllEvents();
+      const mergedEvents = [...existingEvents, ...apiEvents];
+      setEvents(mergedEvents);
+    }
+  }, [smartMatchingEvents, urgentItems, todoItems]);
+
   // 프로젝트 변경 시 자동 동기화
   useEffect(() => {
     if (activeProjects.length > 0) {
@@ -348,6 +445,40 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
       initializeIntegrationSystem(currentEvents, []);
     }
   }, [activeProjects, syncWithProjects]);
+
+  // 🔄 BuildupContext의 프로젝트 데이터 변경 감지 (실시간 동기화)
+  const projectsSnapshot = useRef(JSON.stringify(projects));
+  useEffect(() => {
+    const currentSnapshot = JSON.stringify(projects);
+    if (projectsSnapshot.current !== currentSnapshot) {
+      projectsSnapshot.current = currentSnapshot;
+      // 프로젝트 데이터가 실제로 변경되었을 때만 동기화
+      console.log('📅 프로젝트 데이터 변경 감지 - 캘린더 동기화 실행');
+      syncWithProjects();
+
+      // 프로젝트 마일스톤 자동 생성
+      projects.forEach(project => {
+        if (project.phase && project.startDate) {
+          const milestoneEvent = {
+            id: `milestone-${project.id}-${project.phase}`,
+            type: 'milestone' as const,
+            title: `[${project.title}] ${project.phase} 단계 마일스톤`,
+            projectId: project.id,
+            startDate: new Date(),
+            endDate: new Date(),
+            status: 'pending' as const,
+            priority: 'high' as const,
+            description: `프로젝트 ${project.phase} 단계 진행 중`
+          };
+          // 기존 마일스톤이 없으면 추가
+          const existingMilestone = events.find(e => e.id === milestoneEvent.id);
+          if (!existingMilestone) {
+            CalendarService.addEvent(milestoneEvent);
+          }
+        }
+      });
+    }
+  }, [projects, syncWithProjects, events]);
 
   /**
    * 필터링된 이벤트
@@ -551,8 +682,37 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
 
     if (updatedEvent) {
       setEvents(CalendarService.getAllEvents());
+
+      // 🔄 CalendarContext → BuildupContext 역방향 동기화
+      // 미팅 관련 이벤트인 경우 프로젝트 데이터 업데이트
+      if (updatedEvent.type === 'meeting' && updatedEvent.projectId) {
+        const meetingData = updatedEvent.data as any;
+        if (meetingData?.meetingId) {
+          console.log('🔄 캘린더 → 프로젝트: 미팅 정보 동기화', meetingData.meetingId);
+          updateProjectMeeting(updatedEvent.projectId, meetingData.meetingId, {
+            date: updatedEvent.startDate.toISOString(),
+            time: updatedEvent.startDate.toTimeString().slice(0, 5),
+            agenda: meetingData.agenda || updatedEvent.description
+          });
+        }
+      }
+
+      // 프로젝트 관련 일정 변경 시 프로젝트 상태 업데이트
+      if (updatedEvent.projectId && updates.status === 'completed') {
+        const project = projects.find(p => p.id === updatedEvent.projectId);
+        if (project) {
+          console.log('🔄 캘린더 → 프로젝트: 진행 상황 업데이트');
+          // 프로젝트 진행률 업데이트 로직
+          const completedEvents = events.filter(
+            e => e.projectId === updatedEvent.projectId && e.status === 'completed'
+          );
+          const totalEvents = events.filter(e => e.projectId === updatedEvent.projectId);
+          const progress = (completedEvents.length / totalEvents.length) * 100;
+          updateProject(updatedEvent.projectId, { progress: Math.round(progress) });
+        }
+      }
     }
-  }, []);
+  }, [updateProjectMeeting, updateProject, projects, events]);
 
   /**
    * 이벤트 완료 처리
@@ -686,12 +846,38 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
 
   const value: CalendarContextType = {
     events,
-    loadingEvents,
+    loadingEvents: loadingEvents || apiLoading,
+
+    // API Data Integration
+    smartMatchingEvents,
+    urgentItems,
+    todoItems,
+    apiLoading,
+    apiError,
+    refreshSmartMatching,
+    refreshUrgentItems,
+    refreshTodoItems,
+    addEventToCalendarAPI,
+    tabCounts,
+
     createEvent,
     updateEvent,
     deleteEvent: async (id) => {
+      // 삭제할 이벤트 정보 미리 가져오기
+      const eventToDelete = events.find(e => e.id === id);
+
       CalendarService.deleteEvent(id);
       setEvents(CalendarService.getAllEvents());
+
+      // 🔄 CalendarContext → BuildupContext 역방향 동기화
+      // 미팅 삭제 시 프로젝트에서도 제거
+      if (eventToDelete?.type === 'meeting' && eventToDelete.projectId) {
+        const meetingData = eventToDelete.data as any;
+        if (meetingData?.meetingId) {
+          console.log('🔄 캘린더 → 프로젝트: 미팅 삭제 동기화', meetingData.meetingId);
+          removeProjectMeeting(eventToDelete.projectId, meetingData.meetingId);
+        }
+      }
     },
     completeEvent,
     rescheduleEvent: async () => {}, // TODO: Implement

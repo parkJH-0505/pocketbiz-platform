@@ -142,7 +142,7 @@ function App() {
                                 <GrowthTrackingProvider>
                                   <RecommendationProvider>
                                     <NotificationProvider>
-                                      <Router basename="/">
+                                      <Router basename={process.env.NODE_ENV === 'production' ? '/' : '/pocketbiz-platform'}>
                                   <Routes>
                           {/* Landing page or redirect based on role */}
                           <Route path="/" element={

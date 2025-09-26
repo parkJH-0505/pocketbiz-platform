@@ -155,9 +155,7 @@ export class QueueRecoveryManager {
       const queueStatus = this.getQueueStatus();
       if (!queueStatus) {
         // Queue status not available - silently skip in production
-      if (import.meta.env.DEV) {
-        console.warn('⚠️ Queue status not available');
-      }
+      // Queue status not available - skip silently
         return failures;
       }
 

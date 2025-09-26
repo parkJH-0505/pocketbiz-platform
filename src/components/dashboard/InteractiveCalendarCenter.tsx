@@ -51,7 +51,8 @@ import { useDashboardInteraction } from '../../contexts/DashboardInteractionCont
 import { useKPIDiagnosis } from '../../contexts/KPIDiagnosisContext';
 import { useBuildupContext } from '../../contexts/BuildupContext';
 import { useVDRContext } from '../../contexts/VDRContext';
-import { useCalendarAPI } from '../../hooks/useCalendarAPI';
+import { useCalendarContext } from '../../contexts/CalendarContext';
+import { CalendarService } from '../../services/CalendarService';
 import type { MatchingResult } from '../../types/smartMatching/types';
 
 // 뷰 모드 정의
@@ -86,17 +87,17 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
   const { weeklySchedule, currentWeek, navigateWeek } = useDashboard();
   const { schedules } = useScheduleContext();
 
-  // API 연동 훅
+  // CalendarContext에서 API 데이터 가져오기 (중앙화된 API 관리)
   const {
     smartMatchingEvents,
     urgentItems,
     todoItems,
-    isLoading: apiLoading,
-    error: apiError,
-    addEventToCalendar: addEventToCalendarAPI,
-    tabCounts: apiTabCounts,
+    apiLoading,
+    apiError,
+    addEventToCalendarAPI,
+    tabCounts,
     refreshSmartMatching
-  } = useCalendarAPI(searchQuery);
+  } = useCalendarContext();
 
   // 월간 날짜 생성
   const monthStart = startOfMonth(currentWeek);
@@ -136,6 +137,31 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
         const success = await addEventToCalendarAPI(draggedEvent, date);
         if (success) {
           setRefreshKey(prev => prev + 1);
+
+          // 💾 드래그 앨 드롭 작업 LocalStorage에 저장
+          const dragHistory = JSON.parse(localStorage.getItem('calendarDragHistory') || '[]');
+          const historyEntry = {
+            eventId: draggedEvent.id || `temp-${Date.now()}`,
+            eventTitle: draggedEvent.title,
+            eventType: draggedEvent.type || 'smart_matching',
+            toDate: date.toISOString(),
+            timestamp: new Date().toISOString(),
+            source: 'smart_matching_tab'
+          };
+          dragHistory.push(historyEntry);
+
+          // 최근 50개 항목만 유지 (메모리 최적화)
+          const trimmedHistory = dragHistory.slice(-50);
+          localStorage.setItem('calendarDragHistory', JSON.stringify(trimmedHistory));
+
+          // 캘린더 이벤트 백업도 저장 (복구용)
+          const calendarBackup = {
+            lastUpdated: new Date().toISOString(),
+            events: CalendarService.getAllEvents()
+          };
+          localStorage.setItem('calendarBackup', JSON.stringify(calendarBackup));
+
+          console.log('💾 이벤트 드래그 저장 완료:', historyEntry);
         }
       } catch (error) {
         console.error('Failed to add event:', error);
@@ -215,17 +241,17 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
       });
   }, [smartMatchingEvents, searchQuery, dismissedEvents]);
 
-  // 탭별 카운트 업데이트
-  const tabCounts = useMemo(() => {
+  // 로컬 탭별 카운트 업데이트 (API 카운트와 병합)
+  const localTabCounts = useMemo(() => {
     const urgentCount = filteredEvents.filter(e => e.daysUntilDeadline <= 14).length;
     const todoCount = (cart?.items?.length || 0) + (filesUploaded?.length || 0);
 
     return {
-      smart_matching: filteredEvents.length,
-      urgent: urgentCount + (overallScore < 70 ? 1 : 0), // KPI 위험도 포함
-      todo_docs: todoCount
+      smart_matching: tabCounts?.smart_matching || filteredEvents.length,
+      urgent: tabCounts?.urgent || (urgentCount + (overallScore < 70 ? 1 : 0)), // KPI 위험도 포함
+      todo_docs: tabCounts?.todo_docs || todoCount
     };
-  }, [filteredEvents, cart, filesUploaded, overallScore]);
+  }, [filteredEvents, cart, filesUploaded, overallScore, tabCounts]);
 
   // TABS 업데이트
   const TABS: Tab[] = [
@@ -233,19 +259,19 @@ const InteractiveCalendarCenter: React.FC<InteractiveCalendarCenterProps> = ({ c
       id: 'smart_matching',
       title: '스마트매칭',
       icon: Sparkles,
-      badge: tabCounts.smart_matching
+      badge: localTabCounts.smart_matching
     },
     {
       id: 'urgent',
       title: '긴급사항',
       icon: AlertTriangle,
-      badge: tabCounts.urgent
+      badge: localTabCounts.urgent
     },
     {
       id: 'todo_docs',
       title: '할일문서',
       icon: FileText,
-      badge: tabCounts.todo_docs
+      badge: localTabCounts.todo_docs
     }
   ];
 

@@ -4,8 +4,8 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // Vercel에서는 base를 '/'로 설정 (루트 경로)
-  base: '/',
+  // 로컬에서는 '/pocketbiz-platform/', Vercel에서는 '/'
+  base: process.env.NODE_ENV === 'production' ? '/' : '/pocketbiz-platform/',
   assetsInclude: ['**/*.csv'],
   build: {
     chunkSizeWarningLimit: 2000,
