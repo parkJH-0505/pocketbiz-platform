@@ -37,6 +37,8 @@ import {
 import { useBuildupContext } from '../../../contexts/BuildupContext';
 import { useCalendarContext } from '../../../contexts/CalendarContext';
 import { useChatContext } from '../../../contexts/ChatContext';
+import { useUserProfile } from '../../../contexts/UserProfileContext';
+import { useScheduleContext } from '../../../contexts/ScheduleContext';
 import { useProjectChatIntegration } from '../../../hooks/useProjectChatIntegration';
 import type { Project, ProjectPhase } from '../../../types/buildup.types';
 import type { CalendarEvent } from '../../../types/calendar.types';
@@ -105,7 +107,9 @@ export default function BuildupDashboard() {
     getProjectProgress
   } = useBuildupContext();
   const { todayEvents, thisWeekEvents } = useCalendarContext();
+  const { buildupMeetings } = useScheduleContext();
   const { getUnreadCountByProject, createChatRoomForProject, totalUnreadCount } = useChatContext();
+  const { profile } = useUserProfile();
   useProjectChatIntegration();
   const [view, setView] = useState<DashboardView>('overview');
   const [selectedFilter, setSelectedFilter] = useState<ProjectFilter>('active');
@@ -127,6 +131,40 @@ export default function BuildupDashboard() {
   const calculateProgress = (project: Project) => {
     return getProjectProgress(project);
   };
+
+  // 실제 ScheduleContext에서 프로젝트별 다음 미팅 가져오기
+  const getNextProjectMeeting = React.useCallback((projectId: string) => {
+    return buildupMeetings
+      .filter(m => m.projectId === projectId && new Date(m.startDateTime) > new Date())
+      .sort((a, b) => new Date(a.startDateTime).getTime() - new Date(b.startDateTime).getTime())[0];
+  }, [buildupMeetings]);
+
+  // 실제 활동 시간 계산 (프로젝트 단계 변경, 미팅 생성 등 기반)
+  const getLastActivityTime = React.useCallback((project: Project) => {
+    const activities = [];
+
+    // 단계 변경 시간
+    if (project.timeline?.phase_updated_at) {
+      activities.push(new Date(project.timeline.phase_updated_at));
+    }
+
+    // 최근 미팅 생성 시간
+    const projectMeetings = buildupMeetings.filter(m => m.projectId === project.id);
+    if (projectMeetings.length > 0) {
+      const latestMeeting = projectMeetings.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())[0];
+      if (latestMeeting.createdAt) {
+        activities.push(new Date(latestMeeting.createdAt));
+      }
+    }
+
+    // 프로젝트 생성 시간
+    if (project.contract?.signed_date) {
+      activities.push(new Date(project.contract.signed_date));
+    }
+
+    // 가장 최근 활동 시간 반환
+    return activities.length > 0 ? activities.sort((a, b) => b.getTime() - a.getTime())[0] : new Date();
+  }, [buildupMeetings]);
 
   // 필터링된 프로젝트
   const filteredProjects = React.useMemo(() => {
@@ -472,28 +510,60 @@ export default function BuildupDashboard() {
                                 <span className="font-medium text-neutral-darkest">{project.category}</span>
                               </div>
 
-                              {project.team?.client_contact && (
+                              {/* 실제 사용자 프로필에서 회사명 가져오기 */}
+                              {profile?.basicInfo?.companyName && (
                                 <div className="flex items-center gap-2 text-neutral-dark">
                                   <User className="w-4 h-4" />
-                                  <span>{project.team.client_contact.company}</span>
+                                  <span>{profile.basicInfo.companyName}</span>
+                                </div>
+                              )}
+
+                              {/* 워크스트림 개수 */}
+                              {project.workstreams && project.workstreams.length > 0 && (
+                                <div className="flex items-center gap-2 text-neutral-dark">
+                                  <Briefcase className="w-4 h-4" />
+                                  <span>{project.workstreams.length}개 작업그룹</span>
+                                </div>
+                              )}
+
+                              {/* 대기중인 산출물 개수 */}
+                              {project.deliverables && (
+                                <div className="flex items-center gap-2 text-neutral-dark">
+                                  <FileText className="w-4 h-4" />
+                                  <span>{project.deliverables.filter(d => d.status !== 'approved').length}개 대기</span>
+                                </div>
+                              )}
+
+                              {/* 고위험 이슈 경고 */}
+                              {project.risks && project.risks.filter(r => r.level === 'high' || r.level === 'critical').length > 0 && (
+                                <div className="flex items-center gap-2 text-red-600">
+                                  <AlertCircle className="w-4 h-4" />
+                                  <span>{project.risks.filter(r => r.level === 'high' || r.level === 'critical').length}개 위험</span>
                                 </div>
                               )}
                             </div>
                           </div>
 
-                          {/* D-Day & 가치 표시 */}
+                          {/* D-Day & 가치 표시 - 실제 ScheduleContext 데이터 사용 */}
                           <div className="text-right">
-                            {project.meetings && project.meetings.length > 0 && (
-                              <div className="px-4 py-2 bg-gradient-to-r from-primary-main to-secondary-main text-white rounded-xl mb-2 shadow-lg">
-                                <div className="text-sm font-bold">
-                                  D-{Math.ceil(
-                                    (new Date(project.meetings[0].date).getTime() - Date.now()) /
-                                    (1000 * 60 * 60 * 24)
-                                  )}
+                            {(() => {
+                              const nextMeeting = getNextProjectMeeting(project.id);
+                              if (!nextMeeting) return null;
+
+                              const daysUntil = Math.ceil(
+                                (new Date(nextMeeting.startDateTime).getTime() - Date.now()) /
+                                (1000 * 60 * 60 * 24)
+                              );
+
+                              return (
+                                <div className="px-4 py-2 bg-gradient-to-r from-primary-main to-secondary-main text-white rounded-xl mb-2 shadow-lg">
+                                  <div className="text-sm font-bold">
+                                    D-{daysUntil}
+                                  </div>
+                                  <div className="text-xs opacity-90">다음 미팅</div>
                                 </div>
-                                <div className="text-xs opacity-90">다음 미팅</div>
-                              </div>
-                            )}
+                              );
+                            })()}
 
                           </div>
                         </div>
@@ -585,70 +655,87 @@ export default function BuildupDashboard() {
                     {/* 중간 섹션 - PM & 미팅 정보 */}
                     <div className="px-6 pb-4">
                       <div className="flex items-center justify-between p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-white/50">
-                        {/* PM 정보 */}
-                        {project.team?.pm && (
-                          <div className="flex items-center gap-3">
-                            <div className="relative">
-                              <div className="w-10 h-10 bg-gradient-to-br from-primary-main to-secondary-main rounded-xl flex items-center justify-center shadow-lg">
-                                <span className="text-sm font-bold text-white">
-                                  {project.team.pm.name.substring(0, 2)}
-                                </span>
-                              </div>
-                              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-accent-green rounded-full border-2 border-white" />
-                            </div>
-                            <div>
-                              <div className="text-sm font-bold text-neutral-darkest">
-                                {project.team.pm.name}
-                              </div>
-                              <div className="text-xs text-neutral-dark">
-                                {project.team.pm.specialties?.slice(0, 2).join(' • ')}
-                              </div>
-                            </div>
-                          </div>
-                        )}
+                        {/* PM 정보 - 실제 UserProfile assignedBuilder 사용 */}
+                        {(() => {
+                          const assignedBuilder = profile?.basicInfo?.assignedBuilder;
+                          const pmInfo = assignedBuilder || {
+                            name: '담당 PM 배정 중',
+                            company: '포켓컴퍼니',
+                            role: 'PM',
+                            specialties: ['고객 지원', '프로젝트 관리']
+                          };
 
-                        {/* 다음 미팅 정보 */}
-                        {project.meetings && project.meetings.length > 0 && (
-                          <div className="text-right">
-                            <div className="text-xs text-neutral-dark mb-1">다음 미팅</div>
-                            <div className="text-sm font-bold text-neutral-darkest">
-                              {project.meetings[0].title}
+                          return (
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <div className="w-10 h-10 bg-gradient-to-br from-primary-main to-secondary-main rounded-xl flex items-center justify-center shadow-lg">
+                                  <span className="text-sm font-bold text-white">
+                                    {pmInfo.name.substring(0, 2)}
+                                  </span>
+                                </div>
+                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-accent-green rounded-full border-2 border-white" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-bold text-neutral-darkest">
+                                  {pmInfo.name}
+                                </div>
+                                <div className="text-xs text-neutral-dark">
+                                  {(pmInfo.specialties || ['프로젝트 관리', '고객 지원']).slice(0, 2).join(' • ')}
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-xs text-primary-main font-medium">
-                              {new Date(project.meetings[0].date).toLocaleDateString('ko-KR', {
-                                month: 'short',
-                                day: 'numeric',
-                                weekday: 'short'
-                              })}
+                          );
+                        })()}
+
+                        {/* 다음 미팅 정보 - 실제 ScheduleContext 데이터 사용 */}
+                        {(() => {
+                          const nextMeeting = getNextProjectMeeting(project.id);
+                          if (!nextMeeting) return null;
+
+                          return (
+                            <div className="text-right">
+                              <div className="text-xs text-neutral-dark mb-1">다음 미팅</div>
+                              <div className="text-sm font-bold text-neutral-darkest">
+                                {nextMeeting.title}
+                              </div>
+                              <div className="text-xs text-primary-main font-medium">
+                                {new Date(nextMeeting.startDateTime).toLocaleDateString('ko-KR', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  weekday: 'short'
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                       </div>
                     </div>
 
                     {/* 하단 액션 영역 */}
                     <div className="px-6 pb-6">
                       <div className="flex items-center justify-between">
-                        {/* 최근 활동 */}
+                        {/* 최근 활동 - 실제 프로젝트 활동 기반 */}
                         <div className="flex items-center gap-2 text-xs text-neutral-dark">
-                          {project.communication && (
-                            <>
-                              <div className="w-2 h-2 bg-accent-green rounded-full animate-pulse" />
-                              <span>
-                                {(() => {
-                                  const lastActivity = new Date(project.communication.last_activity);
-                                  const now = new Date();
-                                  const diffHours = Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60));
+                          {(() => {
+                            const lastActivity = getLastActivityTime(project);
+                            const now = new Date();
+                            const diffHours = Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60));
 
-                                  if (diffHours < 1) return '방금 업데이트됨';
-                                  if (diffHours < 24) return `${diffHours}시간 전 업데이트`;
-                                  const diffDays = Math.floor(diffHours / 24);
-                                  if (diffDays < 7) return `${diffDays}일 전 업데이트`;
-                                  return `${Math.floor(diffDays / 7)}주 전 업데이트`;
-                                })()}
-                              </span>
-                            </>
-                          )}
+                            return (
+                              <>
+                                <div className="w-2 h-2 bg-accent-green rounded-full animate-pulse" />
+                                <span>
+                                  {(() => {
+                                    if (diffHours < 1) return '방금 업데이트됨';
+                                    if (diffHours < 24) return `${diffHours}시간 전 업데이트`;
+                                    const diffDays = Math.floor(diffHours / 24);
+                                    if (diffDays < 7) return `${diffDays}일 전 업데이트`;
+                                    return `${Math.floor(diffDays / 7)}주 전 업데이트`;
+                                  })()}
+                                </span>
+                              </>
+                            );
+                          })()}
                         </div>
 
                         {/* 액션 버튼 - 항상 표시하되 고급스럽게 */}
