@@ -320,7 +320,7 @@ const CompanyVitalSigns: React.FC<CompanyVitalSignsProps> = ({ className = '' })
                 {healthStatus.label}
               </h3>
               <p className="text-sm text-gray-600">
-                지난달 대비 {overallChange >= 0 ? '+' : ''}{overallChange.toFixed(1)}점
+                지난달 대비 {overallChange >= 0 ? '+' : ''}{Math.round(overallChange)}점
               </p>
             </div>
           </div>
@@ -368,7 +368,7 @@ const CompanyVitalSigns: React.FC<CompanyVitalSignsProps> = ({ className = '' })
                 </h4>
                 <div className="flex items-center gap-4 mt-1">
                   <span className="text-2xl font-bold text-red-600">
-                    {weakestAxis.score}점
+                    {Math.round(weakestAxis.score)}점
                   </span>
                   {clusterBenchmark && (
                     <span className="text-sm text-gray-600">
@@ -420,7 +420,7 @@ const CompanyVitalSigns: React.FC<CompanyVitalSignsProps> = ({ className = '' })
             </div>
 
             <div className="flex items-center justify-between text-xs text-gray-600 mb-3">
-              <span>⏱️ {recommendedService.duration || '4'}주 소요</span>
+              <span>⏱️ {recommendedService.duration?.display || `${recommendedService.duration?.weeks || 4}주`} 소요</span>
               <span>✅ 평점 {(recommendedService.avg_rating || 4.5).toFixed(1)}점 ({recommendedService.review_count || 0}개)</span>
             </div>
 
@@ -505,7 +505,7 @@ const CompanyVitalSigns: React.FC<CompanyVitalSignsProps> = ({ className = '' })
                     change < 0 ? 'text-red-600' :
                     'text-gray-400'
                   }`}>
-                    {change > 0 ? '+' : ''}{change.toFixed(1)}
+                    {change > 0 ? '+' : ''}{Math.round(change)}
                   </span>
 
                   {/* 벤치마크 겝 */}
