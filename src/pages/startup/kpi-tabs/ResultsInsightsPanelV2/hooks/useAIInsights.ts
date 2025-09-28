@@ -11,6 +11,10 @@ import { getNLPInsightsEngine } from '../../../../../services/ai/NLPInsights';
 import { getMonteCarloSimulator } from '../../../../../services/simulation/MonteCarloSimulator';
 import { getPredictiveModelOptimizer } from '../../../../../services/prediction/PredictiveModelOptimizer';
 import { getGoalReverseCalculator } from '../../../../../services/goalCalculation/GoalReverseCalculator';
+// Phase 8 AI 시스템 통합
+import { AIOrchestrator } from '../../../../../services/ai/AIOrchestrator';
+import { RealTimeSimulationEngine } from '../../../../../services/simulation/RealTimeSimulationEngine';
+import { AdvancedPredictionSystem } from '../../../../../services/prediction/AdvancedPredictionSystem';
 
 // AI 인사이트 상태 타입
 export interface AIInsightsState {
@@ -182,7 +186,113 @@ export const useAIInsights = ({
   }, [currentScores]);
 
   /**
-   * 모든 AI 분석 실행
+   * Phase 8: AI Orchestrator를 통한 통합 분석
+   */
+  const runAdvancedAIAnalysis = useCallback(async () => {
+    try {
+      const orchestrator = new AIOrchestrator({
+        enableCaching: true,
+        batchProcessing: true,
+        maxConcurrency: 3,
+        timeoutMs: 30000
+      });
+
+      const analysisData = {
+        currentScores,
+        historicalData: historicalData.slice(-30), // 최근 30개 데이터만
+        userId: 'current-user', // 실제로는 context에서 가져와야 함
+        context: {
+          companyStage: 'growth',
+          industry: 'tech',
+          teamSize: 'small'
+        }
+      };
+
+      const result = await orchestrator.runComprehensiveAnalysis(analysisData);
+      console.log('🤖 Phase 8 AI analysis completed:', result.insights.length, 'insights generated');
+
+      return {
+        insights: result.insights,
+        predictions: result.predictions,
+        recommendations: result.recommendations,
+        riskAssessment: result.riskAssessment
+      };
+    } catch (error) {
+      console.error('Advanced AI analysis error:', error);
+      return null;
+    }
+  }, [currentScores, historicalData]);
+
+  /**
+   * Phase 8: 실시간 시뮬레이션 실행
+   */
+  const runRealTimeSimulation = useCallback(async (scenarioConfig?: any) => {
+    try {
+      const simulationEngine = new RealTimeSimulationEngine({
+        updateInterval: 5000,
+        maxScenarios: 5,
+        autoOptimization: true,
+        enableStreaming: false,
+        performanceMode: 'balanced'
+      });
+
+      const scenario = scenarioConfig || {
+        id: 'baseline',
+        name: '기본 시나리오',
+        parameters: {
+          marketGrowth: 1.0,
+          competitionLevel: 1.0,
+          resourceEfficiency: 1.0,
+          teamProductivity: 1.0
+        },
+        externalFactors: {},
+        timeHorizon: 90
+      };
+
+      const simulationResult = await simulationEngine.runScenario(scenario, currentScores);
+      console.log('⚡ Real-time simulation completed:', simulationResult.projectedScores);
+
+      return simulationResult;
+    } catch (error) {
+      console.error('Real-time simulation error:', error);
+      return null;
+    }
+  }, [currentScores]);
+
+  /**
+   * Phase 8: 고급 예측 시스템 실행
+   */
+  const runAdvancedPrediction = useCallback(async () => {
+    try {
+      const predictionSystem = new AdvancedPredictionSystem({
+        enableEnsemble: true,
+        enableAutoML: true,
+        enableSeasonality: true,
+        enableExternalData: false,
+        updateInterval: 300000, // 5분
+        maxModels: 5,
+        accuracyThreshold: 0.8,
+        retrainingInterval: 86400000 // 24시간
+      });
+
+      const predictionData = historicalData.map(d => ({
+        timestamp: d.timestamp,
+        features: d.scores,
+        target: Object.values(d.scores).reduce((sum, v) => sum + v, 0) / 5
+      }));
+
+      const prediction = await predictionSystem.predict(predictionData, 30); // 30일 예측
+      console.log('📊 Advanced prediction completed with confidence:', prediction.confidence);
+
+      return prediction;
+    } catch (error) {
+      console.error('Advanced prediction error:', error);
+      return null;
+    }
+  }, [historicalData]);
+
+  /**
+   * 모든 AI 분석 실행 (Phase 8 통합 버전)
    */
   const runFullAnalysis = useCallback(async () => {
     if (!enabled) return;
@@ -190,34 +300,62 @@ export const useAIInsights = ({
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      // 병렬 실행
+      // Phase 1: 기본 분석 (병렬 실행)
       const [patterns, anomalies] = await Promise.all([
         runPatternRecognition(),
         runAnomalyDetection()
       ]);
 
-      // NLP 인사이트는 패턴과 이상치 결과를 기반으로 생성
+      // Phase 2: Phase 8 고급 분석 (병렬 실행)
+      const [advancedAI, realTimeSimulation, advancedPrediction] = await Promise.all([
+        runAdvancedAIAnalysis(),
+        runRealTimeSimulation(),
+        runAdvancedPrediction()
+      ]);
+
+      // Phase 3: NLP 인사이트 생성 (Phase 8 결과 포함)
       const nlpInsights = await generateNLPInsights(patterns, anomalies);
 
-      // 시뮬레이션과 예측은 병렬 실행
-      const [simulations, predictions, goalCalculations] = await Promise.all([
+      // Phase 4: 기존 시스템 분석 (백그라운드에서)
+      const [basicSimulations, basicPredictions, goalCalculations] = await Promise.all([
         runMonteCarloSimulation(),
         runPrediction(),
         calculateGoalRequirements()
       ]);
 
-      setState({
+      // Phase 8 결과와 기존 결과 통합
+      const enhancedState = {
         patterns,
         anomalies,
-        nlpInsights,
-        simulations,
-        predictions,
-        goalCalculations,
+        nlpInsights: [
+          ...nlpInsights,
+          ...(advancedAI?.insights || [])
+        ],
+        simulations: {
+          basic: basicSimulations,
+          realTime: realTimeSimulation,
+          advanced: advancedAI?.predictions
+        },
+        predictions: {
+          basic: basicPredictions,
+          advanced: advancedPrediction,
+          ensemble: advancedAI?.predictions
+        },
+        goalCalculations: {
+          basic: goalCalculations,
+          riskAssessment: advancedAI?.riskAssessment,
+          recommendations: advancedAI?.recommendations
+        },
         isLoading: false,
         error: null
-      });
+      };
 
-      console.log('✅ All AI analyses completed successfully');
+      setState(enhancedState);
+
+      console.log('✅ All AI analyses completed successfully (Phase 8 enhanced)');
+      console.log('📊 Advanced insights:', enhancedState.nlpInsights.length);
+      console.log('⚡ Real-time simulation:', !!realTimeSimulation);
+      console.log('🔮 Advanced prediction confidence:', advancedPrediction?.confidence);
     } catch (error) {
       console.error('AI analysis error:', error);
       setState(prev => ({
@@ -233,7 +371,10 @@ export const useAIInsights = ({
     generateNLPInsights,
     runMonteCarloSimulation,
     runPrediction,
-    calculateGoalRequirements
+    calculateGoalRequirements,
+    runAdvancedAIAnalysis,
+    runRealTimeSimulation,
+    runAdvancedPrediction
   ]);
 
   // 초기 실행 및 데이터 변경 시 재실행
@@ -298,6 +439,11 @@ export const useAIInsights = ({
     ...state,
     refresh,
     runSpecificAnalysis,
-    calculateGoalRequirements
+    calculateGoalRequirements,
+    // Phase 8 메소드들 추가
+    runAdvancedAIAnalysis,
+    runRealTimeSimulation,
+    runAdvancedPrediction,
+    runFullAnalysis
   };
 };
