@@ -536,3 +536,16 @@ export class AnomalyDetectionEngine {
     return denominator === 0 ? 0 : numerator / denominator;
   }
 }
+
+// 싱글톤 인스턴스
+let anomalyDetectionEngine: AnomalyDetectionEngine | null = null;
+
+/**
+ * 이상 탐지 엔진 인스턴스 가져오기
+ */
+export function getAnomalyDetectionEngine(config?: Partial<AnomalyDetectionConfig>): AnomalyDetectionEngine {
+  if (!anomalyDetectionEngine) {
+    anomalyDetectionEngine = new AnomalyDetectionEngine(config);
+  }
+  return anomalyDetectionEngine;
+}

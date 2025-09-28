@@ -489,3 +489,16 @@ export class PatternRecognitionEngine {
     });
   }
 }
+
+// 싱글톤 인스턴스
+let patternRecognitionEngine: PatternRecognitionEngine | null = null;
+
+/**
+ * 패턴 인식 엔진 인스턴스 가져오기
+ */
+export function getPatternRecognitionEngine(): PatternRecognitionEngine {
+  if (!patternRecognitionEngine) {
+    patternRecognitionEngine = new PatternRecognitionEngine();
+  }
+  return patternRecognitionEngine;
+}
