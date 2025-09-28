@@ -3,6 +3,7 @@ import { useBuildupContext } from './BuildupContext';
 import { useKPIDiagnosis } from './KPIDiagnosisContext';
 import { useCurrentUser } from './CurrentUserContext';
 import JSZip from 'jszip';
+import { fileStorage, FileStorageService } from '../services/fileStorage';
 
 export interface VDRDocument {
   id: string;
@@ -40,6 +41,31 @@ export interface VDRDocument {
   checksum?: string;                  // 파일 무결성 체크
   linkedDocuments?: string[];         // 연관 문서 ID들
   customFields?: Record<string, any>; // 커스텀 필드들
+
+  // Phase 1: 파일 내용 저장
+  fileContent?: string;              // Base64 인코딩된 파일 내용 (작은 파일용)
+  storageType?: 'base64' | 'indexedDB' | 'external' | 'none'; // 저장 방식
+  storageKey?: string;               // IndexedDB나 외부 저장소의 키
+
+  // Phase 3: 버전 관리
+  versions?: FileVersion[];          // 파일 버전 히스토리
+  currentVersion?: string;           // 현재 버전 번호
+  parentDocumentId?: string;         // 원본 문서 ID (버전인 경우)
+}
+
+// Phase 3: 파일 버전 인터페이스
+export interface FileVersion {
+  versionId: string;
+  versionNumber: string;             // v1.0, v1.1, v2.0 등
+  uploadDate: Date;
+  uploadedBy: string;
+  uploadedById?: string;
+  fileSize: number;
+  changeLog?: string;                // 변경 사항 설명
+  fileContent?: string;              // 버전별 파일 내용
+  storageType?: 'base64' | 'indexedDB' | 'external';
+  storageKey?: string;
+  checksum?: string;
 }
 
 export interface SharedSession {
@@ -364,6 +390,7 @@ interface VDRContextType {
   aggregateDocuments: () => Promise<void>;
   clearDuplicateDocuments: () => void;
   uploadDocument: (file: File, category: VDRDocument['category'], projectId?: string) => Promise<void>;
+  downloadDocument: (doc: VDRDocument) => Promise<void>;
   updateDocumentVisibility: (docId: string, visibility: VDRDocument['visibility']) => void;
   setRepresentativeDocument: (type: RepresentativeDoc['type'], docId: string | null) => void;
   createShareSession: (name: string, documentIds: string[], expiresAt?: Date) => Promise<string>;
@@ -1910,13 +1937,39 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const fileHash = `${file.name}-${file.size}-${file.type}`.replace(/[^a-zA-Z0-9]/g, '-');
     const docId = `vdr-${fileHash}`;
 
-    // 중복 파일 체크
-    if (documents.find(doc => doc.id === docId)) {
-      throw new Error(`파일 "${file.name}"은 이미 업로드되어 있습니다.`);
+    // Phase 3: 중복 파일 체크 및 버전 관리
+    const existingDoc = documents.find(doc =>
+      doc.name === file.name &&
+      doc.projectId === projectId &&
+      !doc.parentDocumentId // 원본 문서만 체크
+    );
+
+    if (existingDoc) {
+      // 버전 업로드로 처리
+      return handleVersionUpload(existingDoc, file, category, projectId);
     }
 
     // 프로젝트 정보 가져오기
     const project = projectId ? projects?.find(p => p.id === projectId) : null;
+
+    // Phase 2: 저장 전략 결정
+    const storageStrategy = FileStorageService.determineStorageStrategy(file);
+    let fileContent: string | undefined;
+    let storageKey: string | undefined;
+
+    // Phase 1 & 2: 파일 내용 저장
+    if (storageStrategy === 'base64') {
+      // 작은 파일: Base64로 변환하여 localStorage에 저장
+      fileContent = await FileStorageService.fileToBase64(file);
+    } else if (storageStrategy === 'indexedDB') {
+      // 중간 크기 파일: IndexedDB에 저장
+      storageKey = `file-${docId}`;
+      await fileStorage.saveFile(storageKey, file, {
+        fileName: file.name,
+        checksum: await FileStorageService.generateChecksum(file)
+      });
+    }
+    // 'server' 전략은 향후 구현
 
     const newDoc: VDRDocument = {
       id: docId,
@@ -1942,8 +1995,15 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       hasPreview,
       isFavorite: false,
       approvalStatus: 'pending',
-      checksum: await generateChecksum(file),
-      tags: project?.tags || []
+      checksum: await FileStorageService.generateChecksum(file),
+      tags: project?.tags || [],
+      // Phase 1 & 2: 파일 내용 저장 정보
+      fileContent,
+      storageType: storageStrategy === 'server' ? 'none' : storageStrategy,
+      storageKey,
+      // Phase 3: 버전 관리 초기화
+      currentVersion: 'v1.0',
+      versions: []
     };
 
     const updatedDocs = [...documents, newDoc];
@@ -1975,13 +2035,173 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // 체크섬 생성 함수 (파일 무결성 체크)
-  const generateChecksum = async (file: File): Promise<string> => {
-    const buffer = await file.arrayBuffer();
-    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    return hashHex.substring(0, 16); // 처음 16자만 사용
+  // FileStorageService.generateChecksum으로 대체됨
+
+  // Phase 3.2: 버전 업로드 처리
+  const handleVersionUpload = async (
+    existingDoc: VDRDocument,
+    file: File,
+    category: VDRDocument['category'],
+    projectId?: string
+  ) => {
+    console.log(`[VDR] Handling version upload for: ${file.name}`);
+
+    // 현재 버전 번호 파싱 및 증가
+    const currentVersion = existingDoc.currentVersion || 'v1.0';
+    const newVersion = incrementVersion(currentVersion);
+
+    // 저장 전략 결정
+    const storageStrategy = FileStorageService.determineStorageStrategy(file);
+    let fileContent: string | undefined;
+    let storageKey: string | undefined;
+
+    // 파일 내용 저장
+    if (storageStrategy === 'base64') {
+      fileContent = await FileStorageService.fileToBase64(file);
+    } else if (storageStrategy === 'indexedDB') {
+      storageKey = `file-version-${existingDoc.id}-${newVersion}`;
+      await fileStorage.saveFile(storageKey, file, {
+        fileName: file.name,
+        checksum: await FileStorageService.generateChecksum(file)
+      });
+    }
+
+    // 새 버전 엔트리 생성
+    const versionEntry: FileVersion = {
+      versionId: `${existingDoc.id}-${newVersion}`,
+      versionNumber: newVersion,
+      uploadDate: new Date(),
+      uploadedBy: currentUser?.name || 'Unknown',
+      uploadedById: currentUser?.id,
+      fileSize: file.size,
+      changeLog: '새 버전 업로드',
+      fileContent,
+      storageType: storageStrategy === 'server' ? undefined : storageStrategy,
+      storageKey,
+      checksum: await FileStorageService.generateChecksum(file)
+    };
+
+    // 기존 문서 업데이트
+    setDocuments(docs =>
+      docs.map(doc => {
+        if (doc.id === existingDoc.id) {
+          return {
+            ...doc,
+            // 최신 버전 정보로 업데이트
+            size: file.size,
+            lastModified: new Date(),
+            currentVersion: newVersion,
+            versions: [...(doc.versions || []), versionEntry],
+            // 최신 버전의 내용으로 업데이트
+            fileContent,
+            storageType: storageStrategy === 'server' ? 'none' : storageStrategy,
+            storageKey,
+            checksum: versionEntry.checksum,
+            // 버전 카운트 증가
+            viewCount: (doc.viewCount || 0) + 1
+          };
+        }
+        return doc;
+      })
+    );
+
+    // localStorage 업데이트
+    const updatedDocs = documents.map(doc =>
+      doc.id === existingDoc.id
+        ? { ...doc, currentVersion: newVersion, versions: [...(doc.versions || []), versionEntry] }
+        : doc
+    );
+    const manualDocs = updatedDocs.filter(d => d.source === 'manual');
+    localStorage.setItem('vdr_documents', JSON.stringify(manualDocs));
+
+    // 이벤트 발생
+    window.dispatchEvent(new CustomEvent('vdr:document_version_added', {
+      detail: {
+        documentId: existingDoc.id,
+        version: newVersion,
+        fileName: file.name
+      }
+    }));
+
+    console.log(`[VDR] Version ${newVersion} uploaded for ${file.name}`);
+  };
+
+  // 버전 번호 증가 헬퍼 함수
+  const incrementVersion = (version: string): string => {
+    const match = version.match(/^v?(\d+)\.(\d+)$/);
+    if (match) {
+      const major = parseInt(match[1]);
+      const minor = parseInt(match[2]);
+      // 마이너 버전 증가
+      return `v${major}.${minor + 1}`;
+    }
+    return 'v1.1';
+  };
+
+  // Phase 1.2: 파일 다운로드 기능
+  const downloadDocument = async (doc: VDRDocument) => {
+    try {
+      let downloadUrl: string | null = null;
+      let fileName = doc.name;
+
+      // 저장 방식에 따라 파일 가져오기
+      if (doc.storageType === 'base64' && doc.fileContent) {
+        // Base64로 저장된 경우
+        downloadUrl = doc.fileContent;
+      } else if (doc.storageType === 'indexedDB' && doc.storageKey) {
+        // IndexedDB에 저장된 경우
+        const storedFile = await fileStorage.getFile(doc.storageKey);
+        if (storedFile) {
+          // Blob을 URL로 변환
+          downloadUrl = URL.createObjectURL(storedFile.blob);
+        }
+      }
+
+      if (downloadUrl) {
+        // 다운로드 링크 생성 및 실행
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // IndexedDB에서 가져온 URL은 해제
+        if (doc.storageType === 'indexedDB') {
+          URL.revokeObjectURL(downloadUrl);
+        }
+
+        // 다운로드 카운트 증가
+        setDocuments(docs =>
+          docs.map(d =>
+            d.id === doc.id
+              ? { ...d, downloadCount: (d.downloadCount || 0) + 1, lastAccessDate: new Date() }
+              : d
+          )
+        );
+
+        // 접근 로그 기록
+        recordAccessLog(doc.id, 'download', true, {
+          details: {
+            fileSize: doc.size,
+            success: true
+          }
+        });
+
+        console.log(`[VDR] Document downloaded: ${fileName}`);
+      } else {
+        console.warn(`[VDR] File content not available for: ${fileName}`);
+        throw new Error('파일을 찾을 수 없습니다. 다시 업로드해주세요.');
+      }
+    } catch (error) {
+      console.error('[VDR] Download failed:', error);
+      recordAccessLog(doc.id, 'download', false, {
+        details: {
+          errorMessage: error instanceof Error ? error.message : 'Unknown error'
+        }
+      });
+      throw error;
+    }
   };
 
   // 문서 공개 범위 업데이트
@@ -2136,8 +2356,8 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
-  // 단일 파일 다운로드
-  const downloadDocument = async (docId: string) => {
+  // 단일 파일 다운로드 (ID 기반)
+  const downloadDocumentById = async (docId: string) => {
     const downloadStartTime = Date.now();
 
     try {
@@ -3156,6 +3376,7 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     aggregateDocuments,
     clearDuplicateDocuments, // 개발용 중복 제거 함수
     uploadDocument,
+    downloadDocument,
     updateDocumentVisibility,
     setRepresentativeDocument,
     createShareSession,

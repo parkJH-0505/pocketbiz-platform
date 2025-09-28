@@ -20,6 +20,13 @@ import WeeklyVCRecommendation from '../../components/dashboard/WeeklyVCRecommend
 import ActionErrorBoundary from '../../components/dashboard/ActionErrorBoundary';
 import { DashboardInteractionProvider } from '../../contexts/DashboardInteractionContext';
 
+// Momentum 컴포넌트들
+import AmbientStatusBar from '../../components/momentum/AmbientStatusBar';
+import { MomentumProvider } from '../../hooks/useMomentum';
+
+// Celebration 시스템
+import { CelebrationProvider } from '../../contexts/CelebrationContext';
+
 // 로딩 컴포넌트
 const LoadingSkeleton: React.FC<{ className?: string }> = ({ className }) => (
   <div className={`animate-pulse bg-gray-200 rounded-xl ${className}`} />
@@ -70,10 +77,17 @@ const Dashboard: React.FC = () => {
 
   return (
     <DashboardErrorBoundary>
-      <DashboardProvider>
-        <div className="min-h-screen bg-gray-50">
-        <DashboardInteractionProvider>
-          <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <MomentumProvider>
+        <CelebrationProvider>
+          <DashboardProvider>
+          <div className="min-h-screen bg-gray-50">
+            {/* Ambient Status Bar - 최상단에 위치 */}
+            <AmbientStatusBar className="fixed top-0 left-0 right-0 z-30" />
+
+            <DashboardInteractionProvider>
+              {/* 상단 여백 추가 (AmbientStatusBar 높이만큼) */}
+              <div className="pt-12">
+                <div className="max-w-7xl mx-auto p-6 space-y-6">
             {/* 메인: 확장된 인터랙티브 캘린더 (75% 높이) */}
             <motion.section
               className="flex-1"
@@ -98,8 +112,9 @@ const Dashboard: React.FC = () => {
                 <WeeklyVCRecommendation />
               </ActionErrorBoundary>
             </motion.section>
-          </div>
-        </DashboardInteractionProvider>
+                </div>
+              </div>
+            </DashboardInteractionProvider>
 
         {/* 회사 생체신호 플로팅 버튼 (기존 KPI + 새로운 생체신호 통합) */}
         <motion.button
@@ -151,8 +166,10 @@ const Dashboard: React.FC = () => {
             </>
           )}
         </AnimatePresence>
-        </div>
-      </DashboardProvider>
+          </div>
+          </DashboardProvider>
+        </CelebrationProvider>
+      </MomentumProvider>
     </DashboardErrorBoundary>
   );
 };

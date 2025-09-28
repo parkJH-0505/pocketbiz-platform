@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MomentumEngine, MomentumData } from '../../services/momentumEngine';
+import { useCelebration } from '../../contexts/CelebrationContext';
 
 interface TrendIconProps {
   trend: 'up' | 'down' | 'stable';
@@ -36,8 +37,10 @@ const MomentumIndicator: React.FC<MomentumIndicatorProps> = ({
   const [momentum, setMomentum] = useState<MomentumData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const prevScoreRef = useRef<number | null>(null);
 
   const momentumEngine = new MomentumEngine();
+  const { celebrateMomentum } = useCelebration();
 
   // 모멘텀 데이터 로드
   const loadMomentum = async () => {
@@ -47,7 +50,13 @@ const MomentumIndicator: React.FC<MomentumIndicatorProps> = ({
       const data = await momentumEngine.calculateBasicMomentum();
       setMomentum(data);
 
+      // 모멘텀 높음 축하 (80점 이상)
+      if (data.score >= 80 && (!prevScoreRef.current || prevScoreRef.current < 80)) {
+        celebrateMomentum(data.score);
+      }
+
       // 이전 점수 저장
+      prevScoreRef.current = data.score;
       momentumEngine.savePreviousScore(data.score);
     } catch (err) {
       console.error('Failed to load momentum:', err);

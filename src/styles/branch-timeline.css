@@ -9,9 +9,6 @@
    브랜치 타임라인 전역 스타일
    ========================================================================== */
 
-/* CSS 변수 임포트 */
-@import url('./branch-timeline.css');
-
 .branch-timeline-container {
   position: relative;
   width: 100%;

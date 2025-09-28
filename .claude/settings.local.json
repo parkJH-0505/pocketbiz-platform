@@ -81,7 +81,11 @@
       "Bash(set NODE_OPTIONS=--max-old-space-size=4096)",
       "Bash(start http://localhost:5174/pocketbiz-platform/startup/buildup/project/PRJ-001)",
       "Bash(start http://localhost:5174/pocketbiz-platform/startup/vdr)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(move srchooksuseMomentum.ts srchooksuseMomentum.tsx)",
+      "Bash(ren:*)",
+      "Bash(mv:*)",
+      "Bash(start http://localhost:5176/pocketbiz-platform/startup/dashboard)"
     ],
     "deny": [],
     "ask": []

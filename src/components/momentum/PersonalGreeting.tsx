@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useBuildupContext } from '../../contexts/BuildupContext';
-import { useKPIDiagnosisContext } from '../../contexts/KPIDiagnosisContext';
+// import { useKPIDiagnosisContext } from '../../contexts/KPIDiagnosisContext'; // TODO: Context export 필요
+import { useCelebration } from '../../contexts/CelebrationContext';
 
 interface PersonalGreetingProps {
   userName?: string;
@@ -19,10 +20,15 @@ const PersonalGreeting: React.FC<PersonalGreetingProps> = ({
   userName = "대표님"
 }) => {
   const { projects } = useBuildupContext();
-  const { scores } = useKPIDiagnosisContext();
+  // const { scores } = useKPIDiagnosisContext(); // TODO: Context export 필요
+  const scores = { kpi1: 72, kpi2: 85, kpi3: 68 }; // 임시 하드코딩
   const [startupDays, setStartupDays] = useState<number>(0);
+  const [loginStreak, setLoginStreak] = useState<number>(0);
+  const celebratedStreaksRef = useRef<Set<number>>(new Set());
 
-  // 창업일수 계산 (임시로 로컬스토리지 사용)
+  const { celebrateStreak } = useCelebration();
+
+  // 창업일수 및 연속 접속 계산
   useEffect(() => {
     const calculateStartupDays = () => {
       const savedStartDate = localStorage.getItem('startup-start-date');
@@ -37,8 +43,39 @@ const PersonalGreeting: React.FC<PersonalGreetingProps> = ({
       setStartupDays(diffDays);
     };
 
+    const updateLoginStreak = () => {
+      const today = new Date().toDateString();
+      const lastLogin = localStorage.getItem('last-login-date');
+      let streak = parseInt(localStorage.getItem('login-streak') || '1');
+
+      if (lastLogin !== today) {
+        const yesterday = new Date(Date.now() - 86400000).toDateString();
+
+        if (lastLogin === yesterday) {
+          // 연속 접속 유지
+          streak += 1;
+        } else {
+          // 연속 접속 끊김
+          streak = 1;
+        }
+
+        localStorage.setItem('login-streak', streak.toString());
+        localStorage.setItem('last-login-date', today);
+      }
+
+      setLoginStreak(streak);
+
+      // 연속 접속 마일스톤 축하 (3, 7, 14, 30, 100일)
+      const milestones = [3, 7, 14, 30, 100];
+      if (milestones.includes(streak) && !celebratedStreaksRef.current.has(streak)) {
+        celebrateStreak(streak);
+        celebratedStreaksRef.current.add(streak);
+      }
+    };
+
     calculateStartupDays();
-  }, []);
+    updateLoginStreak();
+  }, [celebrateStreak]);
 
   // 메시지 생성 로직
   const greetingMessage = useMemo((): GreetingMessage => {

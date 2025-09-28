@@ -87,7 +87,7 @@ const NodeLayer: React.FC<NodeLayerProps> = ({
   }, [actions, onFeedInteraction, performance]);
 
   // 노드 호버 핸들러
-  const handleNodeHover = useCallback((feed: FeedItemWithPosition | null) => {
+  const handleNodeHover = useCallback((feed: FeedItemWithPosition | null, event?: React.MouseEvent) => {
     performance.measureInteraction('node-hover', () => {
       actions.setHover(feed?.id || null);
 
@@ -95,7 +95,11 @@ const NodeLayer: React.FC<NodeLayerProps> = ({
         const interactionEvent: BranchInteractionEvent = {
           type: 'hover',
           feedId: feed.id,
-          timestamp: new Date()
+          timestamp: new Date(),
+          mousePosition: event ? {
+            x: event.clientX,
+            y: event.clientY
+          } : undefined
         };
         onFeedInteraction(interactionEvent);
       }
@@ -252,14 +256,36 @@ const BranchNode: React.FC<BranchNodeProps> = React.memo(({
     transition: 'all 0.2s ease'
   };
 
+  // 툴팁 상태
+  const [showTooltip, setShowTooltip] = React.useState(false);
+  const [tooltipPosition, setTooltipPosition] = React.useState({ x: 0, y: 0 });
+
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    onHover(feed, e);
+    setShowTooltip(true);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltipPosition({
+      x: rect.left + rect.width / 2,
+      y: rect.top - 10
+    });
+  };
+
+  const handleMouseLeave = () => {
+    onHover(null);
+    setShowTooltip(false);
+  };
+
   return (
     <div
       style={nodeStyle}
-      onMouseEnter={() => onHover(feed)}
-      onMouseLeave={() => onHover(null)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       onClick={(e) => onClick(feed, e)}
       data-feed-id={feed.id}
       data-timeline-node
+      data-hovered={isHovered}
+      data-selected={isSelected}
+      data-expanded={isExpanded}
     >
       <div style={containerStyle}>
         {/* 헤더 영역 */}
@@ -348,6 +374,50 @@ const BranchNode: React.FC<BranchNodeProps> = React.memo(({
           </div>
         )}
       </div>
+
+      {/* 툴팁 */}
+      {showTooltip && !isExpanded && (
+        <div
+          style={{
+            position: 'fixed',
+            left: `${tooltipPosition.x}px`,
+            top: `${tooltipPosition.y}px`,
+            transform: 'translate(-50%, -100%)',
+            background: 'rgba(0, 0, 0, 0.9)',
+            color: 'white',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            zIndex: 1000,
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap',
+            maxWidth: '300px',
+            animation: 'fadeIn 0.2s ease'
+          }}
+        >
+          <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+            {feed.title}
+          </div>
+          <div style={{ opacity: 0.8, fontSize: '11px' }}>
+            {new Date(feed.timestamp).toLocaleDateString('ko-KR')} • {feed.type}
+          </div>
+          {feed.description && (
+            <div style={{
+              opacity: 0.7,
+              fontSize: '11px',
+              marginTop: '4px',
+              whiteSpace: 'normal',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical'
+            }}>
+              {feed.description}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 });

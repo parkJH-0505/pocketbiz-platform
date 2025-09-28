@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useBuildupContext } from '../../contexts/BuildupContext';
-import { useKPIDiagnosisContext } from '../../contexts/KPIDiagnosisContext';
+// import { useKPIDiagnosisContext } from '../../contexts/KPIDiagnosisContext'; // TODO: Context export 필요
 
 type SurpriseType = 'discovery' | 'insight' | 'celebration' | 'tip' | 'milestone';
 
@@ -24,7 +24,8 @@ const DailySurprise: React.FC<DailySurpriseProps> = ({
   className = ""
 }) => {
   const { projects, services } = useBuildupContext();
-  const { scores } = useKPIDiagnosisContext();
+  // const { scores } = useKPIDiagnosisContext(); // TODO: Context export 필요
+  const scores = { kpi1: 72, kpi2: 85, kpi3: 68 }; // 임시 하드코딩
   const [surprise, setSurprise] = useState<SurpriseContent | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 

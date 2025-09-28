@@ -134,6 +134,45 @@ const BranchTimeline: React.FC<BranchTimelineProps> = ({
     };
   }, [updateViewport]);
 
+  // 키보드 네비게이션
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // ESC 키 - 선택 해제
+      if (event.key === 'Escape') {
+        handleFeedInteraction({
+          type: 'deselect',
+          feedId: '',
+          timestamp: new Date()
+        });
+      }
+
+      // 화살표 키 - 노드 간 이동 (선택된 노드가 있을 때)
+      const selectedNode = document.querySelector('[data-selected="true"]');
+      if (selectedNode && (event.key === 'ArrowUp' || event.key === 'ArrowDown' ||
+                          event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+        event.preventDefault();
+        // TODO: 인접 노드로 이동 로직 구현
+      }
+
+      // Enter 키 - 선택된 노드 확장/축소
+      if (event.key === 'Enter' && selectedNode) {
+        const feedId = selectedNode.getAttribute('data-feed-id');
+        if (feedId) {
+          handleFeedInteraction({
+            type: 'expand',
+            feedId,
+            timestamp: new Date()
+          });
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleFeedInteraction]);
+
   // 피드 인터랙션 이벤트 처리
   const handleFeedInteraction = useCallback((event: BranchInteractionEvent) => {
     onFeedInteraction?.(event);

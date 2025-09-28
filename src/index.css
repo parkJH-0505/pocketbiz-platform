@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import branch timeline styles */
+@import './styles/branch-timeline.css';
+
 /* Custom animations */
 @layer utilities {
   @keyframes fadeIn {

@@ -182,6 +182,9 @@ interface BuildupContextType {
   syncProjectMeetings: (projectId: string, meetings: Meeting[]) => void;
   getProjectMeetings: (projectId: string) => Meeting[];
 
+  // Phase 4: Project Management
+  deleteProject: (projectId: string) => void;
+
   // Ecosystem Integration
   reportMilestoneCompleted: (projectId: string, milestoneId: string, kpiImpact: Partial<Record<AxisKey, number>>, completedBy: string) => Promise<void>;
   reportProjectStatusChanged: (projectId: string, oldStatus: string, newStatus: string, reason?: string) => Promise<void>;
@@ -2034,6 +2037,29 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     return project?.meetings || [];
   }, [projects]);
 
+  // Phase 4: Delete project and emit event for VDR cleanup
+  const deleteProject = useCallback((projectId: string) => {
+    const projectToDelete = projects.find(p => p.id === projectId);
+    if (!projectToDelete) {
+      console.warn(`[BuildupContext] Project not found: ${projectId}`);
+      return;
+    }
+
+    // 프로젝트 삭제
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+
+    // VDR 문서 정리를 위한 이벤트 발생
+    window.dispatchEvent(new CustomEvent('project:deleted', {
+      detail: {
+        projectId,
+        projectTitle: projectToDelete.title,
+        deletedAt: new Date().toISOString()
+      }
+    }));
+
+    console.log(`[BuildupContext] Project deleted: ${projectToDelete.title}`);
+  }, [projects]);
+
   // 관리자용: 새 서비스 추가
   const addService = async (service: BuildupService) => {
     try {
@@ -2421,6 +2447,9 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     removeProjectMeeting,
     syncProjectMeetings,
     getProjectMeetings,
+
+    // Project Management
+    deleteProject,
 
     // Ecosystem Integration
     reportMilestoneCompleted: async (projectId: string, milestoneId: string, kpiImpact: Partial<Record<AxisKey, number>>, completedBy: string) => {
