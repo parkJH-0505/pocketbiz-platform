@@ -1,159 +1,300 @@
-import type { Project } from '../types/buildup.types';
-
 /**
- * 자동 진행률 계산 시스템
- * - Time-based: 날짜 기반 자동 계산
- * - Milestone-based: 마일스톤 완료 기반
- * - Hybrid: 시간 70% + 마일스톤 30% 가중치
+ * @fileoverview 프로젝트 진행률 계산 공통 유틸리티
+ * @description 헤더와 개요 탭에서 공통으로 사용할 진행률 계산 로직
+ * @author PocketCompany
+ * @since 2025-01-20
  */
 
-export function calculateAutoProgress(project: Project): number {
-  const method = project.progress.calculation_method || 'hybrid';
+import type { Project, ProjectPhase } from '../types/buildup.types';
+import type { BuildupProjectMeeting } from '../types/schedule.types';
+import { PHASE_INFO, ALL_PHASES, getPhaseIndex, calculatePhaseProgress } from './projectPhaseUtils';
 
-  switch (method) {
-    case 'time_based':
-      return calculateTimeBasedProgress(project);
-    case 'milestone_based':
-      return calculateMilestoneBasedProgress(project);
-    case 'hybrid':
-    default:
-      return calculateHybridProgress(project);
-  }
+/**
+ * 프로젝트 진행 정보 타입
+ */
+export interface ProjectProgress {
+  /** 전체 진행률 (0-100) */
+  percentage: number;
+  /** 완료된 단계 수 */
+  completedPhases: number;
+  /** 현재 단계 내 진행률 (0-100) */
+  currentPhaseProgress: number;
+  /** 각 단계별 실제 소요일 */
+  phaseDurations: Record<ProjectPhase, number>;
+  /** 각 단계별 미팅 통계 */
+  phaseStats: Record<ProjectPhase, {
+    totalMeetings: number;
+    completedMeetings: number;
+    upcomingMeetings: number;
+  }>;
+  /** 예상 잔여일 */
+  estimatedDaysRemaining: number;
+  /** 실제 D-Day (프로젝트 종료일까지) */
+  dDayToEnd: number;
+  /** 다음 미팅까지 D-Day */
+  dDayToNextMeeting: number | null;
 }
 
-function calculateTimeBasedProgress(project: Project): number {
-  const { start_date, end_date } = project.timeline;
-  const now = new Date();
-
-  const totalDuration = end_date.getTime() - start_date.getTime();
-  const elapsed = now.getTime() - start_date.getTime();
-
-  // 시간 기반 진행률 (0-100%)
-  const timeProgress = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
-
-  // 프로젝트 상태에 따른 조정
-  if (project.status === 'completed') return 100;
-  if (project.status === 'preparing') return 0;
-  if (project.status === 'hold') return project.progress.overall; // 현재 진행률 유지
-
-  return Math.round(timeProgress);
+/**
+ * 날짜 차이 계산 (일수)
+ */
+function calculateDaysDifference(startDate: Date, endDate: Date): number {
+  const diffInTime = endDate.getTime() - startDate.getTime();
+  return Math.ceil(diffInTime / (1000 * 60 * 60 * 24));
 }
 
-function calculateMilestoneBasedProgress(project: Project): number {
-  const { milestones_completed, milestones_total } = project.progress;
-
-  if (milestones_total === 0) return 0;
-  return Math.round((milestones_completed / milestones_total) * 100);
-}
-
-function calculateHybridProgress(project: Project): number {
-  // 하이브리드: 시간 70% + 마일스톤 30%
-  const timeProgress = calculateTimeBasedProgress(project) * 0.7;
-  const milestoneProgress = calculateMilestoneBasedProgress(project) * 0.3;
-
-  // 결과물 제출률도 10% 반영 (보너스)
-  const { deliverables_submitted, deliverables_total } = project.progress;
-  const deliverableBonus = deliverables_total > 0
-    ? (deliverables_submitted / deliverables_total) * 10
-    : 0;
-
-  return Math.min(100, Math.round(timeProgress + milestoneProgress + deliverableBonus));
-}
-
-// 진행 상태 판단
-export function getProgressStatus(progress: number): {
-  status: 'on_track' | 'delayed' | 'at_risk' | 'completed';
-  color: string;
-  message: string;
-} {
-  if (progress >= 100) {
-    return {
-      status: 'completed',
-      color: 'text-green-600',
-      message: '완료'
+/**
+ * 특정 단계의 미팅들 필터링
+ */
+function getMeetingsForPhase(meetings: BuildupProjectMeeting[], phase: ProjectPhase): BuildupProjectMeeting[] {
+  return meetings.filter(meeting => {
+    // meetingSequence 타입으로 단계 매핑
+    const sequenceTypeToPhase: Record<string, ProjectPhase> = {
+      'pre_meeting': 'contract_pending',
+      'guide_1': 'contract_signed',
+      'guide_2': 'planning',
+      'guide_3': 'design',
+      'guide_4': 'execution',
+      'guide_5': 'review',
+      'final': 'completed'
     };
-  }
 
-  // 현재 날짜 기준으로 예상 진행률과 비교
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const expectedProgress = (dayOfWeek / 7) * 100; // 주간 기준 예상 진행률
+    if (typeof meeting.meetingSequence === 'string') {
+      return sequenceTypeToPhase[meeting.meetingSequence] === phase;
+    }
 
-  const difference = progress - expectedProgress;
+    // meetingSequence가 객체인 경우
+    if (meeting.meetingSequence && typeof meeting.meetingSequence === 'object') {
+      const sequenceType = (meeting.meetingSequence as any).type;
+      const sequenceNumber = (meeting.meetingSequence as any).sequence;
 
-  if (difference >= -5) {
-    return {
-      status: 'on_track',
-      color: 'text-green-600',
-      message: '정상 진행'
-    };
-  } else if (difference >= -15) {
-    return {
-      status: 'delayed',
-      color: 'text-yellow-600',
-      message: '약간 지연'
-    };
-  } else {
-    return {
-      status: 'at_risk',
-      color: 'text-red-600',
-      message: '지연 위험'
-    };
-  }
-}
-
-// PM 대시보드용 벌크 업데이트 헬퍼
-export function bulkUpdateProjects(projects: Project[], updates: Map<string, Partial<Project>>): Project[] {
-  return projects.map(project => {
-    const update = updates.get(project.id);
-    if (!update) return project;
-
-    return {
-      ...project,
-      ...update,
-      progress: {
-        ...project.progress,
-        ...update.progress,
-        last_updated: new Date()
+      if (sequenceType === 'guide') {
+        const guidePhases: ProjectPhase[] = ['contract_signed', 'planning', 'design', 'execution', 'review'];
+        return guidePhases[sequenceNumber - 1] === phase;
       }
-    };
+    }
+
+    // 기본적으로 projectPhase 사용
+    return meeting.projectPhase === phase;
   });
 }
 
-// 자동 알림 트리거 체크
-export function checkAlertTriggers(project: Project): string[] {
-  const alerts: string[] = [];
-  const now = new Date();
+/**
+ * 단계별 실제 소요 기간 계산
+ */
+function calculateActualPhaseDuration(meetings: BuildupProjectMeeting[]): number {
+  if (meetings.length === 0) return 0;
 
-  // 마일스톤 마감 임박 (3일 이내)
-  if (project.timeline.next_milestone) {
-    const daysUntilMilestone = Math.ceil(
-      (project.timeline.next_milestone.due_date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-    );
+  const completedMeetings = meetings.filter(m => m.status === 'completed');
+  if (completedMeetings.length === 0) return 0;
 
-    if (daysUntilMilestone <= 3 && daysUntilMilestone >= 0) {
-      alerts.push(`마일스톤 "${project.timeline.next_milestone.name}" 마감 ${daysUntilMilestone}일 전`);
+  // 완료된 미팅들의 첫 번째와 마지막 날짜 계산
+  const dates = completedMeetings.map(m => new Date(m.date)).sort((a, b) => a.getTime() - b.getTime());
+  const firstDate = dates[0];
+  const lastDate = dates[dates.length - 1];
+
+  return calculateDaysDifference(firstDate, lastDate) + 1; // +1 for inclusive days
+}
+
+/**
+ * 현재 단계의 진행률 계산 (미팅 기반)
+ */
+function calculateCurrentPhaseProgress(currentPhase: ProjectPhase, meetings: BuildupProjectMeeting[]): number {
+  const phaseMeetings = getMeetingsForPhase(meetings, currentPhase);
+  if (phaseMeetings.length === 0) return 0;
+
+  const completedMeetings = phaseMeetings.filter(m => m.status === 'completed').length;
+  return Math.round((completedMeetings / phaseMeetings.length) * 100);
+}
+
+/**
+ * 예상 잔여일 계산
+ */
+function calculateEstimatedDaysRemaining(
+  currentPhase: ProjectPhase,
+  meetings: BuildupProjectMeeting[],
+  project: Project
+): number {
+  const currentPhaseIndex = getPhaseIndex(currentPhase);
+  const remainingPhases = ALL_PHASES.slice(currentPhaseIndex);
+
+  let totalDays = 0;
+
+  for (const phase of remainingPhases) {
+    const phaseMeetings = getMeetingsForPhase(meetings, phase);
+
+    if (phase === currentPhase) {
+      // 현재 단계: 남은 미팅 수 기반 계산
+      const upcomingMeetings = phaseMeetings.filter(m => m.status === 'scheduled').length;
+      totalDays += upcomingMeetings * 2; // 미팅당 평균 2일 간격
+    } else {
+      // 미래 단계: 기본 예상 소요일 사용
+      const baseDurations: Record<ProjectPhase, number> = {
+        contract_pending: 3,
+        contract_signed: 1,
+        planning: 5,
+        design: 7,
+        execution: 14,
+        review: 3,
+        completed: 0
+      };
+
+      // 개발 프로젝트는 실행 단계가 더 김
+      if (project.category === '개발' && phase === 'execution') {
+        totalDays += 21;
+      } else {
+        totalDays += baseDurations[phase];
+      }
     }
   }
 
-  // 진행률 지연
-  const progressStatus = getProgressStatus(project.progress.overall);
-  if (progressStatus.status === 'at_risk') {
-    alerts.push('프로젝트 진행 지연 위험');
-  }
+  return totalDays;
+}
 
-  // 미팅 임박 (1일 이내)
-  project.meetings?.forEach(meeting => {
-    const daysUntilMeeting = Math.ceil(
-      (meeting.date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-    );
+/**
+ * 다음 미팅까지 D-Day 계산
+ */
+function calculateDaysToNextMeeting(meetings: BuildupProjectMeeting[]): number | null {
+  const now = new Date();
+  const upcomingMeetings = meetings
+    .filter(m => {
+      const meetingDate = new Date(m.date || m.startDateTime);
+      return meetingDate > now && m.status === 'scheduled';
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.date || a.startDateTime);
+      const dateB = new Date(b.date || b.startDateTime);
+      return dateA.getTime() - dateB.getTime();
+    });
 
-    if (daysUntilMeeting === 1) {
-      alerts.push(`내일 ${meeting.title} 예정`);
-    } else if (daysUntilMeeting === 0) {
-      alerts.push(`오늘 ${meeting.title} 예정`);
+  if (upcomingMeetings.length === 0) return null;
+
+  const nextMeetingDate = new Date(upcomingMeetings[0].date || upcomingMeetings[0].startDateTime);
+  return calculateDaysDifference(now, nextMeetingDate);
+}
+
+/**
+ * 프로젝트 종료일까지 D-Day 계산
+ */
+function calculateDaysToProjectEnd(project: Project): number {
+  const now = new Date();
+  const endDate = new Date(project.timeline.end_date || project.contract.end_date);
+  return calculateDaysDifference(now, endDate);
+}
+
+/**
+ * 메인 진행률 계산 함수
+ */
+export function calculateProjectProgress(
+  project: Project,
+  meetings: BuildupProjectMeeting[]
+): ProjectProgress {
+  const currentPhase = project.phase || 'contract_pending';
+  const currentPhaseIndex = getPhaseIndex(currentPhase);
+
+  // 각 단계별 통계 계산
+  const phaseStats: Record<ProjectPhase, any> = {} as any;
+  const phaseDurations: Record<ProjectPhase, number> = {} as any;
+
+  ALL_PHASES.forEach(phase => {
+    const phaseMeetings = getMeetingsForPhase(meetings, phase);
+    const completedMeetings = phaseMeetings.filter(m => m.status === 'completed');
+    const upcomingMeetings = phaseMeetings.filter(m => m.status === 'scheduled');
+
+    phaseStats[phase] = {
+      totalMeetings: phaseMeetings.length,
+      completedMeetings: completedMeetings.length,
+      upcomingMeetings: upcomingMeetings.length
+    };
+
+    // 실제 소요 기간 또는 예상 기간
+    if (completedMeetings.length > 0) {
+      phaseDurations[phase] = calculateActualPhaseDuration(phaseMeetings);
+    } else {
+      // 기본 예상 기간
+      const defaultDurations: Record<ProjectPhase, number> = {
+        contract_pending: 3,
+        contract_signed: 1,
+        planning: 5,
+        design: 7,
+        execution: project.category === '개발' ? 21 : 14,
+        review: 3,
+        completed: 0
+      };
+      phaseDurations[phase] = defaultDurations[phase];
     }
   });
 
-  return alerts;
+  // 전체 진행률 계산 (미팅 기반)
+  const totalMeetings = meetings.length;
+  const completedMeetings = meetings.filter(m => m.status === 'completed').length;
+  const meetingBasedProgress = totalMeetings > 0 ? (completedMeetings / totalMeetings) * 100 : 0;
+
+  // 단계 기반 진행률과 미팅 기반 진행률의 평균
+  const phaseBasedProgress = calculatePhaseProgress(currentPhase);
+  const percentage = Math.round((phaseBasedProgress + meetingBasedProgress) / 2);
+
+  return {
+    percentage,
+    completedPhases: currentPhaseIndex,
+    currentPhaseProgress: calculateCurrentPhaseProgress(currentPhase, meetings),
+    phaseDurations,
+    phaseStats,
+    estimatedDaysRemaining: calculateEstimatedDaysRemaining(currentPhase, meetings, project),
+    dDayToEnd: calculateDaysToProjectEnd(project),
+    dDayToNextMeeting: calculateDaysToNextMeeting(meetings)
+  };
+}
+
+/**
+ * 특정 단계의 실제 소요일 계산
+ */
+export function calculatePhaseDuration(
+  phase: ProjectPhase,
+  meetings: BuildupProjectMeeting[],
+  project?: Project
+): number {
+  const phaseMeetings = getMeetingsForPhase(meetings, phase);
+
+  // 완료된 미팅이 있으면 실제 소요 기간 계산
+  const completedMeetings = phaseMeetings.filter(m => m.status === 'completed');
+  if (completedMeetings.length > 0) {
+    return calculateActualPhaseDuration(phaseMeetings);
+  }
+
+  // 기본 예상 기간 반환
+  const defaultDurations: Record<ProjectPhase, number> = {
+    contract_pending: 3,
+    contract_signed: 1,
+    planning: 5,
+    design: 7,
+    execution: project?.category === '개발' ? 21 : 14,
+    review: 3,
+    completed: 0
+  };
+
+  return defaultDurations[phase];
+}
+
+/**
+ * D-Day 계산 (프로젝트 데이터 기반)
+ */
+export function calculateDDayFromProject(project: Project): number {
+  return calculateDaysToProjectEnd(project);
+}
+
+/**
+ * 미팅 통계 계산
+ */
+export function calculateMeetingStats(
+  phase: ProjectPhase,
+  meetings: BuildupProjectMeeting[]
+): { total: number; completed: number; upcoming: number } {
+  const phaseMeetings = getMeetingsForPhase(meetings, phase);
+
+  return {
+    total: phaseMeetings.length,
+    completed: phaseMeetings.filter(m => m.status === 'completed').length,
+    upcoming: phaseMeetings.filter(m => m.status === 'scheduled').length
+  };
 }

@@ -362,7 +362,8 @@ interface VDRContextType {
   representativeDocs: RepresentativeDoc[];
   accessLogs: EnhancedAccessLog[];
   aggregateDocuments: () => Promise<void>;
-  uploadDocument: (file: File, category: VDRDocument['category']) => Promise<void>;
+  clearDuplicateDocuments: () => void;
+  uploadDocument: (file: File, category: VDRDocument['category'], projectId?: string) => Promise<void>;
   updateDocumentVisibility: (docId: string, visibility: VDRDocument['visibility']) => void;
   setRepresentativeDocument: (type: RepresentativeDoc['type'], docId: string | null) => void;
   createShareSession: (name: string, documentIds: string[], expiresAt?: Date) => Promise<string>;
@@ -958,266 +959,423 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // 모든 소스에서 문서 자동 집계
+  // localStorage 정리 함수 (개발용)
+  const clearDuplicateDocuments = () => {
+    try {
+      localStorage.removeItem('vdr_documents');
+      localStorage.removeItem('buildup_project_files');
+      console.log('[VDR] Cleared localStorage to prevent duplicates');
+
+      // 문서 목록 초기화
+      setDocuments([]);
+
+      // 다시 집계
+      aggregateDocuments();
+    } catch (error) {
+      console.error('[VDR] Failed to clear localStorage:', error);
+    }
+  };
+
+  // 간단한 문서 로딩 - 복잡한 집계 로직 제거
   const aggregateDocuments = async () => {
     setLoading(true);
     try {
       const aggregatedDocs: VDRDocument[] = [];
 
-      // 빌드업 프로젝트 문서
-      projects?.forEach(project => {
-        // 1. 프로젝트 산출물 (deliverables)
-        if (project.deliverables) {
-          project.deliverables?.forEach(deliverable => {
-            aggregatedDocs.push({
-              id: `buildup-deliverable-${project.id}-${deliverable.id}`,
-              name: deliverable.name,
-              path: `/companies/buildup/projects/${project.id}/deliverables/${deliverable.name}`,
-              size: 1048576, // Mock size
-              uploadDate: new Date(deliverable.uploadDate || Date.now()),
-              lastModified: new Date(deliverable.uploadDate || Date.now()),
-              category: 'buildup_deliverable',
-              source: 'buildup',
-              projectId: project.id,
-              projectName: project.title,
-              visibility: 'team',
-              tags: project.tags,
-              description: `산출물 - ${deliverable.status || 'pending'}`
-            });
-
-            // 산출물에 첨부된 파일들
-            if (deliverable.files && deliverable.files.length > 0) {
-              deliverable.files.forEach((file: any) => {
-                aggregatedDocs.push({
-                  id: `buildup-file-${project.id}-${deliverable.id}-${file.id || Date.now()}`,
-                  name: file.name || file.filename || 'Unknown File',
-                  path: `/companies/buildup/projects/${project.id}/files/${file.name || file.filename}`,
-                  size: file.size || 524288,
-                  uploadDate: new Date(file.uploadDate || Date.now()),
-                  lastModified: new Date(file.lastModified || Date.now()),
-                  category: 'buildup_deliverable',
-                  source: 'buildup',
-                  projectId: project.id,
-                  projectName: project.title,
-                  visibility: 'team',
-                  tags: [...(project.tags || []), 'attachment'],
-                  description: `${deliverable.name} 첨부파일`
-                });
-              });
-            }
-          });
-        }
-
-        // 2. 프로젝트 파일함 (files)
-        if (project.files && project.files.length > 0) {
-          project.files.forEach((file: any) => {
-            aggregatedDocs.push({
-              id: `buildup-projectfile-${project.id}-${file.id || Date.now()}`,
-              name: file.name || file.filename || 'Unknown File',
-              path: `/companies/buildup/projects/${project.id}/library/${file.name || file.filename}`,
-              size: file.size || 524288,
-              uploadDate: new Date(file.uploaded_at || file.uploadDate || Date.now()),
-              lastModified: new Date(file.lastModified || Date.now()),
-              category: file.category || 'buildup_deliverable',
-              source: 'buildup',
-              projectId: project.id,
-              projectName: project.title,
-              visibility: 'team',
-              tags: [...(project.tags || []), 'project-file'],
-              description: `프로젝트 자료실 파일`
-            });
-          });
-        }
-      });
-
-      // KPI 진단 보고서
-      savedAssessments?.forEach(assessment => {
-        aggregatedDocs.push({
-          id: `kpi-${assessment.id}`,
-          name: `KPI_진단보고서_${new Date(assessment.completedAt || Date.now()).toLocaleDateString('ko-KR').replace(/\./g, '')}.pdf`,
-          path: `/companies/kpi/reports/${assessment.id}.pdf`,
-          size: 2097152, // Mock size
-          uploadDate: new Date(assessment.completedAt || Date.now()),
-          lastModified: new Date(assessment.completedAt || Date.now()),
-          category: 'kpi_report',
-          source: 'kpi',
-          visibility: 'private',
-          description: `KPI 진단 결과: 총점 ${assessment.overallScore || 0}점`
-        });
-      });
-
-      // 기존 VDR 업로드 문서 (localStorage에서 가져오기)
+      // VDR 직접 업로드된 문서들만 로드 (localStorage에서)
       const storedDocs = localStorage.getItem('vdr_documents');
       if (storedDocs) {
-        const parsedDocs = JSON.parse(storedDocs);
-        aggregatedDocs.push(...parsedDocs.map((doc: any) => ({
-          ...doc,
-          uploadDate: new Date(doc.uploadDate),
-          lastModified: new Date(doc.lastModified)
-        })));
+        try {
+          const parsedDocs = JSON.parse(storedDocs);
+          parsedDocs.forEach((doc: any) => {
+            aggregatedDocs.push({
+              ...doc,
+              uploadDate: new Date(doc.uploadDate),
+              lastModified: new Date(doc.lastModified)
+            });
+          });
+        } catch (error) {
+          console.error('[VDR] Failed to parse stored documents:', error);
+        }
       }
 
-      // 개발용: 문서가 적을 때 더미 문서 추가
-      if (aggregatedDocs.length < 10) {
+      console.log('[VDR] Loaded VDR documents:', aggregatedDocs.length);
+
+      // 더미 문서는 useEffect에서 한 번만 생성
+
+      // 더미 문서도 함께 로드
+      const hasDummyDocs = aggregatedDocs.some(doc => doc.id.startsWith('dummy-'));
+      if (!hasDummyDocs) {
         const dummyDocs: VDRDocument[] = [
           {
             id: 'dummy-1',
             name: '포켓전자 사업계획서.pdf',
             path: '/dummy/business-plan.pdf',
             size: 2048000,
-            uploadDate: new Date(),
-            lastModified: new Date(),
+            uploadDate: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000), // 3주 전 (프로젝트 초기)
+            lastModified: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000),
             category: 'business_plan',
             source: 'manual',
-            visibility: 'private',
-            isRepresentative: true,
-            representativeType: 'business_plan'
+            visibility: 'team',
+            version: 'v1.0',
+            uploadedBy: '김대표',
+            downloadCount: 5,
+            viewCount: 12,
+            isFavorite: false,
+            approvalStatus: 'pending',
+            projectId: 'PRJ-001',
+            projectName: 'IR 덱 전문 컨설팅',
+            tags: ['사업계획', 'IR']
           },
           {
             id: 'dummy-2',
-            name: '2024_Q3_재무제표.xlsx',
-            path: '/dummy/financial-statement.xlsx',
-            size: 512000,
-            uploadDate: new Date(Date.now() - 86400000),
-            lastModified: new Date(Date.now() - 86400000),
+            name: '재무제표_2024Q3.xlsx',
+            path: '/dummy/financial-2024q3.xlsx',
+            size: 1024000,
+            uploadDate: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), // 12일 전 (프로젝트 중기)
+            lastModified: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000),
             category: 'financial',
             source: 'manual',
-            visibility: 'team',
-            tags: ['재무', 'Q3', '2024'],
-            isRepresentative: true,
-            representativeType: 'financial'
+            visibility: 'private',
+            version: 'v1.0',
+            uploadedBy: '박CFO',
+            downloadCount: 8,
+            viewCount: 15,
+            isFavorite: true,
+            approvalStatus: 'approved',
+            projectId: 'PRJ-002',
+            projectName: 'MVP 개발 프로젝트',
+            tags: ['재무', '분기실적']
           },
           {
             id: 'dummy-3',
-            name: '제품 설명서_v3.2.pdf',
-            path: '/dummy/product-guide.pdf',
-            size: 4096000,
-            uploadDate: new Date(Date.now() - 259200000),
-            lastModified: new Date(Date.now() - 259200000),
+            name: 'IR_Deck_v2.1.pptx',
+            path: '/dummy/ir-deck.pptx',
+            size: 5120000,
+            uploadDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000), // 8일 전 (프로젝트 중기)
+            lastModified: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
             category: 'ir_deck',
             source: 'manual',
-            visibility: 'investors',
+            visibility: 'public',
+            version: 'v2.1',
+            uploadedBy: '이마케팅',
+            downloadCount: 12,
+            viewCount: 25,
+            isFavorite: false,
+            approvalStatus: 'approved',
             projectId: 'PRJ-001',
-            projectName: 'MVP 개발 프로젝트',
-            isRepresentative: true,
-            representativeType: 'ir_deck'
+            projectName: 'IR 덱 전문 컨설팅',
+            tags: ['IR', '투자유치']
           },
           {
             id: 'dummy-4',
-            name: '마케팅 분석 보고서.pptx',
-            path: '/dummy/marketing-report.pptx',
-            size: 8192000,
-            uploadDate: new Date(Date.now() - 604800000),
-            lastModified: new Date(Date.now() - 604800000),
-            category: 'marketing',
-            source: 'manual',
-            visibility: 'public',
-            tags: ['마케팅', '전략', 'Q4'],
-            isRepresentative: true,
-            representativeType: 'marketing'
-          },
-          {
-            id: 'dummy-5',
-            name: '기술 개발 계획서.pdf',
-            path: '/dummy/tech-plan.pdf',
-            size: 3072000,
-            uploadDate: new Date(Date.now() - 172800000),
-            lastModified: new Date(Date.now() - 172800000),
-            category: 'business_plan',
-            source: 'buildup_deliverable',
-            visibility: 'private',
-            projectName: '포켓전자 기술혁신 프로젝트'
-          },
-          {
-            id: 'dummy-6',
-            name: '투자제안서_v2.pptx',
-            path: '/dummy/investment-proposal.pptx',
-            size: 5120000,
-            uploadDate: new Date(Date.now() - 432000000),
-            lastModified: new Date(Date.now() - 432000000),
-            category: 'ir_deck',
-            source: 'manual',
-            visibility: 'investors'
-          },
-          {
-            id: 'dummy-7',
-            name: '법적 검토 의견서.doc',
-            path: '/dummy/legal-review.doc',
-            size: 256000,
-            uploadDate: new Date(Date.now() - 864000000),
-            lastModified: new Date(Date.now() - 864000000),
-            category: 'contract',
-            source: 'manual',
-            visibility: 'private'
-          },
-          {
-            id: 'dummy-8',
-            name: 'KPI 진단 보고서_202401.pdf',
-            path: '/dummy/kpi-report.pdf',
-            size: 1536000,
-            uploadDate: new Date(Date.now() - 1209600000),
-            lastModified: new Date(Date.now() - 1209600000),
-            category: 'kpi_report',
-            source: 'kpi',
-            visibility: 'team'
-          },
-          {
-            id: 'dummy-9',
-            name: '고객 피드백 분석.csv',
-            path: '/dummy/customer-feedback.csv',
-            size: 128000,
-            uploadDate: new Date(Date.now() - 345600000),
-            lastModified: new Date(Date.now() - 345600000),
-            category: 'marketing',
-            source: 'manual',
-            visibility: 'public'
-          },
-          {
-            id: 'dummy-10',
-            name: '팀 조직도.png',
-            path: '/dummy/org-chart.png',
-            size: 1024000,
-            uploadDate: new Date(Date.now() - 691200000),
-            lastModified: new Date(Date.now() - 691200000),
-            category: 'marketing',
-            source: 'manual',
-            visibility: 'team'
-          },
-          {
-            id: 'dummy-11',
             name: '로고 디자인.png',
             path: '/dummy/logo-design.png',
             size: 2048000,
-            uploadDate: new Date(Date.now() - 172800000),
-            lastModified: new Date(Date.now() - 172800000),
+            uploadDate: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000), // 18일 전 (프로젝트 초기)
+            lastModified: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000),
             category: 'marketing',
             source: 'manual',
             visibility: 'public',
-            projectId: 'PRJ-001',
-            projectName: 'MVP 개발 프로젝트',
+            version: 'v1.0',
+            uploadedBy: '디자이너',
+            downloadCount: 3,
+            viewCount: 8,
+            isFavorite: false,
+            approvalStatus: 'approved',
+            projectId: 'PRJ-003',
+            projectName: '브랜드 아이덴티티 디자인',
             tags: ['로고', '디자인', 'MVP']
+          },
+          {
+            id: 'dummy-5',
+            name: '마케팅 전략서.docx',
+            path: '/dummy/marketing-strategy.docx',
+            size: 768000,
+            uploadDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10일 전 (프로젝트 중기)
+            lastModified: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+            category: 'marketing',
+            source: 'manual',
+            visibility: 'team',
+            version: 'v1.0',
+            uploadedBy: '김마케팅',
+            downloadCount: 6,
+            viewCount: 18,
+            isFavorite: true,
+            approvalStatus: 'approved',
+            projectId: 'PRJ-002',
+            projectName: 'MVP 개발 프로젝트',
+            tags: ['마케팅', '전략']
+          },
+          // IR 덱 전문 컨설팅 (PRJ-001) 추가 문서들
+          {
+            id: 'dummy-6',
+            name: '투자 유치 제안서_v3.2.pdf',
+            path: '/dummy/investment-proposal-v3.2.pdf',
+            size: 4200000,
+            uploadDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3일 전 (프로젝트 후기)
+            lastModified: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2일 전
+            category: 'business_plan',
+            source: 'manual',
+            visibility: 'private',
+            version: 'v3.2',
+            uploadedBy: '김대표',
+            downloadCount: 23,
+            viewCount: 67,
+            isFavorite: true,
+            approvalStatus: 'approved',
+            projectId: 'PRJ-001',
+            projectName: 'IR 덱 전문 컨설팅',
+            tags: ['투자유치', 'IR', '시리즈A']
+          },
+          {
+            id: 'dummy-7',
+            name: '경쟁사 분석 보고서.xlsx',
+            path: '/dummy/competitor-analysis.xlsx',
+            size: 1850000,
+            uploadDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000), // 14일 전 (프로젝트 중기)
+            lastModified: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+            category: 'business_plan',
+            source: 'manual',
+            visibility: 'team',
+            version: 'v1.0',
+            uploadedBy: '박분석',
+            downloadCount: 15,
+            viewCount: 42,
+            isFavorite: false,
+            approvalStatus: 'approved',
+            projectId: 'PRJ-001',
+            projectName: 'IR 덱 전문 컨설팅',
+            tags: ['경쟁사', '시장분석']
+          },
+          {
+            id: 'dummy-8',
+            name: '투자자 피드백 정리.docx',
+            path: '/dummy/investor-feedback.docx',
+            size: 890000,
+            uploadDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5일 전 (프로젝트 후기)
+            lastModified: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4일 전
+            category: 'vdr_upload',
+            source: 'manual',
+            visibility: 'private',
+            version: 'v1.1',
+            uploadedBy: '김대표',
+            downloadCount: 8,
+            viewCount: 24,
+            isFavorite: false,
+            approvalStatus: 'pending',
+            projectId: 'PRJ-001',
+            projectName: 'IR 덱 전문 컨설팅',
+            tags: ['피드백', '투자자']
+          },
+          // MVP 개발 프로젝트 (PRJ-002) 추가 문서들
+          {
+            id: 'dummy-9',
+            name: '기술 아키텍처 설계서.pdf',
+            path: '/dummy/tech-architecture.pdf',
+            size: 3100000,
+            uploadDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // 15일 전 (프로젝트 초기)
+            lastModified: new Date(Date.now() - 13 * 24 * 60 * 60 * 1000), // 13일 전
+            category: 'vdr_upload',
+            source: 'manual',
+            visibility: 'team',
+            version: 'v2.0',
+            uploadedBy: '이개발',
+            downloadCount: 31,
+            viewCount: 89,
+            isFavorite: true,
+            approvalStatus: 'approved',
+            projectId: 'PRJ-002',
+            projectName: 'MVP 개발 프로젝트',
+            tags: ['기술', '아키텍처', 'MVP']
+          },
+          {
+            id: 'dummy-10',
+            name: 'API 명세서_v1.3.json',
+            path: '/dummy/api-spec-v1.3.json',
+            size: 245000,
+            uploadDate: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), // 6일 전 (프로젝트 후기)
+            lastModified: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5일 전
+            category: 'vdr_upload',
+            source: 'manual',
+            visibility: 'team',
+            version: 'v1.3',
+            uploadedBy: '최백엔드',
+            downloadCount: 45,
+            viewCount: 156,
+            isFavorite: false,
+            approvalStatus: 'approved',
+            projectId: 'PRJ-002',
+            projectName: 'MVP 개발 프로젝트',
+            tags: ['API', '개발', '백엔드']
+          },
+          {
+            id: 'dummy-11',
+            name: 'UI_UX_가이드라인.figma',
+            path: '/dummy/ui-ux-guidelines.figma',
+            size: 12500000,
+            uploadDate: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000), // 9일 전 (프로젝트 중기)
+            lastModified: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000), // 8일 전
+            category: 'marketing',
+            source: 'manual',
+            visibility: 'team',
+            version: 'v2.1',
+            uploadedBy: '박디자인',
+            downloadCount: 28,
+            viewCount: 73,
+            isFavorite: true,
+            approvalStatus: 'approved',
+            projectId: 'PRJ-002',
+            projectName: 'MVP 개발 프로젝트',
+            tags: ['UI', 'UX', '디자인', 'Figma']
+          },
+          {
+            id: 'dummy-12',
+            name: '사용자 테스트 결과.xlsx',
+            path: '/dummy/user-test-results.xlsx',
+            size: 1780000,
+            uploadDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2일 전 (프로젝트 후기)
+            lastModified: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+            category: 'vdr_upload',
+            source: 'manual',
+            visibility: 'team',
+            version: 'v1.0',
+            uploadedBy: '김PM',
+            downloadCount: 19,
+            viewCount: 52,
+            isFavorite: false,
+            approvalStatus: 'approved',
+            projectId: 'PRJ-002',
+            projectName: 'MVP 개발 프로젝트',
+            tags: ['사용자테스트', 'QA']
+          },
+          // 브랜드 아이덴티티 디자인 (PRJ-003) 추가 문서들
+          {
+            id: 'dummy-13',
+            name: '브랜드 가이드북_최종.pdf',
+            path: '/dummy/brand-guidebook-final.pdf',
+            size: 8900000,
+            uploadDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4일 전 (프로젝트 후기)
+            lastModified: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3일 전
+            category: 'marketing',
+            source: 'manual',
+            visibility: 'public',
+            version: 'v1.0',
+            uploadedBy: '디자인스튜디오',
+            downloadCount: 34,
+            viewCount: 98,
+            isFavorite: true,
+            approvalStatus: 'approved',
+            projectId: 'PRJ-003',
+            projectName: '브랜드 아이덴티티 디자인',
+            tags: ['브랜드', '가이드북', 'CI']
+          },
+          {
+            id: 'dummy-14',
+            name: '로고 변형 패키지.zip',
+            path: '/dummy/logo-variations.zip',
+            size: 15600000,
+            uploadDate: new Date(Date.now() - 16 * 24 * 60 * 60 * 1000), // 16일 전 (프로젝트 초기)
+            lastModified: new Date(Date.now() - 16 * 24 * 60 * 60 * 1000),
+            category: 'marketing',
+            source: 'manual',
+            visibility: 'team',
+            version: 'v1.0',
+            uploadedBy: '디자인스튜디오',
+            downloadCount: 12,
+            viewCount: 29,
+            isFavorite: false,
+            approvalStatus: 'approved',
+            projectId: 'PRJ-003',
+            projectName: '브랜드 아이덴티티 디자인',
+            tags: ['로고', '패키지', 'assets']
+          },
+          {
+            id: 'dummy-15',
+            name: '컬러 팔레트 및 폰트.ai',
+            path: '/dummy/color-font-palette.ai',
+            size: 4500000,
+            uploadDate: new Date(Date.now() - 17 * 24 * 60 * 60 * 1000), // 17일 전 (프로젝트 초기)
+            lastModified: new Date(Date.now() - 16 * 24 * 60 * 60 * 1000), // 16일 전
+            category: 'marketing',
+            source: 'manual',
+            visibility: 'team',
+            version: 'v1.1',
+            uploadedBy: '디자인스튜디오',
+            downloadCount: 18,
+            viewCount: 41,
+            isFavorite: false,
+            approvalStatus: 'approved',
+            projectId: 'PRJ-003',
+            projectName: '브랜드 아이덴티티 디자인',
+            tags: ['컬러', '폰트', 'Adobe']
+          },
+          // 일반 회사 문서들 (프로젝트 미연결)
+          {
+            id: 'dummy-16',
+            name: '법인 설립 서류.pdf',
+            path: '/dummy/corporate-documents.pdf',
+            size: 2200000,
+            uploadDate: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000), // 25일 전 (초기 설립)
+            lastModified: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),
+            category: 'contract',
+            source: 'manual',
+            visibility: 'private',
+            version: 'v1.0',
+            uploadedBy: '법무팀',
+            downloadCount: 7,
+            viewCount: 14,
+            isFavorite: false,
+            approvalStatus: 'approved',
+            tags: ['법인', '계약서']
+          },
+          {
+            id: 'dummy-17',
+            name: '직원 핸드북_2024.docx',
+            path: '/dummy/employee-handbook-2024.docx',
+            size: 1100000,
+            uploadDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000), // 20일 전 (초기 설립)
+            lastModified: new Date(Date.now() - 19 * 24 * 60 * 60 * 1000), // 19일 전
+            category: 'vdr_upload',
+            source: 'manual',
+            visibility: 'team',
+            version: 'v2024.1',
+            uploadedBy: '인사팀',
+            downloadCount: 25,
+            viewCount: 67,
+            isFavorite: false,
+            approvalStatus: 'approved',
+            tags: ['인사', '핸드북']
+          },
+          {
+            id: 'dummy-18',
+            name: '분기별 성과 리포트.pptx',
+            path: '/dummy/quarterly-performance.pptx',
+            size: 3400000,
+            uploadDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7일 전 (중기 리포트)
+            lastModified: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+            category: 'business_plan',
+            source: 'manual',
+            visibility: 'team',
+            version: 'v1.0',
+            uploadedBy: '김대표',
+            downloadCount: 41,
+            viewCount: 127,
+            isFavorite: true,
+            approvalStatus: 'approved',
+            tags: ['성과', '분기', '리포트']
           }
         ];
 
-        // 더미 문서 중 중복되지 않은 것만 추가
-        dummyDocs.forEach(dummy => {
-          if (!aggregatedDocs.find(doc => doc.id === dummy.id)) {
-            aggregatedDocs.push(dummy);
-          }
-        });
+        aggregatedDocs.push(...dummyDocs);
       }
 
-      console.log('[VDR] Documents aggregated:', {
-        total: aggregatedDocs.length,
-        fromBuildup: aggregatedDocs.filter(d => d.source === 'buildup').length,
-        fromKPI: aggregatedDocs.filter(d => d.source === 'kpi').length,
-        fromManual: aggregatedDocs.filter(d => d.source === 'manual').length
-      });
-
       setDocuments(aggregatedDocs);
-
-      // VDR 문서들을 프로젝트별로 동기화
-      syncVDRDocumentsToProjects(aggregatedDocs);
+      console.log('[VDR] Document loading completed:', {
+        total: aggregatedDocs.length,
+        fromStorage: aggregatedDocs.filter(d => !d.id.startsWith('dummy-')).length,
+        dummy: aggregatedDocs.filter(d => d.id.startsWith('dummy-')).length
+      });
     } catch (error) {
       console.error('Failed to aggregate documents:', error);
     } finally {
@@ -1285,10 +1443,7 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         totalFiles: Object.values(projectDocsMap).reduce((sum, files) => sum + files.length, 0)
       });
 
-      // BuildupContext에 동기화 완료 이벤트 발송
-      window.dispatchEvent(new CustomEvent('vdr-project-sync-complete', {
-        detail: { projectDocsMap }
-      }));
+      // 이벤트 발송 제거 - 순환 참조 방지
 
     } catch (error) {
       console.error('[VDR] Failed to sync documents to projects:', error);
@@ -1352,6 +1507,31 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     aggregateDocuments();
 
+    // 프로젝트 파일 업로드 요청 이벤트 리스너
+    const handleProjectUploadRequest = async (event: CustomEvent) => {
+      const { projectId, file, category } = event.detail;
+      console.log('[VDR] Project upload request received:', { projectId, fileName: file.name });
+
+      try {
+        // VDR 카테고리 매핑
+        const vdrCategory = mapProjectCategoryToVDR(category);
+        await uploadDocument(file, vdrCategory, projectId);
+
+        // 성공 알림 이벤트 발송
+        window.dispatchEvent(new CustomEvent('project-file-upload-success', {
+          detail: { projectId, fileName: file.name }
+        }));
+      } catch (error) {
+        console.error('[VDR] Project upload failed:', error);
+        // 실패 알림 이벤트 발송
+        window.dispatchEvent(new CustomEvent('project-file-upload-error', {
+          detail: { projectId, fileName: file.name, error: error instanceof Error ? error.message : '업로드 실패' }
+        }));
+      }
+    };
+
+    window.addEventListener('project-file-upload-request', handleProjectUploadRequest as EventListener);
+
     // 개발용 더미 세션 추가
     if (sharedSessions.length === 0) {
       const dummySessions: SharedSession[] = [
@@ -1409,8 +1589,9 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSharedSessions(dummySessions);
     }
 
-    // 개발용 더미 문서 추가 (기존 문서가 10개 미만일 때)
-    if (documents.length < 10) {
+    // 개발용 더미 문서 추가 (항상 더미 데이터 유지)
+    const hasDummyDocs = documents.some(doc => doc.id.startsWith('dummy-'));
+    if (!hasDummyDocs) {
       const dummyDocs: VDRDocument[] = [
         {
           id: 'dummy-1',
@@ -1583,9 +1764,14 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           visibility: 'team'
         }
       ];
-      setDocuments(dummyDocs);
+      // 더미 문서는 aggregateDocuments에서 처리됨
     }
-  }, [projects, savedAssessments]);
+
+    // Cleanup: 이벤트 리스너 제거
+    return () => {
+      window.removeEventListener('project-file-upload-request', handleProjectUploadRequest as EventListener);
+    };
+  }, []); // 의존성 배열에서 projects 제거하여 순환 참조 방지
 
   // 세션이 변경될 때마다 문서-세션 연결 업데이트
   useEffect(() => {
@@ -1697,8 +1883,20 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return labels[category] || category;
   };
 
+  // 프로젝트 카테고리를 VDR 카테고리로 매핑
+  const mapProjectCategoryToVDR = (projectCategory: string): VDRDocument['category'] => {
+    const mapping: Record<string, VDRDocument['category']> = {
+      'document': 'vdr_upload',
+      'design': 'marketing',
+      'code': 'vdr_upload',
+      'report': 'business_plan',
+      'other': 'vdr_upload'
+    };
+    return mapping[projectCategory] || 'vdr_upload';
+  };
+
   // 문서 업로드 (강화된 검증 포함)
-  const uploadDocument = async (file: File, category: VDRDocument['category']) => {
+  const uploadDocument = async (file: File, category: VDRDocument['category'], projectId?: string) => {
     // 파일 검증
     const validation = validateFile(file, category);
     if (!validation.valid) {
@@ -1708,8 +1906,20 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const fileExtension = `.${file.name.split('.').pop()?.toLowerCase()}`;
     const hasPreview = ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.svg'].includes(fileExtension);
 
+    // 파일의 고유 해시 생성 (이름 + 크기 + 타입 기반)
+    const fileHash = `${file.name}-${file.size}-${file.type}`.replace(/[^a-zA-Z0-9]/g, '-');
+    const docId = `vdr-${fileHash}`;
+
+    // 중복 파일 체크
+    if (documents.find(doc => doc.id === docId)) {
+      throw new Error(`파일 "${file.name}"은 이미 업로드되어 있습니다.`);
+    }
+
+    // 프로젝트 정보 가져오기
+    const project = projectId ? projects?.find(p => p.id === projectId) : null;
+
     const newDoc: VDRDocument = {
-      id: `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: docId,
       name: file.name,
       path: `/companies/vdr/uploads/${encodeURIComponent(file.name)}`,
       size: file.size,
@@ -1718,6 +1928,9 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       category,
       source: 'manual',
       visibility: 'private',
+      // 프로젝트 연결 정보
+      projectId: projectId || undefined,
+      projectName: project?.title || undefined,
       // 업로더 정보 자동 추가
       uploadedBy: currentUser?.name || 'Unknown',
       uploadedById: currentUser?.id,
@@ -1730,7 +1943,7 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isFavorite: false,
       approvalStatus: 'pending',
       checksum: await generateChecksum(file),
-      tags: []
+      tags: project?.tags || []
     };
 
     const updatedDocs = [...documents, newDoc];
@@ -2941,6 +3154,7 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     representativeDocs,
     accessLogs,
     aggregateDocuments,
+    clearDuplicateDocuments, // 개발용 중복 제거 함수
     uploadDocument,
     updateDocumentVisibility,
     setRepresentativeDocument,
@@ -3006,6 +3220,14 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     loading
   };
+
+  // 개발환경에서 중복 정리 함수를 window에 노출
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+      (window as any).clearVDRDuplicates = clearDuplicateDocuments;
+      console.log('🧪 [VDR] clearVDRDuplicates() function available in console');
+    }
+  }, []);
 
   return (
     <VDRContext.Provider value={value}>

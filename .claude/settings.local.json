@@ -77,7 +77,11 @@
       "Bash(timeout 3 npm run dev)",
       "Bash(cp:*)",
       "Bash(start http://localhost:5173/pocketbiz-platform/startup/vdr)",
-      "Bash(timeout 5 npx tsc --noEmit)"
+      "Bash(timeout 5 npx tsc --noEmit)",
+      "Bash(set NODE_OPTIONS=--max-old-space-size=4096)",
+      "Bash(start http://localhost:5174/pocketbiz-platform/startup/buildup/project/PRJ-001)",
+      "Bash(start http://localhost:5174/pocketbiz-platform/startup/vdr)",
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": []

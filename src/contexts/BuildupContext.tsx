@@ -119,6 +119,7 @@ interface BuildupContextType {
   addFileToProject: (projectId: string, file: File, category?: string) => Promise<void>;
   removeFileFromProject: (projectId: string, fileId: string) => void;
   updateProjectFile: (projectId: string, fileId: string, updates: Partial<ProjectFile>) => void;
+  clearAllProjectFiles: () => void;
 
   // Project calculations
   calculateDDay: (project: Project) => { days: number; isUrgent: boolean; isWarning: boolean; text: string } | null;
@@ -1137,6 +1138,31 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
   };
 
   // 로컬스토리지에서 파일 데이터를 저장/로드하는 유틸리티 함수들
+  // 모든 프로젝트 파일 정리 함수 (개발용)
+  const clearAllProjectFiles = () => {
+    try {
+      // localStorage에서 프로젝트 파일 데이터 삭제
+      localStorage.removeItem('buildup_project_files');
+
+      // 모든 프로젝트의 files 배열을 빈 배열로 초기화
+      const clearedProjects = projects.map(project => ({
+        ...project,
+        files: []
+      }));
+
+      setProjects(clearedProjects);
+
+      console.log('[BuildupContext] All project files cleared');
+      showSuccess('모든 프로젝트 파일이 정리되었습니다.');
+
+    } catch (error) {
+      console.error('[BuildupContext] Failed to clear project files:', error);
+      showError('파일 정리 중 오류가 발생했습니다.');
+    }
+  };
+
+  // VDR 연동 함수 제거 - VDR을 중앙 허브로 사용
+
   const saveProjectFilesToStorage = (updatedProjects: Project[]) => {
     try {
       const projectFiles: Record<string, ProjectFile[]> = {};
@@ -1174,74 +1200,13 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     return {};
   };
 
-  // 프로젝트 파일 관리 함수들
+  // 프로젝트 파일 관리 함수들 - VDR 중앙 허브로 연결
   const addFileToProject = async (projectId: string, file: File, category: string = 'document'): Promise<void> => {
-    try {
-      // 파일 검증
-      const maxSize = 100 * 1024 * 1024; // 100MB
-      if (file.size > maxSize) {
-        throw new Error('파일 크기는 100MB를 초과할 수 없습니다.');
-      }
-
-      const allowedTypes = [
-        'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'text/plain', 'text/csv', 'image/png', 'image/jpeg', 'image/gif', 'image/svg+xml',
-        'application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed'
-      ];
-
-      if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|csv|png|jpg|jpeg|gif|svg|zip|rar|7z)$/i)) {
-        throw new Error('지원하지 않는 파일 형식입니다.');
-      }
-
-      // 파일을 Base64로 인코딩 (localStorage 저장용)
-      const fileData = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      // 파일 객체 생성
-      const newFile: ProjectFile = {
-        id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        url: fileData, // Base64 데이터 저장
-        uploaded_by: {
-          id: 'current-user',
-          name: '현재 사용자',
-          role: 'pm',
-          avatar: ''
-        },
-        uploaded_at: new Date(),
-        version: 1,
-        category: category as 'document' | 'design' | 'code' | 'report' | 'other'
-      };
-
-      // 프로젝트에 파일 추가
-      const updatedProjects = projects.map(project =>
-        project.id === projectId
-          ? { ...project, files: [...(project.files || []), newFile] }
-          : project
-      );
-
-      setProjects(updatedProjects);
-
-      // 로컬스토리지에 저장
-      saveProjectFilesToStorage(updatedProjects);
-
-      showSuccess?.(`파일 "${file.name}"이 성공적으로 업로드되었습니다.`);
-
-      console.log(`[BuildupContext] File added to project ${projectId}:`, newFile);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '파일 업로드 중 오류가 발생했습니다.';
-      showError?.(errorMessage);
-      console.error('[BuildupContext] File upload error:', error);
-      throw error;
-    }
+    // VDR uploadDocument를 직접 호출하지 못하므로 이벤트로 전달
+    const uploadEvent = new CustomEvent('project-file-upload-request', {
+      detail: { projectId, file, category }
+    });
+    window.dispatchEvent(uploadEvent);
   };
 
   const removeFileFromProject = (projectId: string, fileId: string) => {
@@ -2413,6 +2378,7 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     addFileToProject,
     removeFileFromProject,
     updateProjectFile,
+    clearAllProjectFiles,
 
     // 프로젝트 계산 함수
     calculateDDay,
@@ -2756,24 +2722,7 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
     }
   }, [isRegistered, status]);
 
-  // VDR 문서 동기화 이벤트 리스너
-  useEffect(() => {
-    const handleVDRSync = (event: CustomEvent) => {
-      console.log('[BuildupContext] VDR sync event received:', event.detail);
-
-      // 프로젝트 목록을 새로고침하여 VDR 문서들이 반영되도록 함
-      const refreshedProjects = getInitialProjects();
-      setProjects(refreshedProjects);
-
-      showSuccess(`VDR에서 ${Object.keys(event.detail.projectDocsMap).length}개 프로젝트로 문서가 동기화되었습니다.`);
-    };
-
-    window.addEventListener('vdr-project-sync-complete', handleVDRSync as EventListener);
-
-    return () => {
-      window.removeEventListener('vdr-project-sync-complete', handleVDRSync as EventListener);
-    };
-  }, [showSuccess]);
+  // VDR 문서 동기화 이벤트 리스너 제거 - 순환 참조 방지
 
   return (
     <BuildupContext.Provider value={value}>
@@ -3851,6 +3800,12 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
           };
         }
       }
+    },
+
+    // 프로젝트 파일 정리 함수
+    clearAllProjectFiles: () => {
+      console.log('🧹 [TEST] Clearing all project files...');
+      clearAllProjectFiles();
     },
 
     // Store context reference for testing

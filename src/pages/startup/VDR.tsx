@@ -841,8 +841,9 @@ const VDR: React.FC = () => {
           ));
         }
 
-        // 실제 업로드
-        await uploadDocument(upload.file, 'vdr_upload');
+        // 실제 업로드 (선택된 프로젝트와 연결)
+        const projectId = selectedProjectId !== 'all' ? selectedProjectId : undefined;
+        await uploadDocument(upload.file, 'vdr_upload', projectId);
 
         // 업로드 완료
         setUploadQueue(prev => prev.map(u =>

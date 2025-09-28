@@ -280,7 +280,6 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isInitializedRef = useRef<boolean>(false);
   const syncInProgressRef = useRef<boolean>(false);
-  const hasMockDataLoadedRef = useRef<boolean>(false);
 
   // ========== localStorage 관련 함수 ==========
 
@@ -415,8 +414,20 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
   // ========== Mock Projects 동기화 ==========
 
   useEffect(() => {
-    // 초기화가 완료되고 mock 데이터를 아직 로드하지 않았을 때만 실행
-    if (isInitializedRef.current && !isLoading && !hasMockDataLoadedRef.current) {
+    // 초기화가 완료되고 스케줄이 비어있으면 mock 데이터 로드
+    console.log('📊 Mock data loading check:', {
+      isInitialized: isInitializedRef.current,
+      isLoading,
+      currentSchedulesCount: schedules.length,
+      buildupMeetingsCount: schedules.filter(s => s.type === 'buildup_project').length
+    });
+
+    // 빌드업 미팅이 하나도 없으면 mock 데이터 로드
+    const needsMockData = isInitializedRef.current &&
+                          !isLoading &&
+                          schedules.filter(s => s.type === 'buildup_project').length === 0;
+
+    if (needsMockData) {
       const initializeMockProjectMeetings = async () => {
         console.log('🔄 Initializing mock project meetings...');
 
@@ -424,6 +435,8 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
         const newProjectLinks = new Map(projectScheduleLinks);
 
         mockProjects.forEach(project => {
+          console.log(`📊 Processing project ${project.id}: ${project.meetings?.length || 0} meetings`);
+
           if (project.meetings && project.meetings.length > 0) {
             const projectMeetingIds: string[] = [];
 
@@ -434,7 +447,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
                 type: 'buildup_project',
                 title: meeting.title,
                 description: meeting.agenda || '',
-                date: meeting.date.toISOString(),
+                date: meeting.date,
                 startDateTime: meeting.date,
                 endDateTime: new Date(meeting.date.getTime() + (meeting.duration || 60) * 60 * 1000),
                 location: meeting.location || '',
@@ -457,6 +470,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
               };
 
               // 미팅 생성 완료
+              console.log(`  - Adding meeting: ${meeting.title} (${meeting.id})`);
 
               mockMeetings.push(mockMeeting);
               projectMeetingIds.push(meeting.id);
@@ -485,7 +499,12 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
           });
 
           setProjectScheduleLinks(newProjectLinks);
-          hasMockDataLoadedRef.current = true;
+        } else {
+          console.log('⚠️ No mock meetings found in mockProjects');
+          console.log('📊 Mock projects check:', {
+            totalProjects: mockProjects.length,
+            projectsWithMeetings: mockProjects.filter(p => p.meetings && p.meetings.length > 0).length
+          });
         }
       };
 
@@ -493,7 +512,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       const timer = setTimeout(initializeMockProjectMeetings, 500);
       return () => clearTimeout(timer);
     }
-  }, [isLoading]); // projectScheduleLinks 제거 - 무한 루프 방지
+  }, [isLoading, schedules.length]); // schedules.length 추가하여 빈 데이터일 때 재로드
 
   // ========== Cleanup ==========
 
@@ -1171,6 +1190,28 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     return syncInProgressRef.current;
   }, []);
 
+  /**
+   * 강제로 mock 데이터 재로드 (디버깅용)
+   */
+  const forceReloadMockData = useCallback(() => {
+    console.log('🔄 Force reloading mock data...');
+
+    // localStorage 클리어
+    localStorage.removeItem(STORAGE_KEYS.SCHEDULES);
+    localStorage.removeItem(STORAGE_KEYS.PROJECT_LINKS);
+
+    // 상태 초기화
+    setSchedules([]);
+    setProjectScheduleLinks(new Map());
+
+    // 재로드
+    setTimeout(() => {
+      loadFromLocalStorage();
+    }, 100);
+
+    console.log('✅ Mock data reload initiated');
+  }, [loadFromLocalStorage]);
+
   // ========== Context Value (메모이제이션) ==========
 
   // 빌드업 미팅만 필터링 (computed value)
@@ -1287,6 +1328,25 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
       // Window 객체에 노출 (통합 스케줄 시스템을 위해)
       window.scheduleContext = scheduleContextObj;
 
+      // 디버깅 유틸리티 추가
+      window.forceReloadMockSchedules = () => {
+        console.log('🔄 [Debug] Force reloading mock schedules...');
+        localStorage.removeItem(STORAGE_KEYS.SCHEDULES);
+        localStorage.removeItem(STORAGE_KEYS.PROJECT_LINKS);
+        localStorage.removeItem(STORAGE_KEYS.LAST_SYNC);
+        setSchedules([]);
+        setProjectScheduleLinks(new Map());
+        isInitializedRef.current = false;
+
+        // 재초기화
+        setTimeout(() => {
+          loadFromLocalStorage();
+          isInitializedRef.current = true;
+        }, 100);
+
+        return 'Mock data reload initiated. Check console for progress.';
+      };
+
       // GlobalContextManager에 등록
       import('../utils/globalContextManager').then(({ contextManager }) => {
         contextManager.register('schedule', scheduleContextObj, {
@@ -1332,6 +1392,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     return () => {
       if (typeof window !== 'undefined') {
         delete window.scheduleContext;
+        delete window.forceReloadMockSchedules;
         contextReadyEmitter.markUnready('schedule');
         console.log('🧹 ScheduleContext removed from window');
       }

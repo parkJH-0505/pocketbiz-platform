@@ -44,6 +44,7 @@ import {
   User
 } from 'lucide-react';
 import { useBuildupContext } from '../../../contexts/BuildupContext';
+import { useVDRContext } from '../../../contexts/VDRContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { useMeetingNotes } from '../../../contexts/MeetingNotesContext';
 import type { Project } from '../../../types/buildup.types';
@@ -53,6 +54,7 @@ import {
   calculatePhaseProgress,
   getPhaseIndex
 } from '../../../utils/projectPhaseUtils';
+import Timeline from '../../../components/overview/Timeline';
 
 interface Task {
   id: string;
@@ -93,6 +95,7 @@ export default function ProjectDetail() {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const { projects, updateProject, addFileToProject, removeFileFromProject } = useBuildupContext();
+  const { documents } = useVDRContext();
   const {
     openChatForProject,
     getUnreadCountByProject,
@@ -113,6 +116,12 @@ export default function ProjectDetail() {
   } = useMeetingNotes();
 
   const project = projects.find(p => p.id === projectId);
+
+  // 해당 프로젝트와 연결된 VDR 문서들 필터링
+  const projectDocuments = useMemo(() => {
+    return documents.filter(doc => doc.projectId === projectId);
+  }, [documents, projectId]);
+
   const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'meetings' | 'phase-history'>('overview');
   const [unreadCount, setUnreadCount] = useState(0);
   const [showChatModal, setShowChatModal] = useState(false);
@@ -133,6 +142,9 @@ export default function ProjectDetail() {
     const saved = localStorage.getItem(`project-${projectId}-progress-collapsed`);
     return saved === 'true';
   });
+
+  // 동적 활동 피드 상태
+  const [dynamicActivities, setDynamicActivities] = useState<any[]>([]);
 
   // 진행바 접기/펼치기 토글
   const toggleProgressBar = () => {
@@ -206,6 +218,52 @@ export default function ProjectDetail() {
   const handleUploadButtonClick = () => {
     fileInputRef.current?.click();
   };
+
+  // VDR 업로드 결과 처리
+  useEffect(() => {
+    const handleUploadSuccess = (event: CustomEvent) => {
+      const { projectId, fileName } = event.detail;
+      if (projectId === project?.id) {
+        setIsUploading(false);
+        showSuccess(`파일 "${fileName}"이 VDR에 성공적으로 업로드되었습니다.`);
+
+        // 활동 피드에 업로드 이벤트 추가
+        const newActivity = {
+          id: `act-upload-${Date.now()}`,
+          type: 'file_upload',
+          category: '파일 활동',
+          title: `${fileName} 업로드`,
+          description: `${project?.team?.pm?.name || '팀원'}이 VDR에 업로드했습니다`,
+          user: project?.team?.pm?.name || '팀원',
+          timestamp: new Date(),
+          icon: 'upload'
+        };
+
+        setDynamicActivities(prev => [newActivity, ...prev]);
+
+        // 파일 입력 초기화
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    };
+
+    const handleUploadError = (event: CustomEvent) => {
+      const { projectId, fileName, error } = event.detail;
+      if (projectId === project?.id) {
+        setIsUploading(false);
+        showError(`파일 "${fileName}" 업로드 실패: ${error}`);
+      }
+    };
+
+    window.addEventListener('project-file-upload-success', handleUploadSuccess as EventListener);
+    window.addEventListener('project-file-upload-error', handleUploadError as EventListener);
+
+    return () => {
+      window.removeEventListener('project-file-upload-success', handleUploadSuccess as EventListener);
+      window.removeEventListener('project-file-upload-error', handleUploadError as EventListener);
+    };
+  }, [project?.id, showSuccess, showError]);
 
   const handleFileDownload = (file: any) => {
     if (file.url.startsWith('data:')) {
@@ -679,8 +737,8 @@ export default function ProjectDetail() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [comment, setComment] = useState('');
 
-  // 통합 활동 피드 데이터
-  const projectActivities = [
+  // 통합 활동 피드 데이터 - 정적 활동들
+  const staticProjectActivities = [
     {
       id: 'act-001',
       type: 'file_upload',
@@ -688,7 +746,7 @@ export default function ProjectDetail() {
       title: 'IR 덱 초안 v2.0 업로드',
       description: '김수민 PM이 업로드했습니다',
       user: project?.team?.pm?.name || '김수민',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2시간 전
+      timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3일 전
       icon: 'upload'
     },
     {
@@ -698,7 +756,7 @@ export default function ProjectDetail() {
       title: '클라이언트 피드백 수신',
       description: '"디자인 방향성 조정이 필요합니다"',
       user: project?.team?.client_contact?.name || '정대표',
-      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4시간 전
+      timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5일 전
       icon: 'message'
     },
     {
@@ -708,7 +766,7 @@ export default function ProjectDetail() {
       title: '시장 조사 보고서 검토 완료',
       description: '승인 처리되었습니다',
       user: project?.team?.client_contact?.name || '정대표',
-      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6시간 전
+      timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7일 전
       icon: 'check'
     },
     {
@@ -718,7 +776,7 @@ export default function ProjectDetail() {
       title: '프로젝트 단계 업데이트',
       description: '기획 → 설계 단계로 진행',
       user: project?.team?.pm?.name || '김수민',
-      timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1일 전
+      timestamp: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10일 전
       icon: 'arrow-right'
     },
     {
@@ -728,10 +786,16 @@ export default function ProjectDetail() {
       title: '가이드 미팅 1차 완료',
       description: '프로젝트 킥오프 및 요구사항 정리',
       user: project?.team?.pm?.name || '김수민',
-      timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000), // 2일 전
+      timestamp: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000), // 14일 전
       icon: 'calendar'
     }
   ];
+
+  // 동적 활동과 정적 활동 결합
+  const projectActivities = useMemo(() => {
+    return [...dynamicActivities, ...staticProjectActivities]
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [dynamicActivities]);
 
   // 활동 아이콘 매핑
   const getActivityIcon = (iconType: string) => {
@@ -1295,111 +1359,13 @@ export default function ProjectDetail() {
 
       {/* Content */}
       <div className="flex-1 overflow-auto">
-        {/* Overview Tab */}
+        {/* Overview Tab - 3단계 타임라인 구조 */}
         {activeTab === 'overview' && (
-          <div className="p-6">
-            <div className="grid grid-cols-12 gap-6">
-              {/* Main Content */}
-              <div className="col-span-8 space-y-6">
-                {/* Phase Transition Controls - Moved to phase-history tab */}
-
-                {/* Quick Stats - Removed (의미없는 하드코딩 숫자들) */}
-
-                {/* 프로젝트 활동 */}
-                <div className="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all">
-                  <div className="p-4 border-b border-gray-200">
-                    <h3 className="font-semibold text-gray-900">프로젝트 활동</h3>
-                    <p className="text-xs text-gray-500 mt-1">서버 로그 기반 자동 수집</p>
-                  </div>
-                  <div className="divide-y divide-gray-200">
-                    {projectActivities.slice(0, 5).map(activity => {
-                      const IconComponent = getActivityIcon(activity.icon);
-                      return (
-                        <div key={activity.id} className="p-4 hover:bg-gray-50 transition-colors">
-                          <div className="flex items-start gap-3">
-                            {/* 아이콘 */}
-                            <div className={`p-2 rounded-lg ${getCategoryColor(activity.category)}`}>
-                              <IconComponent className="w-4 h-4" />
-                            </div>
-
-                            {/* 내용 */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between mb-1">
-                                <div className="flex-1">
-                                  <h4 className="font-medium text-gray-900 text-sm">{activity.title}</h4>
-                                  <p className="text-xs text-gray-600 mt-0.5">{activity.description}</p>
-                                </div>
-                                <span className={`px-2 py-1 text-xs rounded-full ${getCategoryColor(activity.category)} font-medium`}>
-                                  {activity.category}
-                                </span>
-                              </div>
-
-                              {/* 메타 정보 */}
-                              <div className="flex items-center gap-3 text-xs text-gray-500 mt-2">
-                                <span className="flex items-center gap-1">
-                                  <Users className="w-3 h-3" />
-                                  {activity.user}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {getRelativeTime(activity.timestamp)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* 전체 활동 보기 */}
-                  <div className="p-4 border-t border-gray-200">
-                    <button className="w-full text-sm text-blue-600 hover:text-blue-700 font-medium">
-                      전체 활동 보기
-                    </button>
-                  </div>
-                </div>
-
-                {/* Recent Files */}
-                <div className="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all">
-                  <div className="p-4 border-b border-gray-200">
-                    <h3 className="font-semibold text-gray-900">최근 파일</h3>
-                  </div>
-                  <div className="p-4 grid grid-cols-2 gap-3">
-                    {project.files.slice(0, 4).map(file => {
-                      const Icon = getFileIcon(file.name);
-                      return (
-                        <div key={file.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
-                          <Icon className="w-8 h-8 text-gray-400" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
-                            <p className="text-xs text-gray-500">
-                              {(file.size / 1024).toFixed(1)}KB · {new Date(file.uploaded_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <Download className="w-4 h-4 text-gray-400" />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Sidebar */}
-              <div className="col-span-4 space-y-6">
-                {/* ProjectPhaseIndicator - Removed (헤더에 이미 동일 정보 표시) */}
-
-                {/* Phase History - Removed (duplicate in phase-history tab) */}
-
-                {/* Next Meeting - Completely moved to header */}
-
-                {/* Team Members - PM 정보는 헤더로 이동, mock 멤버들 제거 */}
-
-
-                {/* Quick Actions - Removed (실제 기능 없는 버튼들, PM 대화는 헤더로 이동) */}
-              </div>
-            </div>
-          </div>
+          <Timeline
+            project={project}
+            meetings={projectMeetings}
+            onPhaseClick={(phase) => console.log('Phase clicked:', phase)}
+          />
         )}
 
         {/* 미팅 기록 Tab */}
@@ -2585,6 +2551,7 @@ export default function ProjectDetail() {
               >
                 <Upload className="w-4 h-4" />
                 {isUploading ? '업로드 중...' : '파일 업로드'}
+                <span className="text-xs bg-blue-500 px-1 rounded">→VDR</span>
               </button>
             </div>
 
@@ -2610,61 +2577,70 @@ export default function ProjectDetail() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {project.files
-                    .sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime()) // 최신 순 정렬
-                    .map(file => {
-                    const Icon = getFileIcon(file.name);
-                    return (
-                      <tr key={file.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <Icon className="w-8 h-8 text-gray-400 mr-3" />
+                  {projectDocuments.length > 0 ? (
+                    projectDocuments
+                      .sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()) // 최신 순 정렬
+                      .map(doc => {
+                      const Icon = getFileIcon(doc.name);
+                      return (
+                        <tr key={doc.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <Icon className="w-8 h-8 text-gray-400 mr-3" />
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{doc.name}</div>
+                                <div className="text-sm text-gray-500">{doc.mimeType}</div>
+                                <div className="text-xs text-blue-600">VDR에서 관리됨</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {(doc.size / 1024).toFixed(1)}KB
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <div>
-                              <div className="text-sm font-medium text-gray-900">{file.name}</div>
-                              <div className="text-sm text-gray-500">{file.type}</div>
+                              <div className="font-medium text-gray-900">
+                                {new Date(doc.uploadDate).toLocaleDateString('ko-KR')}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {new Date(doc.uploadDate).toLocaleTimeString('ko-KR', {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {(file.size / 1024).toFixed(1)}KB
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <div>
-                            <div className="font-medium text-gray-900">
-                              {new Date(file.uploaded_at).toLocaleDateString('ko-KR')}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {doc.uploadedBy || 'Unknown'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => {
+                                  // VDR 페이지로 이동하여 해당 문서 보기
+                                  window.open(`/pocketbiz-platform/startup/vdr`, '_blank');
+                                }}
+                                className="text-blue-600 hover:text-blue-800 text-xs px-2 py-1 border border-blue-300 rounded hover:bg-blue-50"
+                                title="VDR에서 보기"
+                              >
+                                VDR에서 보기
+                              </button>
                             </div>
-                            <div className="text-xs text-gray-500">
-                              {new Date(file.uploaded_at).toLocaleTimeString('ko-KR', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {file.uploaded_by?.name || file.uploaded_by}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => handleFileDownload(file)}
-                              className="text-gray-400 hover:text-gray-600"
-                              title="다운로드"
-                            >
-                              <Download className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleFileDelete(file.id)}
-                              className="text-gray-400 hover:text-red-600"
-                              title="삭제"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center">
+                        <div className="text-gray-500">
+                          <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                          <p className="text-sm">이 프로젝트와 연결된 파일이 없습니다.</p>
+                          <p className="text-xs text-gray-400 mt-1">VDR에서 파일 업로드 시 이 프로젝트를 선택하세요.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -2769,20 +2745,22 @@ export default function ProjectDetail() {
                     <h3 className="font-semibold text-gray-900">활동 피드</h3>
                   </div>
                   <div className="divide-y divide-gray-200">
-                    {activities.map(activity => (
+                    {projectActivities.slice(0, 8).map(activity => (
                       <div key={activity.id} className="p-4">
                         <div className="flex gap-3">
                           <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white text-sm flex-shrink-0">
-                            {activity.user.name[0]}
+                            {activity.user[0]}
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="font-medium text-gray-900 text-sm">
-                                {activity.user.name}
+                                {activity.user}
                               </span>
-                              <span className="text-xs text-gray-500">{activity.timestamp}</span>
+                              <span className="text-xs text-gray-500">
+                                {formatRelativeTime(new Date(activity.timestamp))}
+                              </span>
                             </div>
-                            <p className="text-sm text-gray-600">{activity.content}</p>
+                            <p className="text-sm text-gray-600">{activity.description}</p>
                             {activity.type === 'comment' && (
                               <div className="mt-2 p-3 bg-gray-50 rounded-lg">
                                 <p className="text-sm text-gray-700">{activity.metadata?.text}</p>

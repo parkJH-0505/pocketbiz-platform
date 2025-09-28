@@ -9,20 +9,20 @@ import type { Project, ProjectPhase } from '../types/buildup.types';
 const today = new Date();
 const createDate = (daysOffset: number) => new Date(today.getTime() + daysOffset * 24 * 60 * 60 * 1000);
 
-// 과거 날짜들
-const oneWeekAgo = createDate(-7);
-const twoWeeksAgo = createDate(-14);
-const oneMonthAgo = createDate(-30);
+// 과거 날짜들 (2주 더 최근으로 조정)
+const oneWeekAgo = createDate(7);  // 원래 -7 → +7 (1주 후로 변경)
+const twoWeeksAgo = createDate(0); // 원래 -14 → 0 (오늘로 변경)
+const oneMonthAgo = createDate(-16); // 원래 -30 → -16 (2주 정도 전으로 변경)
 
-// 미래 날짜들 - D-Day 긴급도 분류용
-const tomorrow = createDate(1);        // 🔴 긴급 (1일)
-const dayAfterTomorrow = createDate(2); // 🔴 긴급 (2일)
-const threeDaysLater = createDate(3);   // 🟡 주의 (3일)
-const fiveDaysLater = createDate(5);    // 🟡 주의 (5일)
-const oneWeekLater = createDate(7);     // 🟡 주의 (7일)
-const tenDaysLater = createDate(10);    // 🔵 여유 (10일)
-const twoWeeksLater = createDate(14);   // 🔵 여유 (14일)
-const threeWeeksLater = createDate(21); // 🔵 여유 (21일)
+// 미래 날짜들 - D-Day 긴급도 분류용 (모두 2주씩 미룸)
+const tomorrow = createDate(15);        // 🔴 긴급 (원래 1일 → 15일)
+const dayAfterTomorrow = createDate(16); // 🔴 긴급 (원래 2일 → 16일)
+const threeDaysLater = createDate(17);   // 🟡 주의 (원래 3일 → 17일)
+const fiveDaysLater = createDate(19);    // 🟡 주의 (원래 5일 → 19일)
+const oneWeekLater = createDate(21);     // 🟡 주의 (원래 7일 → 21일)
+const tenDaysLater = createDate(24);    // 🔵 여유 (원래 10일 → 24일)
+const twoWeeksLater = createDate(28);   // 🔵 여유 (원래 14일 → 28일)
+const threeWeeksLater = createDate(35); // 🔵 여유 (원래 21일 → 35일)
 
 // 기본 경영지원팀 PM 정보
 export const defaultBusinessSupportPM = {
@@ -98,40 +98,7 @@ export const mockProjects: Project[] = [
         progress: 70
       }
     ],
-    deliverables: [
-      {
-        id: 'DLV-001',
-        name: '시장 조사 보고서',
-        description: '타겟 시장 분석 및 경쟁사 조사',
-        status: 'approved',
-        due_date: new Date(twoWeeksAgo.getTime() + 3 * 24 * 60 * 60 * 1000),
-        submitted_date: new Date(twoWeeksAgo.getTime() + 2 * 24 * 60 * 60 * 1000),
-        approved_date: new Date(twoWeeksAgo.getTime() + 3 * 24 * 60 * 60 * 1000),
-        version: 2,
-        files: []
-      },
-      {
-        id: 'DLV-002',
-        name: '콘텐츠 초안',
-        description: 'IR 덱 텍스트 콘텐츠',
-        status: 'approved',
-        due_date: oneWeekAgo,
-        submitted_date: new Date(oneWeekAgo.getTime() - 1 * 24 * 60 * 60 * 1000),
-        approved_date: oneWeekAgo,
-        version: 3,
-        files: []
-      },
-      {
-        id: 'DLV-003',
-        name: '디자인 시안 v1',
-        description: '초기 디자인 컨셉',
-        status: 'pending_review',
-        due_date: threeDaysLater,
-        submitted_date: today,
-        version: 1,
-        files: []
-      }
-    ],
+    deliverables: [], // 테스트용 - 깔끔한 시작을 위해 임시 비움
     team: {
       pm: {
         id: 'pm-001',
@@ -461,30 +428,7 @@ export const mockProjects: Project[] = [
         progress: 25
       }
     ],
-    deliverables: [
-      {
-        id: 'DLV-001',
-        name: '기능 명세서',
-        description: '상세 기능 정의 문서',
-        status: 'approved',
-        due_date: new Date(oneWeekAgo.getTime() + 2 * 24 * 60 * 60 * 1000),
-        submitted_date: new Date(oneWeekAgo.getTime() + 1 * 24 * 60 * 60 * 1000),
-        approved_date: new Date(oneWeekAgo.getTime() + 2 * 24 * 60 * 60 * 1000),
-        version: 1,
-        files: []
-      },
-      {
-        id: 'DLV-002',
-        name: 'DB 설계서',
-        description: 'PostgreSQL 스키마 설계',
-        status: 'approved',
-        due_date: new Date(oneWeekAgo.getTime() + 4 * 24 * 60 * 60 * 1000),
-        submitted_date: new Date(oneWeekAgo.getTime() + 3 * 24 * 60 * 60 * 1000),
-        approved_date: new Date(oneWeekAgo.getTime() + 4 * 24 * 60 * 60 * 1000),
-        version: 1,
-        files: []
-      }
-    ],
+    deliverables: [], // 테스트용 - 깔끔한 시작을 위해 임시 비움
     team: {
       pm: {
         id: 'pm-002',
@@ -738,30 +682,7 @@ export const mockProjects: Project[] = [
       completion_date: oneWeekAgo
     },
     workstreams: [],
-    deliverables: [
-      {
-        id: 'DLV-001',
-        name: '로고 디자인',
-        description: '메인 로고 및 서브 로고',
-        status: 'approved',
-        due_date: new Date(oneMonthAgo.getTime() + 7 * 24 * 60 * 60 * 1000),
-        submitted_date: new Date(oneMonthAgo.getTime() + 6 * 24 * 60 * 60 * 1000),
-        approved_date: new Date(oneMonthAgo.getTime() + 7 * 24 * 60 * 60 * 1000),
-        version: 3,
-        files: []
-      },
-      {
-        id: 'DLV-002',
-        name: '브랜드 가이드라인',
-        description: '브랜드 사용 규정 문서',
-        status: 'approved',
-        due_date: oneWeekAgo,
-        submitted_date: new Date(oneWeekAgo.getTime() - 1 * 24 * 60 * 60 * 1000),
-        approved_date: oneWeekAgo,
-        version: 2,
-        files: []
-      }
-    ],
+    deliverables: [], // 테스트용 - 깔끔한 시작을 위해 임시 비움
     team: {
       pm: {
         id: 'pm-003',

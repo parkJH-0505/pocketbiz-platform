@@ -75,6 +75,9 @@ declare global {
     testPhaseTransition?: any;
     testUIFeedback?: any;
     testUIIntegration?: any;
+
+    // Debug utility for forcing mock schedule reload
+    forceReloadMockSchedules?: () => string;
   }
 }
 

@@ -1,0 +1,295 @@
+/**
+ * React Grid Layout Custom Styles
+ * 커스터마이징 가능한 대시보드 그리드 스타일
+ */
+
+/* React Grid Layout 기본 스타일 import */
+@import 'react-grid-layout/css/styles.css';
+@import 'react-resizable/css/styles.css';
+
+/* 그리드 컨테이너 */
+.dashboard-grid-container {
+  @apply relative w-full min-h-screen bg-neutral-light p-4;
+}
+
+/* 그리드 레이아웃 래퍼 */
+.react-grid-layout {
+  @apply relative transition-all duration-200;
+}
+
+/* 그리드 아이템 (위젯) */
+.react-grid-item {
+  @apply transition-all duration-200 ease-out;
+}
+
+.react-grid-item.cssTransforms {
+  @apply transition-all duration-200 ease-out;
+}
+
+/* 드래그 중인 아이템 */
+.react-grid-item.resizing {
+  @apply opacity-80 z-50;
+  transition: none !important;
+}
+
+.react-grid-item.react-draggable-dragging {
+  @apply opacity-80 z-50 cursor-move;
+  transition: none !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* 위젯 컨테이너 */
+.widget-container {
+  @apply h-full bg-white rounded-xl shadow-sm border border-neutral-100 overflow-hidden;
+  @apply hover:shadow-md transition-shadow duration-200;
+}
+
+.widget-container.dragging {
+  @apply ring-2 ring-primary-main ring-opacity-50;
+}
+
+/* 위젯 헤더 */
+.widget-header {
+  @apply flex items-center justify-between px-4 py-3 border-b border-neutral-100 bg-neutral-50;
+}
+
+.widget-header-title {
+  @apply flex items-center gap-2;
+}
+
+.widget-header-title-icon {
+  @apply text-xl;
+}
+
+.widget-header-title-text {
+  @apply text-sm font-semibold text-neutral-dark;
+}
+
+.widget-header-actions {
+  @apply flex items-center gap-1;
+}
+
+.widget-header-action {
+  @apply w-7 h-7 rounded-lg flex items-center justify-center;
+  @apply text-neutral-gray hover:text-neutral-dark hover:bg-neutral-100;
+  @apply transition-all duration-150;
+}
+
+.widget-header-action.remove {
+  @apply hover:text-accent-red hover:bg-accent-red/10;
+}
+
+/* 위젯 바디 */
+.widget-body {
+  @apply p-4 h-[calc(100%-52px)] overflow-auto;
+}
+
+.widget-body.loading {
+  @apply flex items-center justify-center;
+}
+
+.widget-body.error {
+  @apply flex flex-col items-center justify-center gap-2 text-neutral-gray;
+}
+
+/* 리사이즈 핸들 */
+.react-resizable-handle {
+  @apply absolute w-5 h-5 z-20;
+  background-image: none !important;
+}
+
+.react-resizable-handle::after {
+  content: '';
+  @apply absolute inset-0 border-2 border-neutral-300 rounded-br-md;
+}
+
+.react-resizable-handle-se {
+  @apply bottom-0 right-0 cursor-se-resize;
+}
+
+.react-resizable-handle-sw {
+  @apply bottom-0 left-0 cursor-sw-resize;
+}
+
+.react-resizable-handle-nw {
+  @apply top-0 left-0 cursor-nw-resize;
+}
+
+.react-resizable-handle-ne {
+  @apply top-0 right-0 cursor-ne-resize;
+}
+
+.react-resizable-handle-w,
+.react-resizable-handle-e {
+  @apply top-1/2 -translate-y-1/2 cursor-ew-resize;
+}
+
+.react-resizable-handle-n,
+.react-resizable-handle-s {
+  @apply left-1/2 -translate-x-1/2 cursor-ns-resize;
+}
+
+/* 호버 시 리사이즈 핸들 표시 */
+.react-grid-item:hover .react-resizable-handle::after {
+  @apply border-primary-main bg-primary-main/10;
+}
+
+/* 플레이스홀더 (드래그 시 위치 표시) */
+.react-grid-placeholder {
+  @apply bg-primary-main/20 rounded-xl border-2 border-dashed border-primary-main/40;
+  @apply transition-all duration-200;
+  z-index: 2;
+}
+
+/* 정적 위젯 (이동 불가) */
+.react-grid-item.static {
+  @apply cursor-default;
+}
+
+.react-grid-item.static .widget-container {
+  @apply bg-neutral-50;
+}
+
+/* 편집 모드 */
+.dashboard-grid-container.edit-mode .widget-container {
+  @apply border-2 border-dashed border-neutral-300;
+}
+
+.dashboard-grid-container.edit-mode .react-grid-item:hover .widget-container {
+  @apply border-primary-main/50;
+}
+
+/* 컴팩트 모드 */
+.dashboard-grid-container.compact .widget-header {
+  @apply py-2;
+}
+
+.dashboard-grid-container.compact .widget-body {
+  @apply p-3;
+}
+
+/* 다크 모드 지원 */
+@media (prefers-color-scheme: dark) {
+  .dark .dashboard-grid-container {
+    @apply bg-neutral-dark;
+  }
+
+  .dark .widget-container {
+    @apply bg-neutral-800 border-neutral-700;
+  }
+
+  .dark .widget-header {
+    @apply bg-neutral-900 border-neutral-700;
+  }
+
+  .dark .widget-header-title-text {
+    @apply text-neutral-light;
+  }
+
+  .dark .widget-header-action {
+    @apply text-neutral-400 hover:text-neutral-light hover:bg-neutral-700;
+  }
+
+  .dark .react-grid-placeholder {
+    @apply bg-primary-main/10 border-primary-main/30;
+  }
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .dashboard-grid-container {
+    @apply p-2;
+  }
+
+  .widget-container {
+    @apply rounded-lg;
+  }
+
+  .widget-header {
+    @apply px-3 py-2;
+  }
+
+  .widget-body {
+    @apply p-3;
+  }
+
+  .react-resizable-handle {
+    display: none !important;
+  }
+}
+
+/* 애니메이션 */
+@keyframes widget-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.widget-container.entering {
+  animation: widget-enter 0.3s ease-out;
+}
+
+@keyframes widget-exit {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+.widget-container.exiting {
+  animation: widget-exit 0.2s ease-in;
+}
+
+/* 로딩 스피너 */
+.widget-loading-spinner {
+  @apply w-8 h-8 border-3 border-neutral-200 border-t-primary-main rounded-full;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 빈 상태 */
+.widget-empty-state {
+  @apply flex flex-col items-center justify-center gap-2 py-8 text-neutral-gray;
+}
+
+.widget-empty-state-icon {
+  @apply w-12 h-12 text-neutral-300;
+}
+
+.widget-empty-state-text {
+  @apply text-sm;
+}
+
+/* 그리드 가이드라인 (디버그용) */
+.dashboard-grid-container.show-grid::before {
+  content: '';
+  @apply absolute inset-0 pointer-events-none;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 59px,
+    rgba(0, 0, 0, 0.03) 59px,
+    rgba(0, 0, 0, 0.03) 60px
+  ),
+  repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 99px,
+    rgba(0, 0, 0, 0.03) 99px,
+    rgba(0, 0, 0, 0.03) 100px
+  );
+  z-index: 1;
+}
