@@ -12,6 +12,9 @@ import { DynamicInsights } from '../DynamicInsights';
 import { AxisDetailCard } from '../AxisDetailCard';
 import { RadarSkeleton, InsightsSkeleton } from '../LoadingOverlay';
 import { NetworkError, useOnlineStatus, EmptyState } from '../ErrorHandling';
+import { AIInsightsPanel } from '../AIInsightsPanel';
+import { AdvancedAIDashboard } from '../../../../../../components/ai/AdvancedAIDashboard';
+import { RealTimeSimulationDashboard } from '../../../../../../components/simulation/RealTimeSimulationDashboard';
 // 절대 경로로 Card 컴포넌트 import
 const Card = ({ children, variant = 'default', ...props }: any) => (
   <div className={`bg-white rounded-lg shadow-sm border ${variant === 'default' ? 'border-gray-200' : ''}`} {...props}>
@@ -324,6 +327,25 @@ export const DataInsightsTab: React.FC = () => {
           <DynamicInsights />
         </CardBody>
       </Card>
+
+      {/* Phase 6 AI 통합 인사이트 패널 */}
+      <AIInsightsPanel
+        currentScores={scores}
+        historicalData={data?.history || []}
+      />
+
+      {/* Phase 8 고급 AI 대시보드 */}
+      <AdvancedAIDashboard
+        currentScores={scores}
+        historicalData={data?.history || []}
+        className="mt-6"
+      />
+
+      {/* Phase 8 실시간 시뮬레이션 대시보드 */}
+      <RealTimeSimulationDashboard
+        currentScores={scores}
+        className="mt-6"
+      />
 
       {/* 로딩 상태 처리 - 스켈레톤 스크린 적용 */}
       {viewState.isLoading && (
