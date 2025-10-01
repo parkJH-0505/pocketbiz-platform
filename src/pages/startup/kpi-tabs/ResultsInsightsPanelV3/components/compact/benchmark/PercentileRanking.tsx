@@ -112,7 +112,7 @@ export const PercentileRanking: React.FC<PercentileRankingProps> = ({
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 bg-red-500 rounded-sm" />
-            <span className="text-gray-700">개선 필요 (<25%)</span>
+            <span className="text-gray-700">개선 필요 (&lt;25%)</span>
           </div>
         </div>
       </div>
