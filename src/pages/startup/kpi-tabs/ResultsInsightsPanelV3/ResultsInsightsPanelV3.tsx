@@ -367,6 +367,41 @@ const ResultsInsightsPanelV3: React.FC = () => {
     setIsExportMode(false);
   }, [exportToPDF]);
 
+  const handleGenerateAISummary = useCallback(async () => {
+    if (!actualReportData) {
+      return;
+    }
+
+    setIsGeneratingAI(true);
+
+    try {
+      const summary = await claudeAI.generateExecutiveSummary({
+        cluster: {
+          sector: actualReportData.metadata.cluster?.sector || 'tech',
+          stage: actualReportData.metadata.cluster?.stage || 'seed'
+        },
+        overallScore: actualReportData.summary.overallScore,
+        axisScores: {
+          'GO': contextAxisScores?.GO || 0,
+          'EC': contextAxisScores?.EC || 0,
+          'PT': contextAxisScores?.PT || 0,
+          'PF': contextAxisScores?.PF || 0,
+          'TO': contextAxisScores?.TO || 0
+        },
+        completionRate: actualReportData.summary.completionRate,
+        totalKPIs: actualReportData.metadata.totalKPIs || 20
+      });
+
+      setAiExecutiveSummary(summary);
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('❌ AI Summary generation failed:', error);
+      }
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  }, [actualReportData, claudeAI, contextAxisScores]);
+
   const handleRefresh = useCallback(async () => {
     await regenerateReport();
   }, [regenerateReport]);

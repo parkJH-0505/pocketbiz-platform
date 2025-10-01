@@ -38,8 +38,10 @@ const PhaseBackground: React.FC<PhaseBackgroundProps> = ({
         // 호버 상태
         const isHovered = hoveredPhaseId === phase.id;
 
-        // Glassmorphism: 매우 은은한 투명도
-        const opacity = isHovered ? styleConfig.opacity + 0.05 : styleConfig.opacity;
+        // 교차 패턴: 홀수/짝수 Phase마다 약간 다른 배경 (은근한 구분)
+        const isEven = phase.order % 2 === 0;
+        const baseOpacity = isEven ? styleConfig.opacity * 1.5 : styleConfig.opacity;
+        const opacity = isHovered ? baseOpacity + 0.05 : baseOpacity;
 
         return (
           <g key={phase.id}>
@@ -62,6 +64,40 @@ const PhaseBackground: React.FC<PhaseBackgroundProps> = ({
                 filter: isHovered ? `blur(0px)` : 'none'
               }}
             />
+
+            {/* Phase 번호 워터마크 (배경) */}
+            <text
+              x={50}
+              y={yStart + height / 2}
+              fontSize="120"
+              fontWeight="700"
+              fill="rgba(15, 82, 222, 0.02)"
+              textAnchor="start"
+              dominantBaseline="middle"
+              style={{
+                userSelect: 'none',
+                pointerEvents: 'none',
+                fontFamily: TIMELINE_DESIGN_SYSTEM.typography.phaseTitle.fontFamily
+              }}
+            >
+              {phase.order}
+            </text>
+
+            {/* Phase 구분선 (그라데이션) - 마지막 Phase 제외 */}
+            {index < phases.length - 1 && (
+              <line
+                x1={0}
+                y1={yEnd}
+                x2={containerWidth}
+                y2={yEnd}
+                stroke="url(#phase-divider-gradient)"
+                strokeWidth={1}
+                strokeOpacity={0.3}
+                style={{
+                  pointerEvents: 'none'
+                }}
+              />
+            )}
 
             {/* Phase 라벨 (우측 상단) - Glassmorphism */}
             {isHovered && (
