@@ -17,6 +17,7 @@ import { generateBranchPath } from '../utils/generateBranchPath';
 interface BranchPathsProps {
   activities: BranchActivity[];
   onBranchHover?: (branchId: string | null) => void;
+  hoveredActivityId?: string | null; // Phase 7: Activity hover 시 해당 branch 하이라이트
 }
 
 /**
@@ -25,10 +26,12 @@ interface BranchPathsProps {
  * - 타입별 색상 및 선 스타일 적용
  * - Phase 5: 순차 진입 애니메이션
  * - Phase 5-4: React.memo 최적화
+ * - Phase 7: Hover 인터랙션 연동
  */
 const BranchPaths: React.FC<BranchPathsProps> = React.memo(({
   activities,
-  onBranchHover
+  onBranchHover,
+  hoveredActivityId
 }) => {
   return (
     <>
@@ -38,6 +41,9 @@ const BranchPaths: React.FC<BranchPathsProps> = React.memo(({
         const branchColor = typeConfig.main;
         const strokeWidth = typeConfig.strokeWidth;
         const strokeOpacity = typeConfig.strokeOpacity;
+
+        // Phase 7: Activity hover 시 해당 branch 하이라이트
+        const isHighlighted = hoveredActivityId === activity.id;
 
         // Phase 5 Step 2: 레인 인덱스 계산 (X 좌표로부터 역산)
         const { BRANCH_BASE_X, BRANCH_LANE_WIDTH } = TIMELINE_CONSTANTS;
@@ -61,30 +67,33 @@ const BranchPaths: React.FC<BranchPathsProps> = React.memo(({
             key={`branch-${activity.id}`}
             d={pathData}
             stroke={branchColor}
-            strokeWidth={4}
-            strokeDasharray={style.strokeDasharray}
+            strokeWidth={isHighlighted ? strokeWidth + 2 : strokeWidth}
             fill="none"
             className="branch-path"
-            strokeOpacity={0.7}
+            strokeOpacity={isHighlighted ? 1.0 : strokeOpacity}
             style={{
-              transition: 'stroke-width 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms ease',
+              transition: TIMELINE_DESIGN_SYSTEM.transitions.hover,
               cursor: onBranchHover ? 'pointer' : 'default',
-              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
+              filter: isHighlighted
+                ? TIMELINE_DESIGN_SYSTEM.shadows.nodeHover
+                : TIMELINE_DESIGN_SYSTEM.shadows.branch,
               animation: `fadeInBranch 400ms ease-out ${animationDelay}ms forwards`,
               opacity: 0
             }}
             onMouseEnter={(e) => {
               onBranchHover?.(activity.id);
-              // Phase 3: 호버 시 시각 효과
-              e.currentTarget.style.strokeWidth = '6';
-              e.currentTarget.style.strokeOpacity = '0.9';
-              e.currentTarget.style.filter = 'drop-shadow(0 3px 6px rgba(0,0,0,0.3))';
+              // Phase 6: 호버 시 Primary 파랑 강조
+              e.currentTarget.style.strokeWidth = `${strokeWidth + 2}`;
+              e.currentTarget.style.strokeOpacity = '1.0';
+              e.currentTarget.style.filter = TIMELINE_DESIGN_SYSTEM.shadows.nodeHover;
             }}
             onMouseLeave={(e) => {
               onBranchHover?.(null);
-              e.currentTarget.style.strokeWidth = '4';
-              e.currentTarget.style.strokeOpacity = '0.7';
-              e.currentTarget.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))';
+              e.currentTarget.style.strokeWidth = isHighlighted ? `${strokeWidth + 2}` : `${strokeWidth}`;
+              e.currentTarget.style.strokeOpacity = isHighlighted ? '1.0' : `${strokeOpacity}`;
+              e.currentTarget.style.filter = isHighlighted
+                ? TIMELINE_DESIGN_SYSTEM.shadows.nodeHover
+                : TIMELINE_DESIGN_SYSTEM.shadows.branch;
             }}
           />
         );

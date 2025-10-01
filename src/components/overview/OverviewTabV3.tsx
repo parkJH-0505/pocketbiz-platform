@@ -433,6 +433,7 @@ const OverviewTabV3: React.FC<OverviewTabV3Props> = ({
           <BranchPaths
             activities={activities}
             onBranchHover={handleBranchHover}
+            hoveredActivityId={interactionState.hoveredActivity?.id}
           />
         )}
 

@@ -4,9 +4,18 @@
  * Height: ~1200px (1 page)
  */
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { ProcessedKPIData } from '@/types/reportV3.types';
 import type { ClusterInfo } from '@/types/kpi.types';
+import {
+  buildUnifiedKPIRows,
+  getWeightGroups,
+  calculateTableStats,
+  type UnifiedKPIRow as UnifiedKPIRowType
+} from '../../utils/unifiedKPIDataBuilder';
+import { UnifiedKPIRow } from './table/UnifiedKPIRow';
+import { TableStatsCards } from './table/TableStatsCards';
 
 interface Page2UnifiedKPITableProps {
   processedData: ProcessedKPIData[];
@@ -14,15 +23,153 @@ interface Page2UnifiedKPITableProps {
   className?: string;
 }
 
+type SortKey = 'priority' | 'score' | 'risk' | 'benchmark';
+type SortDirection = 'asc' | 'desc';
+
 export const Page2UnifiedKPITable: React.FC<Page2UnifiedKPITableProps> = ({
   processedData,
   cluster,
   className = ''
 }) => {
-  // 가중치별 그룹화
-  const criticalKPIs = processedData.filter(item => item.weight.level === 'x3');
-  const importantKPIs = processedData.filter(item => item.weight.level === 'x2');
-  const standardKPIs = processedData.filter(item => item.weight.level === 'x1');
+  const [sortKey, setSortKey] = useState<SortKey>('priority');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set(['x1'])); // x1은 기본적으로 접힌 상태
+
+  // Unified KPI Rows 생성
+  const unifiedRows = useMemo(
+    () => buildUnifiedKPIRows(processedData),
+    [processedData]
+  );
+
+  // 가중치 그룹 정보
+  const weightGroups = useMemo(
+    () => getWeightGroups(unifiedRows),
+    [unifiedRows]
+  );
+
+  // 테이블 통계
+  const tableStats = useMemo(
+    () => calculateTableStats(unifiedRows),
+    [unifiedRows]
+  );
+
+  // 정렬된 행
+  const sortedRows = useMemo(() => {
+    const sorted = [...unifiedRows].sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortKey) {
+        case 'priority':
+          // 가중치 우선, 그 다음 priority
+          if (a.weightPriority !== b.weightPriority) {
+            comparison = a.weightPriority - b.weightPriority;
+          } else {
+            comparison = b.priority - a.priority;
+          }
+          break;
+        case 'score':
+          comparison = b.score - a.score;
+          break;
+        case 'risk':
+          const riskOrder = { high: 3, medium: 2, low: 1 };
+          comparison = riskOrder[b.risk] - riskOrder[a.risk];
+          break;
+        case 'benchmark':
+          const aBench = a.benchmark || -999;
+          const bBench = b.benchmark || -999;
+          comparison = bBench - aBench;
+          break;
+      }
+
+      return sortDirection === 'desc' ? comparison : -comparison;
+    });
+
+    return sorted;
+  }, [unifiedRows, sortKey, sortDirection]);
+
+  // 정렬 토글
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDirection('desc');
+    }
+  };
+
+  // 그룹 접기/펴기 토글
+  const toggleGroup = (weight: string) => {
+    setCollapsedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(weight)) {
+        newSet.delete(weight);
+      } else {
+        newSet.add(weight);
+      }
+      return newSet;
+    });
+  };
+
+  // 정렬 아이콘
+  const SortIcon = ({ active, direction }: { active: boolean; direction: SortDirection }) => {
+    if (!active) return <ChevronDown size={14} className="text-gray-400" />;
+    return direction === 'desc' ? (
+      <ChevronDown size={14} className="text-indigo-600" />
+    ) : (
+      <ChevronUp size={14} className="text-indigo-600" />
+    );
+  };
+
+  // 가중치별 행 렌더링
+  const renderRowsByWeight = () => {
+    const elements: JSX.Element[] = [];
+    let globalIndex = 0;
+
+    weightGroups.forEach((group) => {
+      if (group.count === 0) return;
+
+      const groupRows = sortedRows.filter(row => row.weight === group.weight);
+      const isCollapsed = collapsedGroups.has(group.weight);
+
+      // 그룹 헤더
+      elements.push(
+        <tr key={`group-${group.weight}`} className={`${group.color.bg} border-b-2`}>
+          <td colSpan={8} className="px-4 py-3">
+            <button
+              onClick={() => toggleGroup(group.weight)}
+              className="flex items-center gap-2 w-full text-left hover:opacity-80 transition-opacity"
+            >
+              <span className="text-lg">{group.icon}</span>
+              <span className={`text-sm font-semibold ${group.color.text}`}>
+                {group.label} ({group.weight}) - {group.count}개
+              </span>
+              {isCollapsed ? (
+                <ChevronDown size={16} className={group.color.text} />
+              ) : (
+                <ChevronUp size={16} className={group.color.text} />
+              )}
+            </button>
+          </td>
+        </tr>
+      );
+
+      // 그룹 행들
+      if (!isCollapsed) {
+        groupRows.forEach((row) => {
+          elements.push(
+            <UnifiedKPIRow
+              key={row.id}
+              row={row}
+              index={globalIndex}
+            />
+          );
+          globalIndex++;
+        });
+      }
+    });
+
+    return elements;
+  };
 
   return (
     <div className={`page-2-unified-table ${className}`} style={{ minHeight: '1200px' }}>
@@ -32,71 +179,75 @@ export const Page2UnifiedKPITable: React.FC<Page2UnifiedKPITableProps> = ({
           📊 KPI 전체 현황
         </h3>
         <p className="text-sm text-gray-600">
-          가중치별 정렬 • 총 {processedData.length}개 KPI
+          가중치별 정렬 • 총 {unifiedRows.length}개 KPI • {cluster.sector} / {cluster.stage}
         </p>
       </div>
 
-      {/* Placeholder Table */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">#</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">가중치</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">KPI 항목</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">점수</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">리스크</th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* Critical Group */}
-            <tr className="bg-red-50">
-              <td colSpan={5} className="px-4 py-2 text-sm font-semibold text-red-900">
-                🔴 Critical (x3) - {criticalKPIs.length}개
-              </td>
-            </tr>
-            {criticalKPIs.slice(0, 2).map((item, idx) => (
-              <tr key={item.kpi.kpi_id} className="border-b hover:bg-gray-50">
-                <td className="px-4 py-3 text-sm">{idx + 1}</td>
-                <td className="px-4 py-3">
-                  <span className="inline-block px-2 py-1 text-xs font-semibold bg-red-100 text-red-700 rounded">
-                    x3
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-sm">{item.kpi.question.slice(0, 50)}...</td>
-                <td className="px-4 py-3 text-sm font-bold text-indigo-600">
-                  {item.processedValue.normalizedScore.toFixed(1)}
-                </td>
-                <td className="px-4 py-3 text-sm">{item.insights.riskLevel}</td>
+      {/* 테이블 */}
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden mb-4">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-3 py-3 text-left w-12">
+                  <button
+                    onClick={() => handleSort('priority')}
+                    className="flex items-center gap-1 text-xs font-semibold text-gray-700 hover:text-indigo-600 transition-colors"
+                  >
+                    #
+                    <SortIcon active={sortKey === 'priority'} direction={sortDirection} />
+                  </button>
+                </th>
+                <th className="px-3 py-3 text-left w-20">
+                  <span className="text-xs font-semibold text-gray-700">가중치</span>
+                </th>
+                <th className="px-3 py-3 text-left">
+                  <span className="text-xs font-semibold text-gray-700">KPI 항목</span>
+                </th>
+                <th className="px-3 py-3 text-left w-28">
+                  <span className="text-xs font-semibold text-gray-700">응답값</span>
+                </th>
+                <th className="px-3 py-3 text-left w-32">
+                  <button
+                    onClick={() => handleSort('score')}
+                    className="flex items-center gap-1 text-xs font-semibold text-gray-700 hover:text-indigo-600 transition-colors"
+                  >
+                    점수
+                    <SortIcon active={sortKey === 'score'} direction={sortDirection} />
+                  </button>
+                </th>
+                <th className="px-3 py-3 text-left w-24">
+                  <button
+                    onClick={() => handleSort('risk')}
+                    className="flex items-center gap-1 text-xs font-semibold text-gray-700 hover:text-indigo-600 transition-colors"
+                  >
+                    리스크
+                    <SortIcon active={sortKey === 'risk'} direction={sortDirection} />
+                  </button>
+                </th>
+                <th className="px-3 py-3 text-center w-24">
+                  <button
+                    onClick={() => handleSort('benchmark')}
+                    className="flex items-center gap-1 text-xs font-semibold text-gray-700 hover:text-indigo-600 transition-colors mx-auto"
+                  >
+                    벤치마크
+                    <SortIcon active={sortKey === 'benchmark'} direction={sortDirection} />
+                  </button>
+                </th>
+                <th className="px-3 py-3 text-center w-16">
+                  <span className="text-xs font-semibold text-gray-700">상세</span>
+                </th>
               </tr>
-            ))}
-
-            {/* Important Group */}
-            <tr className="bg-orange-50">
-              <td colSpan={5} className="px-4 py-2 text-sm font-semibold text-orange-900">
-                🟠 Important (x2) - {importantKPIs.length}개
-              </td>
-            </tr>
-
-            {/* Standard Group */}
-            <tr className="bg-gray-50">
-              <td colSpan={5} className="px-4 py-2 text-sm font-semibold text-gray-900">
-                ⚪ Standard (x1) - {standardKPIs.length}개
-              </td>
-            </tr>
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {renderRowsByWeight()}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Placeholder notice */}
-      <div className="mt-6 p-8 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg text-center">
-        <p className="text-gray-500 text-sm">
-          🚧 Unified KPI Table 전체 구현 예정 (Phase 4.4)
-        </p>
-        <p className="text-xs text-gray-400 mt-2">
-          정렬, 필터, 확장/축소 기능 포함
-        </p>
-      </div>
+      {/* 하단 통계 */}
+      <TableStatsCards stats={tableStats} />
     </div>
   );
 };

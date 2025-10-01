@@ -485,3 +485,102 @@
   backface-visibility: hidden;
   perspective: 1000;
 }
+
+/* ========================================
+   Phase 7-4: Primary 파랑 계열 인터랙션 효과
+   ======================================== */
+
+/* 노드 글로우 (Activity 노드, Phase 노드) */
+.node-glow {
+  filter: drop-shadow(0 0 12px rgba(15, 82, 222, 0.5))
+          drop-shadow(0 0 24px rgba(15, 82, 222, 0.3));
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+/* Branch 하이라이트 */
+.branch-highlight {
+  filter: drop-shadow(0 0 8px rgba(15, 82, 222, 0.4))
+          drop-shadow(0 0 16px rgba(15, 82, 222, 0.2));
+}
+
+/* Phase 하이라이트 (현재 진행중) */
+.phase-active {
+  filter: drop-shadow(0 0 12px rgba(15, 82, 222, 0.4))
+          drop-shadow(0 0 24px rgba(15, 82, 222, 0.2));
+  animation: phaseActive 3s ease-in-out infinite;
+}
+
+/* 글로우 펄스 (진행중 노드) */
+@keyframes pulseGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(15, 82, 222, 0.3))
+            drop-shadow(0 0 16px rgba(15, 82, 222, 0.2));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(15, 82, 222, 0.6))
+            drop-shadow(0 0 32px rgba(15, 82, 222, 0.4));
+  }
+}
+
+/* Phase 활성 펄스 */
+@keyframes phaseActive {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(15, 82, 222, 0.3));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 20px rgba(15, 82, 222, 0.5));
+    transform: scale(1.05);
+  }
+}
+
+/* Glassmorphism 카드 */
+.glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(15, 82, 222, 0.15);
+  box-shadow: 0 8px 32px rgba(15, 82, 222, 0.06);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(15, 82, 222, 0.25);
+  box-shadow: 0 12px 48px rgba(15, 82, 222, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Glassmorphism 패널 (Phase 박스, Activity 레이블) */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(15, 82, 222, 0.12);
+  box-shadow: 0 4px 16px rgba(15, 82, 222, 0.08);
+}
+
+/* 그리드 라인 애니메이션 */
+.grid-line {
+  stroke: rgba(15, 82, 222, 0.08);
+  stroke-width: 1;
+  stroke-dasharray: 4, 4;
+  animation: gridFade 4s ease-in-out infinite;
+}
+
+@keyframes gridFade {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* 메트릭 라벨 (데이터 사이언스 느낌) */
+.metric-label {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  font-size: 11px;
+  color: rgb(113, 113, 122);
+  font-weight: 500;
+}

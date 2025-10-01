@@ -1,12 +1,13 @@
 /**
  * @fileoverview Phase Nodes - 단계 노드들
  * @description Layer 3: 프로젝트 단계 노드 렌더링
+ * Phase 6: Primary 파랑 계열 통일, Glassmorphism 적용
  * @author PocketCompany
  * @since 2025-01-30
  */
 
 import React from 'react';
-import { TIMELINE_CONSTANTS, PHASE_COLORS } from '../../../types/timeline-v3.types';
+import { TIMELINE_CONSTANTS, TIMELINE_DESIGN_SYSTEM } from '../../../types/timeline-v3.types';
 import type { TimelinePhase } from '../../../types/timeline-v3.types';
 
 /**
@@ -38,16 +39,19 @@ const PhaseNodes: React.FC<PhaseNodesProps> = React.memo(({
         const isCompleted = phase.isCompleted;
         const isCurrentPhase = phase.isCurrent;
 
-        // Phase 색상
-        const phaseNumber = (phase.order % 7) + 1;
-        const colors = PHASE_COLORS[phaseNumber as keyof typeof PHASE_COLORS];
+        // Phase 6: 통합 디자인 시스템 (Primary 파랑 계열)
+        const phaseColor = isCompleted
+          ? TIMELINE_DESIGN_SYSTEM.phaseStatus.completed
+          : isCurrentPhase
+          ? TIMELINE_DESIGN_SYSTEM.phaseStatus.current
+          : TIMELINE_DESIGN_SYSTEM.phaseStatus.upcoming;
 
         // Phase 5: 순차 애니메이션 delay (200ms씩)
         const animationDelay = index * 200;
 
         return (
           <g key={phase.id}>
-            {/* Phase 박스 (왼쪽) */}
+            {/* Phase 박스 (왼쪽) - Phase 6: Glassmorphism */}
             <foreignObject
               x={10}
               y={y - 32}
@@ -59,30 +63,53 @@ const PhaseNodes: React.FC<PhaseNodesProps> = React.memo(({
               }}
             >
               <div
-                className="h-full p-2.5 bg-white rounded-lg border-l-4 shadow hover:shadow-md transition-all"
+                className="h-full p-2.5 rounded-lg border-l-4 hover:shadow-md"
                 style={{
-                  borderLeftColor: isCompleted ? '#10B981' : isCurrentPhase ? colors.text : '#D1D5DB',
+                  background: TIMELINE_DESIGN_SYSTEM.dataScience.glassEffect.background,
+                  backdropFilter: TIMELINE_DESIGN_SYSTEM.dataScience.glassEffect.backdropFilter,
+                  borderLeft: `4px solid ${phaseColor}`,
+                  boxShadow: TIMELINE_DESIGN_SYSTEM.shadows.phaseBox,
+                  transition: TIMELINE_DESIGN_SYSTEM.transitions.hover,
                   cursor: onPhaseClick ? 'pointer' : 'default'
                 }}
                 onClick={() => onPhaseClick?.(phase.id)}
               >
                 {/* Phase 이름 + 상태 */}
                 <div className="flex items-center justify-between mb-1.5">
-                  <div className="font-bold text-sm" style={{ color: colors.text }}>
+                  <div
+                    className="font-bold text-sm"
+                    style={{
+                      color: phaseColor,
+                      fontSize: TIMELINE_DESIGN_SYSTEM.typography.phaseTitle.size,
+                      fontWeight: TIMELINE_DESIGN_SYSTEM.typography.phaseTitle.weight
+                    }}
+                  >
                     {phase.name}
                   </div>
                   {isCompleted && (
-                    <div className="w-3.5 h-3.5 rounded-full bg-green-500 flex items-center justify-center">
+                    <div
+                      className="w-3.5 h-3.5 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: TIMELINE_DESIGN_SYSTEM.phaseStatus.completed }}
+                    >
                       <span className="text-white text-[8px] font-bold">✓</span>
                     </div>
                   )}
                   {isCurrentPhase && !isCompleted && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                    <div
+                      className="w-1.5 h-1.5 rounded-full animate-pulse"
+                      style={{ backgroundColor: TIMELINE_DESIGN_SYSTEM.phaseStatus.current }}
+                    />
                   )}
                 </div>
 
                 {/* 날짜 */}
-                <div className="text-[10px] text-gray-400 mb-2">
+                <div
+                  className="text-[10px] mb-2"
+                  style={{
+                    color: TIMELINE_DESIGN_SYSTEM.typography.phaseDate.color,
+                    fontSize: TIMELINE_DESIGN_SYSTEM.typography.phaseDate.size
+                  }}
+                >
                   {phase.startDate.toLocaleDateString('ko-KR', {
                     month: 'short',
                     day: 'numeric'
@@ -92,16 +119,24 @@ const PhaseNodes: React.FC<PhaseNodesProps> = React.memo(({
                 {/* 진행률 */}
                 {phase.progress !== undefined && (
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(15, 82, 222, 0.1)' }}>
                       <div
-                        className="h-full rounded-full transition-all duration-500"
+                        className="h-full rounded-full"
                         style={{
                           width: `${phase.progress}%`,
-                          backgroundColor: colors.text
+                          backgroundColor: phaseColor,
+                          transition: TIMELINE_DESIGN_SYSTEM.transitions.smooth
                         }}
                       />
                     </div>
-                    <span className="text-[10px] font-bold" style={{ color: colors.text }}>
+                    <span
+                      className="text-[10px] font-bold"
+                      style={{
+                        color: phaseColor,
+                        fontFamily: TIMELINE_DESIGN_SYSTEM.dataScience.metricLabel.fontFamily,
+                        fontSize: TIMELINE_DESIGN_SYSTEM.typography.phaseProgress.size
+                      }}
+                    >
                       {phase.progress}%
                     </span>
                   </div>
@@ -109,21 +144,24 @@ const PhaseNodes: React.FC<PhaseNodesProps> = React.memo(({
               </div>
             </foreignObject>
 
-            {/* 노드 원형 */}
+            {/* 노드 원형 - Phase 6: Primary 파랑 계열 */}
             <circle
               cx={TIMELINE_CONSTANTS.MAIN_AXIS_LEFT}
               cy={y}
               r={TIMELINE_CONSTANTS.PHASE_NODE_SIZE / 2}
-              fill={isCompleted ? colors.text : 'white'}
-              stroke={isCurrentPhase ? colors.text : '#94A3B8'}
+              fill={isCompleted ? phaseColor : 'white'}
+              stroke={phaseColor}
               strokeWidth={isCurrentPhase ? '5' : '3'}
               style={{
-                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
+                filter: isCurrentPhase
+                  ? TIMELINE_DESIGN_SYSTEM.shadows.nodeHover
+                  : TIMELINE_DESIGN_SYSTEM.shadows.node,
                 animation: isCurrentPhase
                   ? `fadeInScale 300ms ease-out ${animationDelay}ms forwards, pulse 2s infinite ${animationDelay + 300}ms`
                   : `fadeInScale 300ms ease-out ${animationDelay}ms forwards`,
                 opacity: 0,
-                cursor: onPhaseClick ? 'pointer' : 'default'
+                cursor: onPhaseClick ? 'pointer' : 'default',
+                transition: TIMELINE_DESIGN_SYSTEM.transitions.hover
               }}
               onClick={() => onPhaseClick?.(phase.id)}
             />
