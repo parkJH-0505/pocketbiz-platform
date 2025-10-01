@@ -95,13 +95,13 @@ export const CompactLayout: React.FC<CompactLayoutProps> = ({
       {/* Phase Info */}
       <div className="mt-8 p-4 bg-green-50 border border-green-200 rounded-lg text-center">
         <p className="text-sm text-green-900 font-semibold">
-          ✅ Compact Layout (Phase 4.5 - Page 3 구현 완료)
+          ✅ Compact Layout (Phase 4.6 완료 - 4페이지 구현 완료)
         </p>
         <p className="text-xs text-green-700 mt-1">
           Feature Flag: VITE_USE_COMPACT_LAYOUT=false (현재 비활성)
         </p>
         <p className="text-xs text-gray-600 mt-2">
-          Phase 4.6: Page 4 구현 예정
+          Phase 4.7: 통합 테스트 및 전환 예정
         </p>
       </div>
     </div>
