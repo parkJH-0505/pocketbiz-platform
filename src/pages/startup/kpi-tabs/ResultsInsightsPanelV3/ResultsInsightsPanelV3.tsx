@@ -575,6 +575,9 @@ const ResultsInsightsPanelV3: React.FC = () => {
                 sector: reportData.metadata.cluster?.sector || 'tech',
                 stage: reportData.metadata.cluster?.stage || 'seed'
               }}
+              aiSummary={aiExecutiveSummary}
+              isGeneratingAI={isGeneratingAI}
+              onRegenerateAI={handleGenerateAISummary}
             />
           ) : (
             <div className="p-8 bg-gray-50 border border-gray-200 rounded-lg text-center">

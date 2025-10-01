@@ -1,12 +1,13 @@
 /**
  * @fileoverview Branch Paths - 브랜치 경로들
  * @description Layer 3: 모든 브랜치 경로 렌더링 (3차 베지어 곡선)
+ * Phase 6: Primary 파랑 계열 통일, 투명도로 차별화
  * @author PocketCompany
  * @since 2025-01-30
  */
 
 import React from 'react';
-import { TIMELINE_CONSTANTS, BRANCH_STYLES, ACTIVITY_COLORS } from '../../../types/timeline-v3.types';
+import { TIMELINE_CONSTANTS, TIMELINE_DESIGN_SYSTEM } from '../../../types/timeline-v3.types';
 import type { BranchActivity } from '../../../types/timeline-v3.types';
 import { generateBranchPath } from '../utils/generateBranchPath';
 
@@ -32,11 +33,11 @@ const BranchPaths: React.FC<BranchPathsProps> = React.memo(({
   return (
     <>
       {activities.map((activity, index) => {
-        const style = BRANCH_STYLES[activity.type];
-
-        // Phase 3: 타입별 색상
-        const typeConfig = ACTIVITY_COLORS[activity.type];
-        const branchColor = typeConfig.primary;
+        // Phase 6: 통합 디자인 시스템 (Primary 파랑 계열)
+        const typeConfig = TIMELINE_DESIGN_SYSTEM.activityType[activity.type];
+        const branchColor = typeConfig.main;
+        const strokeWidth = typeConfig.strokeWidth;
+        const strokeOpacity = typeConfig.strokeOpacity;
 
         // Phase 5 Step 2: 레인 인덱스 계산 (X 좌표로부터 역산)
         const { BRANCH_BASE_X, BRANCH_LANE_WIDTH } = TIMELINE_CONSTANTS;
@@ -45,7 +46,7 @@ const BranchPaths: React.FC<BranchPathsProps> = React.memo(({
 
         // 3차 베지어 곡선 경로 생성 (레인별 차등 아치)
         const pathData = generateBranchPath(
-          TIMELINE_CONSTANTS.MAIN_AXIS_LEFT,  // 시작 X (120px)
+          TIMELINE_CONSTANTS.MAIN_AXIS_LEFT,  // 시작 X (200px)
           activity.branchY,                   // 시작 Y
           activity.branchX,                   // 종료 X
           activity.branchY,                   // 종료 Y

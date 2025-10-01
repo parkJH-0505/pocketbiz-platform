@@ -1,12 +1,13 @@
 /**
  * @fileoverview Activity Nodes - 활동 노드들
  * @description Layer 3: 모든 활동 노드 렌더링 (호버 효과 포함)
+ * Phase 6: Primary 파랑 계열 통일, Glassmorphism 적용
  * @author PocketCompany
  * @since 2025-01-30
  */
 
 import React from 'react';
-import { TIMELINE_CONSTANTS, BRANCH_STYLES, ACTIVITY_COLORS } from '../../../types/timeline-v3.types';
+import { TIMELINE_CONSTANTS, TIMELINE_DESIGN_SYSTEM } from '../../../types/timeline-v3.types';
 import type { BranchActivity } from '../../../types/timeline-v3.types';
 
 /**
@@ -38,20 +39,19 @@ const ActivityNodes: React.FC<ActivityNodesProps> = React.memo(({
       {activities.map((activity, index) => {
         const endX = activity.branchX;
         const endY = activity.branchY;
-        const style = BRANCH_STYLES[activity.type];
         const isHovered = hoveredActivityId === activity.id;
 
-        // Phase 3: 타입별 색상 및 크기
-        const typeConfig = ACTIVITY_COLORS[activity.type];
+        // Phase 6: 통합 디자인 시스템 사용 (Primary 파랑 계열)
+        const typeConfig = TIMELINE_DESIGN_SYSTEM.activityType[activity.type];
         const nodeSize = typeConfig.size;
-        const nodeColor = typeConfig.primary;
+        const nodeColor = typeConfig.main;
 
         // Phase 5: 순차 애니메이션 delay (30ms씩)
         const animationDelay = index * 30;
 
         return (
           <g key={`node-${activity.id}`}>
-            {/* 활동 노드 원형 (Phase 3: 타입별 색상/크기 적용) */}
+            {/* 활동 노드 원형 - Phase 6: Primary 파랑 계열 */}
             <circle
               cx={endX}
               cy={endY}
@@ -59,12 +59,14 @@ const ActivityNodes: React.FC<ActivityNodesProps> = React.memo(({
               fill={nodeColor}
               stroke="white"
               strokeWidth={2}
-              filter={isHovered ? 'url(#node-glow)' : 'url(#node-shadow-enhanced)'}
               style={{
                 cursor: onActivityClick ? 'pointer' : 'default',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                transition: TIMELINE_DESIGN_SYSTEM.transitions.hover,
                 animation: `fadeInScale 200ms ease-out ${animationDelay}ms forwards`,
-                opacity: 0
+                opacity: 0,
+                filter: isHovered
+                  ? TIMELINE_DESIGN_SYSTEM.shadows.nodeHover
+                  : TIMELINE_DESIGN_SYSTEM.shadows.node
               }}
               onClick={() => onActivityClick?.(activity)}
               onMouseEnter={(e) => onActivityHover?.(activity, e)}
@@ -87,7 +89,7 @@ const ActivityNodes: React.FC<ActivityNodesProps> = React.memo(({
               }}
             />
 
-            {/* 활동 레이블 - Phase 5-3: 호버 효과 강화 */}
+            {/* 활동 레이블 - Phase 6: Glassmorphism */}
             <foreignObject
               x={endX + 12}
               y={endY - 12}
@@ -99,13 +101,25 @@ const ActivityNodes: React.FC<ActivityNodesProps> = React.memo(({
               }}
             >
               <div
-                className="bg-white px-2 py-1 rounded text-xs border truncate cursor-pointer hover:bg-gray-50"
+                className="px-2 py-1 rounded text-xs truncate cursor-pointer"
                 style={{
-                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  background: isHovered
+                    ? TIMELINE_DESIGN_SYSTEM.dataScience.glassEffect.background
+                    : 'rgba(255, 255, 255, 0.9)',
+                  backdropFilter: isHovered
+                    ? TIMELINE_DESIGN_SYSTEM.dataScience.glassEffect.backdropFilter
+                    : 'blur(4px)',
+                  border: isHovered
+                    ? TIMELINE_DESIGN_SYSTEM.dataScience.glassEffect.border
+                    : '1px solid rgba(15, 82, 222, 0.1)',
+                  color: TIMELINE_DESIGN_SYSTEM.phaseStatus.current,
+                  fontSize: TIMELINE_DESIGN_SYSTEM.typography.activityMeta.size,
+                  fontWeight: TIMELINE_DESIGN_SYSTEM.typography.activityTitle.weight,
+                  transition: TIMELINE_DESIGN_SYSTEM.transitions.hover,
                   transform: isHovered ? 'scale(1.1)' : 'scale(1)',
                   boxShadow: isHovered
-                    ? '0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)'
-                    : '0 1px 3px rgba(0, 0, 0, 0.1)',
+                    ? TIMELINE_DESIGN_SYSTEM.shadows.glassmorphism
+                    : TIMELINE_DESIGN_SYSTEM.shadows.node,
                   pointerEvents: 'auto'
                 }}
                 onClick={() => onActivityClick?.(activity)}

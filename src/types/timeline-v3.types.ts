@@ -6,6 +6,7 @@
  */
 
 import type { Project } from './buildup.types';
+import { theme } from '../lib/theme';
 
 // ============================================================================
 // 타임라인 Phase 타입
@@ -265,6 +266,193 @@ export const BRANCH_STYLES = {
     strokeWidth: 3,
     strokeDasharray: 'none',
   },
+} as const;
+
+// ============================================================================
+// Phase 6: 통합 디자인 시스템 (theme.ts 기반)
+// ============================================================================
+
+/**
+ * 타임라인 디자인 시스템 V2
+ * - 기존 PHASE_COLORS, ACTIVITY_COLORS, BRANCH_STYLES를 대체
+ * - Visible.vc 테마(theme.ts)를 기반으로 일관성 확보
+ * - Phase 6-7에서 사용
+ */
+export const TIMELINE_DESIGN_SYSTEM = {
+  // ========================================
+  // Phase 상태별 색상
+  // ========================================
+  phaseStatus: {
+    completed: theme.colors.axis.EC.main,     // rgb(76, 206, 148) - 초록 (완료)
+    current: theme.colors.primary.main,        // rgb(15, 82, 222) - 파랑 (진행중)
+    upcoming: theme.colors.neutral.lighter     // rgb(161, 161, 170) - 회색 (예정)
+  },
+
+  // ========================================
+  // Activity 타입별 색상 (Primary 파랑 계열 통일)
+  // ========================================
+  activityType: {
+    meeting: {
+      main: theme.colors.primary.main,         // rgb(15, 82, 222) - 파랑 (가장 진함)
+      light: theme.colors.primary.light,       // rgba(15, 82, 222, 0.1)
+      icon: '📅',
+      size: 12,                                // 가장 큼 (중요 이벤트)
+      importance: 'high' as const,
+      strokeOpacity: 0.9,
+      strokeWidth: 4
+    },
+    file: {
+      main: 'rgba(15, 82, 222, 0.85)',         // Primary 85% 투명도
+      light: theme.colors.primary.light,       // rgba(15, 82, 222, 0.1)
+      icon: '📄',
+      size: 10,                                // 중간
+      importance: 'medium' as const,
+      strokeOpacity: 0.7,
+      strokeWidth: 3
+    },
+    comment: {
+      main: 'rgba(15, 82, 222, 0.6)',          // Primary 60% 투명도
+      light: theme.colors.primary.light,       // rgba(15, 82, 222, 0.1)
+      icon: '💬',
+      size: 8,                                 // 작음
+      importance: 'low' as const,
+      strokeOpacity: 0.5,
+      strokeWidth: 2
+    },
+    todo: {
+      main: 'rgba(15, 82, 222, 0.75)',         // Primary 75% 투명도
+      light: theme.colors.primary.light,       // rgba(15, 82, 222, 0.1)
+      icon: '✅',
+      size: 9,                                 // 중간-작음
+      importance: 'medium' as const,
+      strokeOpacity: 0.6,
+      strokeWidth: 2.5
+    }
+  },
+
+  // ========================================
+  // Phase 배경색 (Glassmorphism - 통일)
+  // ========================================
+  phaseBackground: {
+    planning: {                                // Phase 1-3: 계획
+      bg: 'rgba(15, 82, 222, 0.03)',           // 매우 연한 파랑
+      border: 'rgba(15, 82, 222, 0.15)',       // 섬세한 테두리
+      opacity: 0.08,
+      blur: '10px'                             // Glassmorphism
+    },
+    execution: {                               // Phase 4-5: 실행
+      bg: 'rgba(15, 82, 222, 0.05)',           // 조금 더 진한 파랑
+      border: 'rgba(15, 82, 222, 0.2)',
+      opacity: 0.1,
+      blur: '10px'
+    },
+    completion: {                              // Phase 6-7: 완료
+      bg: 'rgba(15, 82, 222, 0.02)',           // 가장 연함
+      border: 'rgba(15, 82, 222, 0.1)',
+      opacity: 0.05,
+      blur: '10px'
+    }
+  },
+
+  // ========================================
+  // 타이포그래피
+  // ========================================
+  typography: {
+    phaseTitle: {
+      size: theme.typography.fontSize.sm,      // 14px
+      weight: theme.typography.fontWeight.bold, // 700
+      lineHeight: theme.typography.lineHeight.tight, // 1.25
+      fontFamily: theme.typography.fontFamily.primary
+    },
+    phaseDate: {
+      size: theme.typography.fontSize.xs,      // 12px
+      weight: theme.typography.fontWeight.medium, // 500
+      lineHeight: 1,
+      color: theme.colors.neutral.lightGray    // rgb(113, 113, 122)
+    },
+    phaseProgress: {
+      size: theme.typography.fontSize.xs,      // 12px
+      weight: theme.typography.fontWeight.bold, // 700
+      lineHeight: 1
+    },
+    activityTitle: {
+      size: '13px',
+      weight: theme.typography.fontWeight.semibold, // 600
+      lineHeight: theme.typography.lineHeight.snug // 1.375
+    },
+    activityMeta: {
+      size: '11px',
+      weight: theme.typography.fontWeight.normal, // 400
+      color: theme.colors.neutral.lightGray    // rgb(113, 113, 122)
+    }
+  },
+
+  // ========================================
+  // 간격 (8px 그리드)
+  // ========================================
+  spacing: {
+    phaseBox: {
+      padding: theme.spacing[3],               // 12px
+      gap: theme.spacing[2],                   // 8px
+      margin: theme.spacing[4]                 // 16px
+    },
+    branch: {
+      laneWidth: 120,                          // 레인 너비 (100 → 120)
+      minGap: 40                               // 브랜치 간 최소 간격
+    }
+  },
+
+  // ========================================
+  // 전환 효과
+  // ========================================
+  transitions: {
+    default: theme.transitions.default,        // 0.15s cubic-bezier(0.4, 0, 1, 1)
+    hover: theme.transitions.transform,        // 0.3s cubic-bezier(0.4, 0, 0.2, 1)
+    smooth: theme.transitions.slow             // 0.7s cubic-bezier(0.4, 0, 0.2, 1)
+  },
+
+  // ========================================
+  // 그림자 (Subtle & Professional)
+  // ========================================
+  shadows: {
+    node: '0 2px 8px rgba(15, 82, 222, 0.12)',           // 파랑 계열 그림자
+    nodeHover: '0 4px 16px rgba(15, 82, 222, 0.2)',      // 호버 시 강조
+    phaseBox: '0 2px 12px rgba(15, 82, 222, 0.08)',      // 섬세한 그림자
+    branch: '0 1px 4px rgba(15, 82, 222, 0.1)',
+    glassmorphism: '0 8px 32px rgba(15, 82, 222, 0.06)'  // 글래스모피즘 효과
+  },
+
+  // ========================================
+  // 보더 반경
+  // ========================================
+  borderRadius: {
+    phaseBox: theme.borderRadius.default,      // 8px
+    node: theme.borderRadius.full,             // 9999px (원형)
+    tooltip: theme.borderRadius.md             // 12px
+  },
+
+  // ========================================
+  // 데이터 사이언스 느낌 (Grid & Metrics)
+  // ========================================
+  dataScience: {
+    gridLine: {
+      color: 'rgba(15, 82, 222, 0.08)',        // 연한 그리드
+      strokeWidth: 1,
+      strokeDasharray: '4,4'                   // 점선
+    },
+    metricLabel: {
+      fontFamily: theme.typography.fontFamily.mono, // 모노스페이스
+      fontSize: '11px',
+      color: theme.colors.neutral.lightGray,
+      fontWeight: 500
+    },
+    glassEffect: {
+      background: 'rgba(255, 255, 255, 0.7)',  // 반투명 흰색
+      backdropFilter: 'blur(10px)',            // 배경 흐림
+      border: '1px solid rgba(15, 82, 222, 0.15)',
+      boxShadow: '0 8px 32px rgba(15, 82, 222, 0.06)'
+    }
+  }
 } as const;
 
 // ============================================================================

@@ -17,6 +17,9 @@ interface CompactLayoutProps {
   reportData: ReportData;
   processedData: ProcessedKPIData[];
   cluster: ClusterInfo;
+  aiSummary?: string | null;
+  isGeneratingAI?: boolean;
+  onRegenerateAI?: () => void;
   className?: string;
 }
 
@@ -24,6 +27,9 @@ export const CompactLayout: React.FC<CompactLayoutProps> = ({
   reportData,
   processedData,
   cluster,
+  aiSummary,
+  isGeneratingAI = false,
+  onRegenerateAI,
   className = ''
 }) => {
   // Extract data for Page 3
@@ -93,6 +99,9 @@ export const CompactLayout: React.FC<CompactLayoutProps> = ({
       {/* Page 1: Executive Dashboard */}
       <Page1Dashboard
         reportData={reportData}
+        aiSummary={aiSummary}
+        isGeneratingAI={isGeneratingAI}
+        onRegenerateAI={onRegenerateAI}
         className="page-break"
       />
 
@@ -121,15 +130,15 @@ export const CompactLayout: React.FC<CompactLayoutProps> = ({
       />
 
       {/* Phase Info */}
-      <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
-        <p className="text-sm text-blue-900 font-semibold">
-          🚧 Compact Layout (Phase 4.2 - 구조 생성 완료)
+      <div className="mt-8 p-4 bg-green-50 border border-green-200 rounded-lg text-center">
+        <p className="text-sm text-green-900 font-semibold">
+          ✅ Compact Layout (Phase 4.3 - Page 1 구현 완료)
         </p>
-        <p className="text-xs text-blue-700 mt-1">
+        <p className="text-xs text-green-700 mt-1">
           Feature Flag: VITE_USE_COMPACT_LAYOUT=false (현재 비활성)
         </p>
         <p className="text-xs text-gray-600 mt-2">
-          Phase 4.3~4.6에서 각 페이지 세부 구현 예정
+          Phase 4.4~4.6: Page 2, 3, 4 구현 예정
         </p>
       </div>
     </div>
