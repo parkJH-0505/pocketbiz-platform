@@ -627,3 +627,120 @@ export class PerformanceMonitor {
     return /Mobi|Android/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop';
   }
 }
+
+// =============================================================================
+// Phase 2 Timeline V3 성능 측정 유틸리티
+// =============================================================================
+
+/**
+ * Timeline V3 Phase 2 성능 메트릭
+ */
+export interface TimelinePerformanceMetrics {
+  initialRender: number;          // 초기 렌더링 시간 (ms)
+  bezierPathGeneration: number;   // 베지어 경로 생성 시간 (ms)
+  hoverResponse: number;          // 호버 응답 시간 (ms)
+  animationFPS: number;           // 애니메이션 FPS
+  memoryUsage: number;            // 메모리 사용량 (MB)
+  activityCount: number;          // 활동 개수
+  timestamp: Date;                // 측정 시각
+}
+
+/**
+ * 함수 실행 시간 측정 (간단 버전)
+ */
+export const measurePerformance = (
+  label: string,
+  fn: () => void
+): number => {
+  const start = performance.now();
+  fn();
+  const end = performance.now();
+  const duration = end - start;
+
+  // 60fps = 16.67ms per frame
+  const FPS_THRESHOLD = 16.67;
+
+  if (duration > FPS_THRESHOLD) {
+    console.warn(
+      `⚠️ [Performance] ${label}: ${duration.toFixed(2)}ms (> ${FPS_THRESHOLD}ms)`
+    );
+  } else {
+    console.log(
+      `✓ [Performance] ${label}: ${duration.toFixed(2)}ms`
+    );
+  }
+
+  return duration;
+};
+
+/**
+ * 메모리 사용량 측정 (MB 단위)
+ */
+export const measureMemoryUsageMB = (): number => {
+  if ('memory' in performance) {
+    const mem = (performance as any).memory;
+    const usedMB = mem.usedJSHeapSize / 1048576; // bytes → MB
+    console.log(`📊 [Memory] ${usedMB.toFixed(2)}MB used`);
+    return usedMB;
+  }
+  return 0;
+};
+
+/**
+ * FPS 측정
+ */
+export const measureFPS = (duration: number = 1000): Promise<number> => {
+  return new Promise((resolve) => {
+    let frameCount = 0;
+    const startTime = performance.now();
+
+    const countFrames = () => {
+      frameCount++;
+      const elapsed = performance.now() - startTime;
+
+      if (elapsed < duration) {
+        requestAnimationFrame(countFrames);
+      } else {
+        const fps = Math.round((frameCount / elapsed) * 1000);
+        console.log(`🎬 [FPS] ${fps} fps`);
+        resolve(fps);
+      }
+    };
+
+    requestAnimationFrame(countFrames);
+  });
+};
+
+/**
+ * Phase 2 Timeline V3 성능 벤치마크 수행
+ */
+export const runPhase2Benchmark = async (
+  activityCount: number
+): Promise<TimelinePerformanceMetrics> => {
+  console.log('🚀 [Benchmark] Phase 2 성능 측정 시작...');
+
+  const metrics: TimelinePerformanceMetrics = {
+    initialRender: 0,
+    bezierPathGeneration: 0,
+    hoverResponse: 0,
+    animationFPS: 0,
+    memoryUsage: 0,
+    activityCount,
+    timestamp: new Date()
+  };
+
+  // 1. 메모리 사용량
+  metrics.memoryUsage = measureMemoryUsageMB();
+
+  // 2. FPS 측정
+  metrics.animationFPS = await measureFPS(2000);
+
+  // 3. 결과 출력
+  console.log('📊 [Benchmark] Phase 2 성능 결과:', metrics);
+
+  // 4. 목표 대비 검증
+  const passed = metrics.animationFPS >= 60 && metrics.memoryUsage < 50;
+  console.log(passed ? '✅ 성능 목표 달성' : '⚠️ 최적화 필요');
+
+  return metrics;
+};

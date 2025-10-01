@@ -109,7 +109,7 @@ export class MonteCarloSimulator {
     initialScores: Record<AxisKey, number>,
     scenarios?: SimulationScenario[]
   ): Promise<SimulationResult> {
-    console.log('🎲 Starting Monte Carlo simulation...');
+    // ('🎲 Starting Monte Carlo simulation...');
 
     const simulationScenarios: SimulationScenario[] = [];
     const allFinalScores: Record<AxisKey, number[]> = {
@@ -141,7 +141,7 @@ export class MonteCarloSimulator {
 
       // 진행 상황 로그
       if ((batch + 1) % 10 === 0) {
-        console.log(`📊 Completed ${endIdx}/${this.config.iterations} iterations`);
+        // (`📊 Completed ${endIdx}/${this.config.iterations} iterations`);
       }
     }
 
@@ -165,7 +165,7 @@ export class MonteCarloSimulator {
       initialScores
     );
 
-    console.log('✅ Monte Carlo simulation completed');
+    // ('✅ Monte Carlo simulation completed');
 
     return {
       scenarios: categorizedScenarios,

@@ -9,7 +9,7 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import MicroCelebration from '../components/celebration/MicroCelebration';
-import { CelebrationConfig, CelebrationLevel, CelebrationReason } from '../services/celebrationTrigger';
+import type { CelebrationConfig, CelebrationLevel, CelebrationReason } from '../services/celebrationTrigger';
 
 interface CelebrationContextValue {
   celebrate: (config: CelebrationConfig) => void;

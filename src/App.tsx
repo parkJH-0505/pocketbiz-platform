@@ -44,6 +44,7 @@ import StartupHistory from './pages/startup/History';
 import StartupSettings from './pages/startup/Settings';
 // import TestPage from './pages/startup/TestPage';
 import KPIDiagnosisPage from './pages/startup/KPIDiagnosisPage';
+import SystemValidationPage from './pages/startup/SystemValidationPage';
 
 // Smart Matching Pages
 import SmartMatchingContainer from './pages/startup/smartMatching';
@@ -90,6 +91,7 @@ import Landing from './pages/Landing';
 import LandingV3 from './pages/LandingV3';
 import LandingV4 from './pages/LandingV4';
 import ErrorBoundary from './components/ErrorBoundary';
+import GlobalErrorBoundary from './components/error/GlobalErrorBoundary';
 
 function App() {
   // TODO: Implement auth check
@@ -104,16 +106,17 @@ function App() {
   // startup 경로들은 role 파라미터 없어도 작동하도록 수정
   const showLanding = !roleParam && window.location.pathname === '/' && !window.location.pathname.includes('/startup');
 
-  if (import.meta.env.DEV) {
-    console.log('App rendering:', {
-      isAuthenticated,
-      roleParam,
-      userRole,
-      showLanding,
-      pathname: window.location.pathname,
-      search: window.location.search
-    });
-  }
+  // 렌더링 로그 비활성화 (너무 많은 로그 출력 방지)
+  // if (import.meta.env.DEV) {
+  //   console.log('App rendering:', {
+  //     isAuthenticated,
+  //     roleParam,
+  //     userRole,
+  //     showLanding,
+  //     pathname: window.location.pathname,
+  //     search: window.location.search
+  //   });
+  // }
 
   if (!isAuthenticated) {
     if (import.meta.env.DEV) {
@@ -122,9 +125,10 @@ function App() {
   }
 
   return (
-    <DndProvider backend={HTML5Backend}>
-      <LoadingProvider>
-        <ToastProvider>
+    <GlobalErrorBoundary>
+      <DndProvider backend={HTML5Backend}>
+        <LoadingProvider>
+          <ToastProvider>
           <UserProfileProvider>
           <UserDocumentProvider>
             <ApplicationProgressProvider>
@@ -164,6 +168,9 @@ function App() {
 
                             {/* KPI 진단 통합 페이지 (Sprint 17) */}
                             <Route path="kpi" element={<KPIDiagnosisPage />} />
+
+                            {/* 시스템 검증 페이지 (Project MOMENTUM Week 3) */}
+                            <Route path="system-validation" element={<SystemValidationPage />} />
 
                             {/* 포켓빌드업 페이지 */}
                             <Route path="buildup" element={<BuildupLayout />}>
@@ -279,6 +286,7 @@ function App() {
         </ToastProvider>
       </LoadingProvider>
     </DndProvider>
+    </GlobalErrorBoundary>
   );
 }
 

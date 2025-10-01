@@ -213,7 +213,7 @@ export class AdvancedPredictionSystem extends BrowserEventEmitter {
   start(): void {
     if (this.isRunning) return;
 
-    console.log('🎯 Starting Advanced Prediction System');
+    // Starting Advanced Prediction System
     this.isRunning = true;
 
     // 정기 업데이트
@@ -235,7 +235,7 @@ export class AdvancedPredictionSystem extends BrowserEventEmitter {
   stop(): void {
     if (!this.isRunning) return;
 
-    console.log('⏹️ Stopping Advanced Prediction System');
+    // Stopping Advanced Prediction System
     this.isRunning = false;
 
     if (this.updateTimer) {
@@ -259,7 +259,7 @@ export class AdvancedPredictionSystem extends BrowserEventEmitter {
     horizon: number = 30,
     modelId?: string
   ): Promise<AdvancedPredictionResult> {
-    console.log(`🔮 Running advanced prediction (horizon: ${horizon} days)`);
+    // Running advanced prediction
 
     try {
       // 1. 데이터 전처리 및 특징 추출
@@ -307,13 +307,13 @@ export class AdvancedPredictionSystem extends BrowserEventEmitter {
         predictionQuality
       };
 
-      console.log(`✅ Advanced prediction completed (quality: ${predictionQuality.overall.toFixed(2)})`);
+      // Advanced prediction completed
       this.emit('predictionCompleted', result);
 
       return result;
 
     } catch (error) {
-      console.error('Advanced prediction error:', error);
+      // Advanced prediction error
       throw error;
     }
   }

@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-spring/three": "^10.0.3",
     "@react-three/drei": "^10.7.6",
     "@react-three/fiber": "^9.3.0",
     "@types/canvas-confetti": "^1.9.0",
@@ -18,6 +19,7 @@
     "@types/lodash-es": "^4.17.12",
     "@types/papaparse": "^5.3.16",
     "@types/react-router-dom": "^5.3.3",
+    "@types/react-window": "^1.8.8",
     "@types/three": "^0.180.0",
     "canvas-confetti": "^1.9.3",
     "chart.js": "^4.5.0",
@@ -29,6 +31,7 @@
     "jszip": "^3.10.1",
     "lodash-es": "^4.17.21",
     "lucide-react": "^0.542.0",
+    "modern-screenshot": "^4.6.6",
     "papaparse": "^5.5.3",
     "react": "^19.1.1",
     "react-chartjs-2": "^5.3.0",
@@ -38,7 +41,8 @@
     "react-grid-layout": "^1.5.2",
     "react-resizable": "^3.0.5",
     "react-router-dom": "^7.8.2",
-    "recharts": "^3.2.0",
+    "react-window": "^2.1.2",
+    "recharts": "^3.2.1",
     "three": "^0.180.0",
     "zustand": "^5.0.8"
   },

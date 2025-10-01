@@ -340,10 +340,28 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     // 디바운싱 적용하여 저장
     saveTimeoutRef.current = setTimeout(() => {
       try {
-        console.log('💾 Saving schedules to localStorage...');
+        // LocalStorage 크기 체크 및 정리
+        const storageSize = new Blob([JSON.stringify(localStorage)]).size;
+        const maxSize = 5 * 1024 * 1024; // 5MB
+
+        if (storageSize > maxSize * 0.9) {
+          // 90% 이상 사용 시 오래된 데이터 정리
+          const keysToClean = Object.keys(localStorage).filter(key =>
+            key.startsWith('pocket_biz_') &&
+            !Object.values(STORAGE_KEYS).includes(key)
+          );
+          keysToClean.forEach(key => localStorage.removeItem(key));
+        }
+
+        // 데이터 압축을 위해 필요한 데이터만 저장
+        const compactSchedules = schedules.map(schedule => ({
+          ...schedule,
+          // 큰 필드들을 제외하거나 압축
+          description: schedule.description?.substring(0, 200)
+        }));
 
         // 스케줄 저장
-        localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
+        localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(compactSchedules));
 
         // 프로젝트 링크 저장
         const linksObject = Object.fromEntries(projectScheduleLinks);
@@ -353,15 +371,18 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
         const now = new Date();
         localStorage.setItem(STORAGE_KEYS.LAST_SYNC, now.toISOString());
         setLastSync(now);
-
-        console.log('📢 [Sprint 5] Step 8: ✅ Saved to localStorage successfully', {
-          schedules: schedules.length,
-          projectLinks: projectScheduleLinks.size,
-          lastSync: now.toISOString()
-        });
       } catch (err) {
-        console.error('❌ Failed to save to localStorage:', err);
-        setError('스케줄 데이터 저장에 실패했습니다.');
+        if (err instanceof DOMException && err.name === 'QuotaExceededError') {
+          // localStorage 용량 초과 시 모든 스케줄 데이터 정리
+          Object.values(STORAGE_KEYS).forEach(key => {
+            try {
+              localStorage.removeItem(key);
+            } catch {}
+          });
+          setError('저장 공간이 부족합니다. 이전 데이터를 정리했습니다.');
+        } else {
+          setError('스케줄 데이터 저장에 실패했습니다.');
+        }
       }
     }, DEBOUNCE_DELAY);
   }, [schedules, projectScheduleLinks]);

@@ -1,9 +1,15 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src')
+    }
+  },
   // 로컬에서는 '/pocketbiz-platform/', Vercel에서는 '/'
   base: process.env.NODE_ENV === 'production' ? '/' : '/pocketbiz-platform/',
   assetsInclude: ['**/*.csv'],
@@ -35,12 +41,32 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom'],
-    exclude: ['@vite/client', '@vite/env']
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      'zustand',
+      'framer-motion',
+      'three',
+      '@react-three/fiber',
+      '@react-three/drei'
+    ],
+    exclude: ['@vite/client', '@vite/env'],
+    esbuildOptions: {
+      target: 'esnext'
+    }
   },
   server: {
     hmr: {
       overlay: false
+    },
+    fs: {
+      // 더 많은 메모리 허용
+      strict: false
     }
+  },
+  // 빌드 시 메모리 최적화
+  esbuild: {
+    logOverride: { 'this-is-undefined-in-esm': 'silent' }
   }
 })

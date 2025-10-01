@@ -8,6 +8,7 @@ import { useCluster } from './ClusterContext';
 import { assessmentStorage } from '../utils/storage';
 import { loadKPIData } from '../data/kpiLoader';
 import { calculateAxisScore } from '../utils/csvScoring';
+import { trackKpiUpdate, updateSessionActivity } from '../services/momentumTracker';
 import { 
   saveDiagnosticSnapshot, 
   getWeeklyChange, 
@@ -158,7 +159,11 @@ export const KPIDiagnosisProvider: React.FC<KPIDiagnosisProviderProps> = ({ chil
     
     // Calculate overall score
     const avgScore = Object.values(newScores).reduce((sum, score) => sum + score, 0) / 5;
-    setOverallScore(Math.round(avgScore * 10) / 10);
+    const roundedScore = Math.round(avgScore * 10) / 10;
+    setOverallScore(roundedScore);
+
+    // 모멘텀 시스템을 위해 KPI 평균 점수 저장
+    localStorage.setItem('kpi-average-score', roundedScore.toString());
     
     // 이전 진단 결과에서 가져오기
     const previousSnapshot = getPreviousSnapshot();
@@ -228,6 +233,11 @@ export const KPIDiagnosisProvider: React.FC<KPIDiagnosisProviderProps> = ({ chil
   // Actions
   const updateResponse = (kpiId: string, response: KPIResponse) => {
     console.log('KPIDiagnosisContext - updateResponse called:', kpiId, response);
+
+    // 모멘텀 시스템에 KPI 업데이트 추적
+    trackKpiUpdate(kpiId);
+    updateSessionActivity();
+
     setResponses(prev => {
       const newResponses = {
         ...prev,

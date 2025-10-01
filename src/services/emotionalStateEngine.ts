@@ -5,14 +5,14 @@
  * 모멘텀, 시간대, 활동 패턴 등을 종합적으로 분석
  */
 
-import {
+import type {
   EmotionalState,
   EmotionalFactors,
   EmotionalTrend,
-  MoodType,
-  EMOTIONAL_THRESHOLDS
+  MoodType
 } from '../types/emotional.types';
-import { MomentumData } from './momentumEngine';
+import { EMOTIONAL_THRESHOLDS } from '../types/emotional.types';
+import type { MomentumData } from './momentumEngine';
 
 export class EmotionalStateEngine {
   private previousState: EmotionalState | null = null;

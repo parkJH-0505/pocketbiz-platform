@@ -69,10 +69,10 @@ export const useAIInsights = ({
       }));
 
       const patterns = engine.analyzePatterns(dataPoints);
-      console.log('🔍 Patterns detected:', patterns.length);
+      // console.log('🔍 Patterns detected:', patterns.length);
       return patterns;
     } catch (error) {
-      console.error('Pattern recognition error:', error);
+      // console.error('Pattern recognition error:', error);
       return [];
     }
   }, [historicalData]);
@@ -87,10 +87,10 @@ export const useAIInsights = ({
       const engine = getAnomalyDetectionEngine();
       const historicalScores = historicalData.map(d => d.scores);
       const anomalies = engine.detectAnomalies(currentScores, historicalScores);
-      console.log('⚠️ Anomalies detected:', anomalies.length);
+      // console.log('⚠️ Anomalies detected:', anomalies.length);
       return anomalies;
     } catch (error) {
-      console.error('Anomaly detection error:', error);
+      // console.error('Anomaly detection error:', error);
       return [];
     }
   }, [currentScores, historicalData]);
@@ -109,10 +109,10 @@ export const useAIInsights = ({
       };
 
       const insights = engine.generateInsights(context, 'ko');
-      console.log('💡 NLP insights generated:', insights.length);
+      // console.log('💡 NLP insights generated:', insights.length);
       return insights;
     } catch (error) {
-      console.error('NLP insights error:', error);
+      // console.error('NLP insights error:', error);
       return [];
     }
   }, [currentScores, historicalData]);
@@ -129,10 +129,10 @@ export const useAIInsights = ({
       });
 
       const result = await simulator.runSimulation(currentScores);
-      console.log('🎲 Monte Carlo simulation completed');
+      // console.log('🎲 Monte Carlo simulation completed');
       return result;
     } catch (error) {
-      console.error('Monte Carlo simulation error:', error);
+      // console.error('Monte Carlo simulation error:', error);
       return null;
     }
   }, [currentScores]);
@@ -151,10 +151,10 @@ export const useAIInsights = ({
       }));
 
       const result = await optimizer.predict(trainingData, 7); // 7일 예측
-      console.log('📈 Prediction completed with accuracy:', result.accuracy.overall);
+      // console.log('📈 Prediction completed with accuracy:', result.accuracy.overall);
       return result;
     } catch (error) {
-      console.error('Prediction error:', error);
+      // console.error('Prediction error:', error);
       return null;
     }
   }, [historicalData]);
@@ -177,10 +177,10 @@ export const useAIInsights = ({
       };
 
       const result = await calculator.calculateRequirements(currentScores, goal);
-      console.log('🎯 Goal calculation completed');
+      // console.log('🎯 Goal calculation completed');
       return result;
     } catch (error) {
-      console.error('Goal calculation error:', error);
+      // console.error('Goal calculation error:', error);
       return null;
     }
   }, [currentScores]);
@@ -209,7 +209,7 @@ export const useAIInsights = ({
       };
 
       const result = await orchestrator.runComprehensiveAnalysis(analysisData);
-      console.log('🤖 Phase 8 AI analysis completed:', result.insights.length, 'insights generated');
+      // console.log('🤖 Phase 8 AI analysis completed:', result.insights.length, 'insights generated');
 
       return {
         insights: result.insights,
@@ -218,7 +218,7 @@ export const useAIInsights = ({
         riskAssessment: result.riskAssessment
       };
     } catch (error) {
-      console.error('Advanced AI analysis error:', error);
+      // console.error('Advanced AI analysis error:', error);
       return null;
     }
   }, [currentScores, historicalData]);
@@ -250,11 +250,11 @@ export const useAIInsights = ({
       };
 
       const simulationResult = await simulationEngine.runScenario(scenario, currentScores);
-      console.log('⚡ Real-time simulation completed:', simulationResult.projectedScores);
+      // console.log('⚡ Real-time simulation completed:', simulationResult.projectedScores);
 
       return simulationResult;
     } catch (error) {
-      console.error('Real-time simulation error:', error);
+      // console.error('Real-time simulation error:', error);
       return null;
     }
   }, [currentScores]);
@@ -282,11 +282,11 @@ export const useAIInsights = ({
       }));
 
       const prediction = await predictionSystem.predict(predictionData, 30); // 30일 예측
-      console.log('📊 Advanced prediction completed with confidence:', prediction.confidence);
+      // console.log('📊 Advanced prediction completed with confidence:', prediction.confidence);
 
       return prediction;
     } catch (error) {
-      console.error('Advanced prediction error:', error);
+      // console.error('Advanced prediction error:', error);
       return null;
     }
   }, [historicalData]);
@@ -352,12 +352,12 @@ export const useAIInsights = ({
 
       setState(enhancedState);
 
-      console.log('✅ All AI analyses completed successfully (Phase 8 enhanced)');
-      console.log('📊 Advanced insights:', enhancedState.nlpInsights.length);
-      console.log('⚡ Real-time simulation:', !!realTimeSimulation);
-      console.log('🔮 Advanced prediction confidence:', advancedPrediction?.confidence);
+      // console.log('✅ All AI analyses completed successfully (Phase 8 enhanced)');
+      // console.log('📊 Advanced insights:', enhancedState.nlpInsights.length);
+      // console.log('⚡ Real-time simulation:', !!realTimeSimulation);
+      // console.log('🔮 Advanced prediction confidence:', advancedPrediction?.confidence);
     } catch (error) {
-      console.error('AI analysis error:', error);
+      // console.error('AI analysis error:', error);
       setState(prev => ({
         ...prev,
         isLoading: false,

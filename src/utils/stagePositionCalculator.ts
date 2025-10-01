@@ -27,12 +27,12 @@ interface StageCalculationConfig {
 }
 
 const DEFAULT_CONFIG: StageCalculationConfig = {
-  baseStageHeight: 240,
-  stageSpacing: 100,
-  topPadding: 80,
+  baseStageHeight: 140,  // 기본 높이 약간 증가 (시간 비례 표현을 위해)
+  stageSpacing: 30,      // 간격 축소
+  topPadding: 120,       // 상단 여백
   bottomPadding: 80,
-  minStageHeight: 180,
-  maxStageHeight: 400
+  minStageHeight: 80,    // 최소 높이 더 축소 (짧은 단계 대응)
+  maxStageHeight: 300    // 최대 높이 증가 (긴 단계 대응)
 };
 
 /**
@@ -66,11 +66,20 @@ export const calculateStagePositions = (
       totalProjectDuration * getPhaseCumulativeRatio(phase, phaseTimeRatios));
     const phaseEndDate = new Date(phaseStartDate.getTime() + phaseDuration);
 
+    // 실제 시간 기간 계산 (일 단위)
+    const stageDurationDays = Math.max(1, Math.round(phaseDuration / (24 * 60 * 60 * 1000)));
+
     // 미팅 수 기반 높이 조정
     const meetingCount = phaseMeetingCounts[phase] || 0;
-    const heightMultiplier = Math.max(0.7, Math.min(2.0, 1 + (meetingCount - 2) * 0.2));
+    const meetingHeightMultiplier = Math.max(0.8, Math.min(1.5, 1 + (meetingCount - 3) * 0.15));
 
-    const baseHeight = finalConfig.baseStageHeight * heightMultiplier;
+    // 시간 기반 높이 조정 (새로운 로직)
+    const durationHeightMultiplier = calculateDurationHeightMultiplier(stageDurationDays);
+
+    // 결합된 높이 계산 (시간 + 미팅 밀도)
+    const combinedMultiplier = (durationHeightMultiplier * 0.7) + (meetingHeightMultiplier * 0.3);
+    const baseHeight = finalConfig.baseStageHeight * combinedMultiplier;
+
     const stageHeight = Math.max(
       finalConfig.minStageHeight,
       Math.min(finalConfig.maxStageHeight, baseHeight)
@@ -78,6 +87,12 @@ export const calculateStagePositions = (
 
     // 밀도 계산
     const density = calculateStageDensity(meetingCount);
+
+    // 단계별 시각적 스타일 정보 생성 (밀도 정보 포함)
+    const stageVisualStyle = {
+      ...calculateStageVisualStyle(phase, phaseStartDate, phaseEndDate),
+      densityEnhancements: calculateDensityVisualEnhancements(density, meetingCount)
+    };
 
     // 단계 위치 정보 생성
     stagePositions[phase] = {
@@ -88,8 +103,23 @@ export const calculateStagePositions = (
       startDate: phaseStartDate,
       endDate: phaseEndDate,
       feedCount: meetingCount,
-      density
+      density,
+      visualStyle: stageVisualStyle
     };
+
+    // 단계별 디버그 정보 (개발 환경에서만)
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📅 ${phase} 기간 분석:`, {
+        stageDurationDays,
+        durationMultiplier: Math.round(durationHeightMultiplier * 1000) / 1000,
+        meetingMultiplier: Math.round(meetingHeightMultiplier * 1000) / 1000,
+        combinedMultiplier: Math.round(combinedMultiplier * 1000) / 1000,
+        finalHeight: Math.round(stageHeight),
+        meetingCount,
+        period: `${phaseStartDate.toLocaleDateString()} ~ ${phaseEndDate.toLocaleDateString()}`,
+        visualStyle: stageVisualStyle
+      });
+    }
 
     // 다음 단계를 위해 Y 위치 업데이트
     currentY += stageHeight + finalConfig.stageSpacing;
@@ -181,6 +211,31 @@ const calculatePhaseMeetingCounts = (
 };
 
 /**
+ * 단계 기간에 따른 높이 배수 계산
+ */
+const calculateDurationHeightMultiplier = (stageDurationDays: number): number => {
+  // 기준: 7일(1주) = 1.0 배수
+  const baseWeeks = stageDurationDays / 7;
+
+  if (baseWeeks <= 0.5) {
+    // 3일 이하: 매우 짧은 단계 (0.6-0.8 배수)
+    return 0.6 + (baseWeeks / 0.5) * 0.2;
+  } else if (baseWeeks <= 1.0) {
+    // 3-7일: 짧은 단계 (0.8-1.0 배수)
+    return 0.8 + ((baseWeeks - 0.5) / 0.5) * 0.2;
+  } else if (baseWeeks <= 2.0) {
+    // 1-2주: 보통 단계 (1.0-1.3 배수)
+    return 1.0 + ((baseWeeks - 1.0) / 1.0) * 0.3;
+  } else if (baseWeeks <= 4.0) {
+    // 2-4주: 긴 단계 (1.3-1.8 배수)
+    return 1.3 + ((baseWeeks - 2.0) / 2.0) * 0.5;
+  } else {
+    // 4주 이상: 매우 긴 단계 (1.8-2.2 배수, 상한선)
+    return Math.min(2.2, 1.8 + ((baseWeeks - 4.0) / 4.0) * 0.4);
+  }
+};
+
+/**
  * 단계별 밀도 레벨 계산
  */
 const calculateStageDensity = (
@@ -190,6 +245,182 @@ const calculateStageDensity = (
   if (feedCount <= 5) return 'normal';
   if (feedCount <= 8) return 'dense';
   return 'overcrowded';
+};
+
+/**
+ * 단계별 시각적 스타일 계산
+ */
+const calculateStageVisualStyle = (
+  phase: ProjectPhase,
+  startDate: Date,
+  endDate: Date
+) => {
+  const now = new Date();
+  const isCompleted = now > endDate;
+  const isCurrent = now >= startDate && now <= endDate;
+  const isUpcoming = now < startDate;
+
+  // 단계별 기본 색상 팔레트
+  const phaseColors = {
+    contract_pending: { primary: '#F59E0B', secondary: '#FEF3C7', accent: '#D97706' },
+    ideation: { primary: '#8B5CF6', secondary: '#EDE9FE', accent: '#7C3AED' },
+    research: { primary: '#3B82F6', secondary: '#DBEAFE', accent: '#2563EB' },
+    design: { primary: '#10B981', secondary: '#D1FAE5', accent: '#059669' },
+    development: { primary: '#EF4444', secondary: '#FEE2E2', accent: '#DC2626' },
+    testing: { primary: '#F97316', secondary: '#FED7AA', accent: '#EA580C' },
+    deployment: { primary: '#6366F1', secondary: '#E0E7FF', accent: '#4F46E5' },
+    maintenance: { primary: '#6B7280', secondary: '#F3F4F6', accent: '#4B5563' }
+  };
+
+  const colors = phaseColors[phase] || phaseColors.ideation;
+
+  // 진행률 계산 (현재 시점 기준)
+  let progressPercentage = 0;
+  if (isCompleted) {
+    progressPercentage = 100;
+  } else if (isCurrent) {
+    const total = endDate.getTime() - startDate.getTime();
+    const elapsed = now.getTime() - startDate.getTime();
+    progressPercentage = Math.max(0, Math.min(100, (elapsed / total) * 100));
+  }
+
+  return {
+    // 상태 기반 스타일
+    state: isCompleted ? 'completed' : isCurrent ? 'current' : 'upcoming',
+
+    // 배경 그라데이션
+    backgroundColor: isCompleted
+      ? `linear-gradient(135deg, ${colors.secondary} 0%, ${colors.primary}15 100%)`
+      : isCurrent
+      ? `linear-gradient(135deg, ${colors.primary}08 0%, ${colors.secondary} 50%, ${colors.primary}12 100%)`
+      : `linear-gradient(135deg, #F9FAFB 0%, ${colors.secondary}40 100%)`,
+
+    // 경계선 스타일
+    borderColor: isCurrent ? colors.primary : colors.secondary,
+    borderStyle: isCurrent ? 'solid' : 'dashed',
+    borderWidth: isCurrent ? 2 : 1,
+
+    // 진행률 바 스타일
+    progressBar: {
+      percentage: progressPercentage,
+      backgroundColor: colors.primary,
+      height: isCurrent ? 4 : 2,
+      opacity: isCurrent ? 1.0 : 0.6
+    },
+
+    // 단계 라벨 스타일
+    label: {
+      color: isCompleted ? colors.accent : isCurrent ? colors.primary : '#6B7280',
+      fontWeight: isCurrent ? 600 : 400,
+      opacity: isCompleted ? 0.8 : 1.0
+    },
+
+    // 그림자/글로우 효과
+    shadowStyle: isCurrent
+      ? `0 0 20px ${colors.primary}20, 0 4px 12px ${colors.primary}15`
+      : isCompleted
+      ? `0 2px 8px ${colors.secondary}30`
+      : 'none',
+
+    // 추가된 시각적 표시기들
+    indicators: {
+      // 단계 완료 마커
+      completionMarker: {
+        show: isCompleted,
+        icon: '✅',
+        color: colors.accent
+      },
+      // 현재 단계 펄스 효과
+      pulseEffect: {
+        show: isCurrent,
+        color: colors.primary,
+        intensity: 'medium'
+      },
+      // 예정 단계 대기 표시
+      waitingIndicator: {
+        show: isUpcoming,
+        style: 'dashed-outline',
+        opacity: 0.5
+      },
+      // 단계별 아이콘
+      phaseIcon: getPhaseIcon(phase),
+      // 진행률 텍스트
+      progressText: `${Math.round(progressPercentage)}%`
+    }
+  };
+};
+
+/**
+ * 프로젝트 단계별 아이콘 매핑
+ */
+const getPhaseIcon = (phase: ProjectPhase): string => {
+  const icons = {
+    contract_pending: '📋',
+    ideation: '💡',
+    research: '🔍',
+    design: '🎨',
+    development: '⚙️',
+    testing: '🧪',
+    deployment: '🚀',
+    maintenance: '🔧'
+  };
+  return icons[phase] || '📌';
+};
+
+/**
+ * 밀도 기반 향상된 시각적 표시기 계산
+ */
+const calculateDensityVisualEnhancements = (
+  density: 'sparse' | 'normal' | 'dense' | 'overcrowded',
+  feedCount: number
+) => {
+  const enhancements = {
+    // 밀도별 배경 패턴
+    backgroundPattern: 'none',
+    // 활동량 표시기
+    activityLevel: 'low',
+    // 밀도 경고 표시
+    densityWarning: false,
+    // 높이 조정 힌트
+    heightHint: 'normal'
+  };
+
+  switch (density) {
+    case 'sparse':
+      enhancements.backgroundPattern = 'dots';
+      enhancements.activityLevel = 'low';
+      enhancements.heightHint = 'compact';
+      break;
+
+    case 'normal':
+      enhancements.backgroundPattern = 'none';
+      enhancements.activityLevel = 'normal';
+      enhancements.heightHint = 'normal';
+      break;
+
+    case 'dense':
+      enhancements.backgroundPattern = 'lines';
+      enhancements.activityLevel = 'high';
+      enhancements.heightHint = 'expanded';
+      break;
+
+    case 'overcrowded':
+      enhancements.backgroundPattern = 'grid';
+      enhancements.activityLevel = 'very-high';
+      enhancements.densityWarning = true;
+      enhancements.heightHint = 'maximized';
+      break;
+  }
+
+  return {
+    ...enhancements,
+    // 활동량 점수 (시각적 표시용)
+    activityScore: Math.min(100, feedCount * 12),
+    // 밀도 표시 색상
+    densityColor: density === 'overcrowded' ? '#EF4444' :
+                 density === 'dense' ? '#F59E0B' :
+                 density === 'normal' ? '#10B981' : '#6B7280'
+  };
 };
 
 /**

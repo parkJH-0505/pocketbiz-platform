@@ -18,6 +18,16 @@ import type {
   TeamFeedData
 } from '../types/timeline.types';
 import type { ProjectPhase } from '../types/buildup.types';
+
+// 고유 ID 생성을 위한 카운터
+let feedIdCounter = 0;
+
+/**
+ * 고유한 피드 ID 생성
+ */
+const generateUniqueId = (prefix: string): string => {
+  return `${prefix}-${Date.now()}-${++feedIdCounter}`;
+};
 import { MEETING_TYPE_CONFIG } from '../types/meeting.enhanced.types';
 
 /**
@@ -170,7 +180,7 @@ export const createProgressFeed = (
   };
 
   return {
-    id: `progress-${Date.now()}`,
+    id: generateUniqueId('progress'),
     type: 'progress',
     title: `진행률 ${progress.currentProgress}% 달성`,
     description: progress.reason || `${progress.previousProgress}%에서 ${progress.currentProgress}%로 업데이트`,
@@ -207,7 +217,7 @@ export const createCommentFeed = (
   };
 
   return {
-    id: `comment-${Date.now()}`,
+    id: generateUniqueId('comment'),
     type: 'comment',
     title: `${comment.author}님의 코멘트`,
     description: comment.message.substring(0, 100),
@@ -245,7 +255,7 @@ export const createTodoFeed = (
   };
 
   return {
-    id: `todo-${Date.now()}`,
+    id: generateUniqueId('todo'),
     type: 'todo',
     title: task.title,
     description: task.description,
@@ -282,7 +292,7 @@ export const createTeamFeed = (
   };
 
   return {
-    id: `team-${Date.now()}`,
+    id: generateUniqueId('team'),
     type: 'team',
     title: activity.action,
     description: activity.details,

@@ -1,0 +1,512 @@
+/**
+ * @fileoverview 반응형 타임라인 컨테이너
+ * @description 뷰포트 관리, 가상 스크롤링, 반응형 최적화
+ * @author PocketCompany
+ * @since 2025-01-20
+ */
+
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { debounce } from 'lodash-es';
+import type {
+  FeedItemWithPosition,
+  BranchConnector,
+  VirtualScrollConfig
+} from '../../types/branch-timeline.types';
+import { RESPONSIVE_BRANCH_CONFIG } from '../../config/branchPositions';
+
+interface TimelineContainerProps {
+  /** 타임라인 컨텐츠 */
+  children: React.ReactNode;
+  /** 가상 스크롤링 설정 */
+  virtualScrollConfig?: VirtualScrollConfig;
+  /** 컨테이너 클래스명 */
+  className?: string;
+  /** 뷰포트 변경 콜백 */
+  onViewportChange?: (viewport: ViewportState) => void;
+  /** 스크롤 변경 콜백 */
+  onScrollChange?: (scrollState: ScrollState) => void;
+  /** 리사이즈 콜백 */
+  onResize?: (dimensions: ContainerDimensions) => void;
+}
+
+interface ViewportState {
+  width: number;
+  height: number;
+  scrollTop: number;
+  scrollLeft: number;
+  isScrolling: boolean;
+  visibleArea: {
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+  };
+}
+
+interface ScrollState {
+  scrollTop: number;
+  scrollLeft: number;
+  scrollDirection: 'up' | 'down' | 'left' | 'right' | 'none';
+  scrollVelocity: number;
+  isAtTop: boolean;
+  isAtBottom: boolean;
+  isAtLeft: boolean;
+  isAtRight: boolean;
+}
+
+interface ContainerDimensions {
+  width: number;
+  height: number;
+  contentWidth: number;
+  contentHeight: number;
+  devicePixelRatio: number;
+  breakpoint: 'mobile' | 'tablet' | 'desktop';
+}
+
+const DEFAULT_VIRTUAL_SCROLL_CONFIG: VirtualScrollConfig = {
+  enabled: true,
+  itemHeight: 60,
+  overscan: 5,
+  scrollDebounce: 16,
+  chunkSize: 20
+};
+
+/**
+ * 반응형 타임라인 컨테이너 컴포넌트
+ * 뷰포트 관리, 가상 스크롤링, 성능 최적화 기능 제공
+ */
+const TimelineContainer: React.FC<TimelineContainerProps> = ({
+  children,
+  virtualScrollConfig = DEFAULT_VIRTUAL_SCROLL_CONFIG,
+  className = '',
+  onViewportChange,
+  onScrollChange,
+  onResize
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const intersectionObserverRef = useRef<IntersectionObserver | null>(null);
+
+  // 상태 관리
+  const [viewportState, setViewportState] = useState<ViewportState>({
+    width: 0,
+    height: 0,
+    scrollTop: 0,
+    scrollLeft: 0,
+    isScrolling: false,
+    visibleArea: { top: 0, bottom: 0, left: 0, right: 0 }
+  });
+
+  const [scrollState, setScrollState] = useState<ScrollState>({
+    scrollTop: 0,
+    scrollLeft: 0,
+    scrollDirection: 'none',
+    scrollVelocity: 0,
+    isAtTop: true,
+    isAtBottom: false,
+    isAtLeft: true,
+    isAtRight: false
+  });
+
+  const [dimensions, setDimensions] = useState<ContainerDimensions>({
+    width: 0,
+    height: 0,
+    contentWidth: 0,
+    contentHeight: 0,
+    devicePixelRatio: 1,
+    breakpoint: 'desktop'
+  });
+
+  // 이전 스크롤 위치 추적 (속도 계산용)
+  const prevScrollRef = useRef({ top: 0, left: 0, timestamp: 0 });
+
+  // 스크롤 타이머 관리
+  const scrollTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 브레이크포인트 계산
+  const calculateBreakpoint = useCallback((width: number): 'mobile' | 'tablet' | 'desktop' => {
+    const { breakpoints } = RESPONSIVE_BRANCH_CONFIG;
+    if (width <= breakpoints.mobile) return 'mobile';
+    if (width <= breakpoints.tablet) return 'tablet';
+    return 'desktop';
+  }, []);
+
+  // 뷰포트 상태 업데이트
+  const updateViewportState = useCallback(() => {
+    if (!containerRef.current) return;
+
+    const container = containerRef.current;
+    const rect = container.getBoundingClientRect();
+
+    const newViewportState: ViewportState = {
+      width: rect.width,
+      height: rect.height,
+      scrollTop: container.scrollTop,
+      scrollLeft: container.scrollLeft,
+      isScrolling: scrollState.scrollDirection !== 'none',
+      visibleArea: {
+        top: container.scrollTop,
+        bottom: container.scrollTop + rect.height,
+        left: container.scrollLeft,
+        right: container.scrollLeft + rect.width
+      }
+    };
+
+    setViewportState(newViewportState);
+    onViewportChange?.(newViewportState);
+  }, [scrollState.scrollDirection, onViewportChange]);
+
+  // 디멘션 업데이트
+  const updateDimensions = useCallback(() => {
+    if (!containerRef.current || !contentRef.current) return;
+
+    const container = containerRef.current;
+    const content = contentRef.current;
+    const containerRect = container.getBoundingClientRect();
+    const contentRect = content.getBoundingClientRect();
+
+    const newDimensions: ContainerDimensions = {
+      width: containerRect.width,
+      height: containerRect.height,
+      contentWidth: content.scrollWidth,
+      contentHeight: content.scrollHeight,
+      devicePixelRatio: window.devicePixelRatio || 1,
+      breakpoint: calculateBreakpoint(containerRect.width)
+    };
+
+    setDimensions(prev => {
+      // 실제로 변경된 경우에만 업데이트
+      if (
+        prev.width !== newDimensions.width ||
+        prev.height !== newDimensions.height ||
+        prev.contentWidth !== newDimensions.contentWidth ||
+        prev.contentHeight !== newDimensions.contentHeight ||
+        prev.breakpoint !== newDimensions.breakpoint
+      ) {
+        onResize?.(newDimensions);
+        return newDimensions;
+      }
+      return prev;
+    });
+  }, [calculateBreakpoint]);
+
+  // 스크롤 방향 및 속도 계산
+  const calculateScrollMetrics = useCallback((
+    currentScrollTop: number,
+    currentScrollLeft: number
+  ) => {
+    const now = performance.now();
+    const prev = prevScrollRef.current;
+
+    const deltaTop = currentScrollTop - prev.top;
+    const deltaLeft = currentScrollLeft - prev.left;
+    const deltaTime = now - prev.timestamp;
+
+    let direction: ScrollState['scrollDirection'] = 'none';
+    let velocity = 0;
+
+    if (Math.abs(deltaTop) > Math.abs(deltaLeft)) {
+      direction = deltaTop > 0 ? 'down' : deltaTop < 0 ? 'up' : 'none';
+      velocity = Math.abs(deltaTop) / (deltaTime || 1);
+    } else if (Math.abs(deltaLeft) > 0) {
+      direction = deltaLeft > 0 ? 'right' : 'left';
+      velocity = Math.abs(deltaLeft) / (deltaTime || 1);
+    }
+
+    prevScrollRef.current = {
+      top: currentScrollTop,
+      left: currentScrollLeft,
+      timestamp: now
+    };
+
+    return { direction, velocity };
+  }, []);
+
+  // 스크롤 이벤트 핸들러
+  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const container = event.currentTarget;
+    const scrollTop = container.scrollTop;
+    const scrollLeft = container.scrollLeft;
+    const maxScrollTop = container.scrollHeight - container.clientHeight;
+    const maxScrollLeft = container.scrollWidth - container.clientWidth;
+
+    const { direction, velocity } = calculateScrollMetrics(scrollTop, scrollLeft);
+
+    const newScrollState: ScrollState = {
+      scrollTop,
+      scrollLeft,
+      scrollDirection: direction,
+      scrollVelocity: velocity,
+      isAtTop: scrollTop <= 5,
+      isAtBottom: scrollTop >= maxScrollTop - 5,
+      isAtLeft: scrollLeft <= 5,
+      isAtRight: scrollLeft >= maxScrollLeft - 5
+    };
+
+    setScrollState(newScrollState);
+    onScrollChange?.(newScrollState);
+
+    // 스크롤 상태 타이머 관리
+    if (scrollTimerRef.current) {
+      clearTimeout(scrollTimerRef.current);
+    }
+
+    scrollTimerRef.current = setTimeout(() => {
+      setScrollState(prev => ({ ...prev, scrollDirection: 'none', scrollVelocity: 0 }));
+    }, 150);
+
+    updateViewportState();
+  }, [calculateScrollMetrics, onScrollChange, updateViewportState]);
+
+  // 디바운스된 스크롤 핸들러
+  const debouncedScroll = useMemo(
+    () => debounce(handleScroll, virtualScrollConfig.scrollDebounce),
+    [handleScroll, virtualScrollConfig.scrollDebounce]
+  );
+
+  // ResizeObserver 설정 (의존성 제거)
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const handleResize = debounce(() => {
+      if (containerRef.current && contentRef.current) {
+        const container = containerRef.current;
+        const content = contentRef.current;
+        const containerRect = container.getBoundingClientRect();
+
+        const newDimensions: ContainerDimensions = {
+          width: containerRect.width,
+          height: containerRect.height,
+          contentWidth: content.scrollWidth,
+          contentHeight: content.scrollHeight,
+          devicePixelRatio: window.devicePixelRatio || 1,
+          breakpoint: calculateBreakpoint(containerRect.width)
+        };
+
+        setDimensions(prev => {
+          if (
+            prev.width !== newDimensions.width ||
+            prev.height !== newDimensions.height ||
+            prev.contentWidth !== newDimensions.contentWidth ||
+            prev.contentHeight !== newDimensions.contentHeight ||
+            prev.breakpoint !== newDimensions.breakpoint
+          ) {
+            return newDimensions;
+          }
+          return prev;
+        });
+
+        // 뷰포트 상태도 직접 업데이트
+        const rect = container.getBoundingClientRect();
+        const newViewportState: ViewportState = {
+          width: rect.width,
+          height: rect.height,
+          scrollTop: container.scrollTop,
+          scrollLeft: container.scrollLeft,
+          visibleArea: {
+            top: container.scrollTop,
+            left: container.scrollLeft,
+            bottom: container.scrollTop + rect.height,
+            right: container.scrollLeft + rect.width
+          }
+        };
+
+        setViewportState(newViewportState);
+      }
+    }, 100);
+
+    resizeObserverRef.current = new ResizeObserver(handleResize);
+    resizeObserverRef.current.observe(containerRef.current);
+
+    // 초기 설정도 여기서 함께 실행
+    handleResize();
+
+    return () => {
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+      }
+    };
+  }, []); // 빈 의존성 배열
+
+  // 브레이크포인트 기반 스타일 계산
+  const responsiveStyles = useMemo(() => {
+    const { adjustments } = RESPONSIVE_BRANCH_CONFIG;
+    const adjustment = adjustments[dimensions.breakpoint];
+
+    return {
+      '--offset-x-multiplier': adjustment.offsetXMultiplier,
+      '--node-width-multiplier': adjustment.nodeWidthMultiplier,
+      '--font-size-multiplier': adjustment.fontSizeMultiplier
+    } as React.CSSProperties;
+  }, [dimensions.breakpoint]);
+
+  // 컨테이너 스타일
+  const containerStyle: React.CSSProperties = {
+    position: 'relative',
+    width: '100%',
+    height: '100%',
+    overflow: 'auto',
+    // GPU 가속
+    transform: 'translateZ(0)',
+    willChange: 'scroll-position',
+    // 스크롤 성능 최적화
+    scrollBehavior: scrollState.scrollVelocity > 5 ? 'auto' : 'smooth',
+    // 반응형 CSS 변수 적용
+    ...responsiveStyles
+  };
+
+  // 컨텐츠 스타일
+  const contentStyle: React.CSSProperties = {
+    position: 'relative',
+    minHeight: '100%',
+    width: '100%'
+  };
+
+  // 가상 스크롤링 활성화 시 추가 스타일
+  if (virtualScrollConfig.enabled) {
+    contentStyle.contain = 'layout style paint';
+  }
+
+  // 클린업
+  useEffect(() => {
+    return () => {
+      if (scrollTimerRef.current) {
+        clearTimeout(scrollTimerRef.current);
+      }
+      debouncedScroll.cancel();
+    };
+  }, [debouncedScroll]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`timeline-container ${className}`}
+      style={containerStyle}
+      onScroll={virtualScrollConfig.enabled ? debouncedScroll : handleScroll}
+      data-breakpoint={dimensions.breakpoint}
+      data-is-scrolling={viewportState.isScrolling}
+      data-scroll-direction={scrollState.scrollDirection}
+      data-testid="timeline-container"
+    >
+      <div
+        ref={contentRef}
+        className="timeline-content"
+        style={contentStyle}
+      >
+        {children}
+      </div>
+
+      {/* 스크롤 인디케이터 (모바일) */}
+      {dimensions.breakpoint === 'mobile' && (
+        <ScrollIndicators
+          scrollState={scrollState}
+          viewportState={viewportState}
+          dimensions={dimensions}
+        />
+      )}
+
+      {/* 성능 모니터링 (개발 환경) */}
+      {process.env.NODE_ENV === 'development' && (
+        <PerformanceMonitor
+          scrollState={scrollState}
+          viewportState={viewportState}
+          dimensions={dimensions}
+        />
+      )}
+    </div>
+  );
+};
+
+/**
+ * 모바일용 스크롤 인디케이터
+ */
+interface ScrollIndicatorsProps {
+  scrollState: ScrollState;
+  viewportState: ViewportState;
+  dimensions: ContainerDimensions;
+}
+
+const ScrollIndicators: React.FC<ScrollIndicatorsProps> = ({
+  scrollState,
+  viewportState,
+  dimensions
+}) => {
+  const scrollProgress = dimensions.contentHeight > 0
+    ? scrollState.scrollTop / (dimensions.contentHeight - dimensions.height)
+    : 0;
+
+  return (
+    <div className="scroll-indicators">
+      {/* 수직 스크롤 바 */}
+      <div
+        className="scroll-indicator-vertical"
+        style={{
+          position: 'absolute',
+          right: '4px',
+          top: '8px',
+          bottom: '8px',
+          width: '3px',
+          background: 'rgba(0,0,0,0.1)',
+          borderRadius: '2px',
+          opacity: scrollState.scrollDirection !== 'none' ? 1 : 0,
+          transition: 'opacity 0.3s ease'
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            top: `${scrollProgress * 100}%`,
+            width: '100%',
+            height: '20px',
+            background: 'rgba(59, 130, 246, 0.8)',
+            borderRadius: '2px',
+            transform: 'translateY(-50%)'
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
+/**
+ * 개발용 성능 모니터
+ */
+interface PerformanceMonitorProps {
+  scrollState: ScrollState;
+  viewportState: ViewportState;
+  dimensions: ContainerDimensions;
+}
+
+const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
+  scrollState,
+  viewportState,
+  dimensions
+}) => {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: '8px',
+        left: '8px',
+        background: 'rgba(0,0,0,0.8)',
+        color: 'white',
+        padding: '8px',
+        fontSize: '10px',
+        borderRadius: '4px',
+        fontFamily: 'monospace',
+        pointerEvents: 'none',
+        zIndex: 1000
+      }}
+    >
+      <div>Viewport: {Math.round(viewportState.width)} × {Math.round(viewportState.height)}</div>
+      <div>Scroll: {Math.round(scrollState.scrollTop)}, {Math.round(scrollState.scrollLeft)}</div>
+      <div>Direction: {scrollState.scrollDirection}</div>
+      <div>Velocity: {Math.round(scrollState.scrollVelocity * 100) / 100}</div>
+      <div>Breakpoint: {dimensions.breakpoint}</div>
+      <div>DPR: {dimensions.devicePixelRatio}</div>
+    </div>
+  );
+};
+
+export default TimelineContainer;

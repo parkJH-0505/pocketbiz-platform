@@ -395,6 +395,15 @@ export const BranchTimelineProvider: React.FC<BranchTimelineProviderProps> = ({
 
   // 위치 계산 결과 업데이트
   useEffect(() => {
+    // 디버깅: 위치 계산 결과 확인
+    console.log('🎯 BranchTimelineContext 위치 계산 결과:', {
+      positionedFeedsCount: positioningResult.positionedFeeds.length,
+      connectorsCount: positioningResult.connectors.length,
+      isCalculating: positioningResult.isCalculating,
+      error: positioningResult.error,
+      lastCalculated: positioningResult.lastCalculated
+    });
+
     if (positioningResult.positionedFeeds.length > 0) {
       const mockLayoutResult: LayoutEngineResult = {
         positionedFeeds: positioningResult.positionedFeeds,
@@ -410,7 +419,10 @@ export const BranchTimelineProvider: React.FC<BranchTimelineProviderProps> = ({
           adjustedNodes: 0
         }
       };
+      console.log('✅ 위치 계산 완료 - 레이아웃 결과 디스패치:', mockLayoutResult);
       dispatch({ type: 'SET_LAYOUT_RESULT', payload: mockLayoutResult });
+    } else {
+      console.log('❌ 위치 계산된 피드가 없습니다.');
     }
   }, [positioningResult.positionedFeeds, positioningResult.connectors]);
 

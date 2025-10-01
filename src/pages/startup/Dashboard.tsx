@@ -18,7 +18,11 @@ import InteractiveCalendarCenter from '../../components/dashboard/InteractiveCal
 import CompanyVitalSigns from '../../components/dashboard/CompanyVitalSigns'; // 플로팅 버튼용 (GrowthMomentumTracker 통합)
 import WeeklyVCRecommendation from '../../components/dashboard/WeeklyVCRecommendation';
 import ActionErrorBoundary from '../../components/dashboard/ActionErrorBoundary';
+import ActionFeedback from '../../components/feedback/ActionFeedback';
 import { DashboardInteractionProvider } from '../../contexts/DashboardInteractionContext';
+
+// 시스템 테스트 및 검증 도구들
+import UsageScenarioGuide from '../../components/guide/UsageScenarioGuide';
 
 // Momentum 컴포넌트들
 import AmbientStatusBar from '../../components/momentum/AmbientStatusBar';
@@ -26,6 +30,11 @@ import { MomentumProvider } from '../../hooks/useMomentum';
 
 // Celebration 시스템
 import { CelebrationProvider } from '../../contexts/CelebrationContext';
+
+// 제거됨: Nudge 시스템, Analytics 시스템 (감정 기반 분석)
+
+// 모멘텀 시스템 (실용적 대안)
+import MomentumCard from '../../components/momentum/MomentumCard';
 
 // 로딩 컴포넌트
 const LoadingSkeleton: React.FC<{ className?: string }> = ({ className }) => (
@@ -74,6 +83,7 @@ class DashboardErrorBoundary extends React.Component<
 
 const Dashboard: React.FC = () => {
   const [showKPIPanel, setShowKPIPanel] = useState(false);
+  const [activeTab, setActiveTab] = useState<'vitals' | 'testing'>('vitals');
 
   return (
     <DashboardErrorBoundary>
@@ -81,13 +91,16 @@ const Dashboard: React.FC = () => {
         <CelebrationProvider>
           <DashboardProvider>
           <div className="min-h-screen bg-gray-50">
-            {/* Ambient Status Bar - 최상단에 위치 */}
-            <AmbientStatusBar className="fixed top-0 left-0 right-0 z-30" />
-
             <DashboardInteractionProvider>
-              {/* 상단 여백 추가 (AmbientStatusBar 높이만큼) */}
-              <div className="pt-12">
-                <div className="max-w-7xl mx-auto p-6 space-y-6">
+              <div className="max-w-7xl mx-auto p-6 space-y-6">
+                {/* Ambient Status Bar - Dashboard 내부 최상단에 위치 */}
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <AmbientStatusBar className="mb-6" />
+                </motion.div>
             {/* 메인: 확장된 인터랙티브 캘린더 (75% 높이) */}
             <motion.section
               className="flex-1"
@@ -101,6 +114,16 @@ const Dashboard: React.FC = () => {
               </ActionErrorBoundary>
             </motion.section>
 
+            {/* 비즈니스 건강도 - 실용적 대안 */}
+            <motion.section
+              className="w-full max-w-2xl mx-auto"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.25 }}
+            >
+              <MomentumCard />
+            </motion.section>
+
             {/* 하단: 투자자 추천 (25% 높이 - 가로 전체) */}
             <motion.section
               className="w-full"
@@ -112,7 +135,6 @@ const Dashboard: React.FC = () => {
                 <WeeklyVCRecommendation />
               </ActionErrorBoundary>
             </motion.section>
-                </div>
               </div>
             </DashboardInteractionProvider>
 
@@ -150,7 +172,7 @@ const Dashboard: React.FC = () => {
                 <div className="p-6">
                   {/* 패널 헤더 */}
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-gray-900">회사 생체신호</h2>
+                    <h2 className="text-xl font-bold text-gray-900">시스템 모니터링</h2>
                     <button
                       onClick={() => setShowKPIPanel(false)}
                       className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -159,13 +181,43 @@ const Dashboard: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* 회사 생체신호 컴포넌트 */}
-                  <CompanyVitalSigns />
+                  {/* 탭 네비게이션 */}
+                  <div className="flex space-x-1 mb-6 bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setActiveTab('vitals')}
+                      className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                        activeTab === 'vitals'
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      생체신호
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('testing')}
+                      className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                        activeTab === 'testing'
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      시나리오 테스트
+                    </button>
+                  </div>
+
+                  {/* 탭 컨텐츠 */}
+                  {activeTab === 'vitals' && <CompanyVitalSigns />}
+                  {activeTab === 'testing' && <UsageScenarioGuide />}
                 </div>
               </motion.div>
             </>
           )}
         </AnimatePresence>
+
+        {/* 실시간 액션 피드백 시스템 */}
+        <ActionFeedback position="top-right" duration={4000} maxItems={3} />
+
+        {/* 제거됨: Gentle Nudge System */}
           </div>
           </DashboardProvider>
         </CelebrationProvider>

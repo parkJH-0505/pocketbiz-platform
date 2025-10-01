@@ -53,6 +53,17 @@ const initialState = {
   },
   data: null,
   peerData: null,
+
+  // 실시간 데이터 감지 상태
+  realTimeMonitoring: {
+    isEnabled: false,
+    lastUpdate: null,
+    changeHistory: [],
+    detectionThreshold: 2, // 최소 감지 임계값
+    updateInterval: 5000, // 5초마다 체크
+    activeChanges: new Map(),
+    alertQueue: [],
+  },
 };
 
 export const useV2Store = create<V2Store>()(
@@ -182,6 +193,85 @@ export const useV2Store = create<V2Store>()(
           timestamp: Date.now()
         };
       },
+
+      // ========== 실시간 데이터 감지 Actions ==========
+      enableRealTimeMonitoring: () =>
+        set((state) => {
+          state.realTimeMonitoring.isEnabled = true;
+          state.realTimeMonitoring.lastUpdate = Date.now();
+        }),
+
+      disableRealTimeMonitoring: () =>
+        set((state) => {
+          state.realTimeMonitoring.isEnabled = false;
+        }),
+
+      updateDetectionThreshold: (threshold) =>
+        set((state) => {
+          state.realTimeMonitoring.detectionThreshold = threshold;
+        }),
+
+      updateInterval: (interval) =>
+        set((state) => {
+          state.realTimeMonitoring.updateInterval = interval;
+        }),
+
+      addChangeDetection: (change) =>
+        set((state) => {
+          const changeId = `${change.axis}-${Date.now()}`;
+          state.realTimeMonitoring.activeChanges.set(changeId, {
+            ...change,
+            id: changeId,
+            timestamp: Date.now(),
+            severity: Math.abs(change.oldValue - change.newValue) > state.realTimeMonitoring.detectionThreshold ? 'high' : 'medium'
+          });
+
+          // 변경 이력에 추가 (최대 50개 유지)
+          state.realTimeMonitoring.changeHistory.push({
+            ...change,
+            id: changeId,
+            timestamp: Date.now()
+          });
+
+          if (state.realTimeMonitoring.changeHistory.length > 50) {
+            state.realTimeMonitoring.changeHistory.shift();
+          }
+
+          // 중요한 변경사항은 알림 큐에 추가
+          if (Math.abs(change.oldValue - change.newValue) > state.realTimeMonitoring.detectionThreshold) {
+            state.realTimeMonitoring.alertQueue.push({
+              id: changeId,
+              type: 'data-change',
+              axis: change.axis,
+              message: `${change.axis} 축에서 ${Math.abs(change.oldValue - change.newValue).toFixed(1)}점 변화 감지`,
+              timestamp: Date.now(),
+              severity: 'high',
+              actionRequired: true
+            });
+          }
+        }),
+
+      removeChangeDetection: (changeId) =>
+        set((state) => {
+          state.realTimeMonitoring.activeChanges.delete(changeId);
+        }),
+
+      clearAlertQueue: () =>
+        set((state) => {
+          state.realTimeMonitoring.alertQueue = [];
+        }),
+
+      removeAlert: (alertId) =>
+        set((state) => {
+          state.realTimeMonitoring.alertQueue = state.realTimeMonitoring.alertQueue.filter(
+            alert => alert.id !== alertId
+          );
+        }),
+
+      updateLastCheckTime: () =>
+        set((state) => {
+          state.realTimeMonitoring.lastUpdate = Date.now();
+        }),
 
       saveScenario: (name) => {
         const scenario = {

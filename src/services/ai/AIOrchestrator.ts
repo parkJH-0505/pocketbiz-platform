@@ -117,7 +117,7 @@ export class AIOrchestrator {
     const analysisId = this.generateAnalysisId();
     const startTime = Date.now();
 
-    console.log(`🤖 Starting AI analysis (ID: ${analysisId}, Type: ${request.analysisType})`);
+    // (`🤖 Starting AI analysis (ID: ${analysisId}, Type: ${request.analysisType})`);
 
     try {
       // 1. 요청 검증 및 전처리
@@ -146,11 +146,11 @@ export class AIOrchestrator {
         summary: this.generateSummary(integratedResult)
       };
 
-      console.log(`✅ AI analysis completed (${Date.now() - startTime}ms)`);
+      // (`✅ AI analysis completed (${Date.now() - startTime}ms)`);
       return finalResult;
 
     } catch (error) {
-      console.error(`❌ AI analysis failed (ID: ${analysisId}):`, error);
+      // (`❌ AI analysis failed (ID: ${analysisId}):`, error);
       throw this.handleError(error, analysisId);
     }
   }
@@ -282,7 +282,7 @@ export class AIOrchestrator {
       return results;
 
     } catch (error) {
-      console.error('Service execution error:', error);
+      // ('Service execution error:', error);
       throw error;
     }
   }
@@ -302,7 +302,7 @@ export class AIOrchestrator {
     if (serviceConfig.cacheEnabled) {
       const cached = this.getFromCache(cacheKey);
       if (cached) {
-        console.log(`💾 Cache hit for ${serviceName}`);
+        // (`💾 Cache hit for ${serviceName}`);
         return cached;
       }
     }
@@ -342,7 +342,7 @@ export class AIOrchestrator {
       }
 
       const executionTime = Date.now() - startTime;
-      console.log(`⚡ ${serviceName} completed in ${executionTime}ms`);
+      // (`⚡ ${serviceName} completed in ${executionTime}ms`);
 
       // 캐시 저장
       if (serviceConfig.cacheEnabled && result) {
@@ -352,7 +352,7 @@ export class AIOrchestrator {
       return result;
 
     } catch (error) {
-      console.error(`❌ ${serviceName} failed:`, error);
+      // (`❌ ${serviceName} failed:`, error);
       return null;
     }
   }
@@ -521,7 +521,19 @@ export class AIOrchestrator {
    */
   private generateCacheKey(serviceName: string, data: any): string {
     const key = `${serviceName}_${JSON.stringify(data.currentScores)}_${data.historicalData.length}`;
-    return Buffer.from(key).toString('base64').slice(0, 32);
+    // 브라우저 환경에서 Buffer 대신 btoa 사용
+    try {
+      return btoa(key).slice(0, 32);
+    } catch {
+      // btoa가 실패하면 단순 해시 사용
+      let hash = 0;
+      for (let i = 0; i < key.length; i++) {
+        const char = key.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return Math.abs(hash).toString(36).slice(0, 32);
+    }
   }
 
   private getFromCache(key: string): any {

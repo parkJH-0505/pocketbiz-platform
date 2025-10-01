@@ -3,6 +3,8 @@
  * 대용량 파일을 브라우저에 안전하게 저장하고 관리
  */
 
+import { generateFileChecksum } from './checksumService';
+
 export interface StoredFile {
   id: string;
   blob: Blob;
@@ -233,45 +235,11 @@ export class FileStorageService {
   }
 
   /**
-   * 파일 체크섬 생성 (청크 단위 처리로 성능 최적화)
+   * 파일 체크섬 생성 (Web Worker를 사용한 최적화 버전)
    */
-  static async generateChecksum(file: File | Blob): Promise<string> {
-    const chunkSize = 1024 * 1024; // 1MB 청크
-    const chunks = Math.ceil(file.size / chunkSize);
-    const hashBuffer: ArrayBuffer[] = [];
-
-    for (let i = 0; i < chunks; i++) {
-      const start = i * chunkSize;
-      const end = Math.min((i + 1) * chunkSize, file.size);
-      const chunk = file.slice(start, end);
-      const buffer = await chunk.arrayBuffer();
-
-      // SHA-256 해싱
-      const hash = await crypto.subtle.digest('SHA-256', buffer);
-      hashBuffer.push(hash);
-
-      // UI 블로킹 방지
-      if (i % 10 === 0) {
-        await new Promise(resolve => setTimeout(resolve, 0));
-      }
-    }
-
-    // 모든 청크의 해시를 결합
-    const totalLength = hashBuffer.reduce((acc, buf) => acc + buf.byteLength, 0);
-    const combined = new Uint8Array(totalLength);
-    let offset = 0;
-
-    for (const buffer of hashBuffer) {
-      combined.set(new Uint8Array(buffer), offset);
-      offset += buffer.byteLength;
-    }
-
-    // 최종 해시 생성
-    const finalHash = await crypto.subtle.digest('SHA-256', combined);
-    const hashArray = Array.from(new Uint8Array(finalHash));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-    return hashHex.substring(0, 16); // 처음 16자만 사용
+  static async generateChecksum(file: File | Blob, onProgress?: (progress: number) => void): Promise<string> {
+    // Phase 5.3: Web Worker를 사용한 체크섬 생성
+    return generateFileChecksum(file, onProgress);
   }
 }
 

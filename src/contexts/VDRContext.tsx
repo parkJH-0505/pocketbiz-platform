@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useBuildupContext } from './BuildupContext';
 import { useKPIDiagnosis } from './KPIDiagnosisContext';
 import { useCurrentUser } from './CurrentUserContext';
-import JSZip from 'jszip';
+// JSZip은 필요할 때 동적으로 import
 import { fileStorage, FileStorageService } from '../services/fileStorage';
+import { trackDocumentAccess, updateSessionActivity } from '../services/momentumTracker';
 
 export interface VDRDocument {
   id: string;
@@ -1039,8 +1040,8 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             name: '포켓전자 사업계획서.pdf',
             path: '/dummy/business-plan.pdf',
             size: 2048000,
-            uploadDate: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000), // 3주 전 (프로젝트 초기)
-            lastModified: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000),
+            uploadDate: new Date('2025-10-01T10:30:00'), // 계약중 단계 (10/1)
+            lastModified: new Date('2025-10-01T10:30:00'),
             category: 'business_plan',
             source: 'manual',
             visibility: 'team',
@@ -1079,8 +1080,8 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             name: 'IR_Deck_v2.1.pptx',
             path: '/dummy/ir-deck.pptx',
             size: 5120000,
-            uploadDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000), // 8일 전 (프로젝트 중기)
-            lastModified: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
+            uploadDate: new Date('2025-10-08T14:20:00'), // 기획 단계 (10/8)
+            lastModified: new Date('2025-10-08T14:20:00'),
             category: 'ir_deck',
             source: 'manual',
             visibility: 'public',
@@ -1140,8 +1141,8 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             name: '투자 유치 제안서_v3.2.pdf',
             path: '/dummy/investment-proposal-v3.2.pdf',
             size: 4200000,
-            uploadDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3일 전 (프로젝트 후기)
-            lastModified: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2일 전
+            uploadDate: new Date('2025-10-18T16:45:00'), // 설계 후반 (10/18)
+            lastModified: new Date('2025-10-19T09:30:00'),
             category: 'business_plan',
             source: 'manual',
             visibility: 'private',
@@ -1160,8 +1161,8 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             name: '경쟁사 분석 보고서.xlsx',
             path: '/dummy/competitor-analysis.xlsx',
             size: 1850000,
-            uploadDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000), // 14일 전 (프로젝트 중기)
-            lastModified: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+            uploadDate: new Date('2025-10-03T11:15:00'), // 계약완료 직전 (10/3)
+            lastModified: new Date('2025-10-03T11:15:00'),
             category: 'business_plan',
             source: 'manual',
             visibility: 'team',
@@ -1180,8 +1181,8 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             name: '투자자 피드백 정리.docx',
             path: '/dummy/investor-feedback.docx',
             size: 890000,
-            uploadDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5일 전 (프로젝트 후기)
-            lastModified: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4일 전
+            uploadDate: new Date('2025-10-13T15:50:00'), // 기획~설계 전환 시점 (10/13)
+            lastModified: new Date('2025-10-14T10:20:00'),
             category: 'vdr_upload',
             source: 'manual',
             visibility: 'private',
@@ -1530,6 +1531,77 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
+  // Phase 4.2: 고아 문서 처리 함수
+  const handleOrphanedDocuments = (projectId: string, action: 'unlink' | 'trash' | 'delete' = 'unlink') => {
+    setDocuments(currentDocs => {
+      const orphanedDocs = currentDocs.filter(doc => doc.projectId === projectId);
+
+      if (orphanedDocs.length === 0) {
+        console.log(`[VDR] No documents found for project: ${projectId}`);
+        return currentDocs;
+      }
+
+      console.log(`[VDR] Handling ${orphanedDocs.length} orphaned documents for project: ${projectId}`);
+
+      let updatedDocs = currentDocs;
+
+      switch (action) {
+        case 'unlink':
+          // 프로젝트 연결만 해제
+          updatedDocs = currentDocs.map(doc => {
+            if (doc.projectId === projectId) {
+              return {
+                ...doc,
+                projectId: undefined,
+                projectName: undefined,
+                tags: [...(doc.tags || []), 'orphaned', `ex-${projectId}`]
+              };
+            }
+            return doc;
+          });
+          console.log(`[VDR] Unlinked ${orphanedDocs.length} documents from project`);
+          break;
+
+        case 'trash':
+          // 휴지통으로 이동 (visibility를 'private'로 변경하고 태그 추가)
+          updatedDocs = currentDocs.map(doc => {
+            if (doc.projectId === projectId) {
+              return {
+                ...doc,
+                visibility: 'private' as VDRDocument['visibility'],
+                tags: [...(doc.tags || []), 'trashed', `deleted-${new Date().toISOString().split('T')[0]}`],
+                customFields: {
+                  ...doc.customFields,
+                  trashedAt: new Date().toISOString(),
+                  trashedFromProject: projectId
+                }
+              };
+            }
+            return doc;
+          });
+          console.log(`[VDR] Moved ${orphanedDocs.length} documents to trash`);
+          break;
+
+        case 'delete':
+          // 완전 삭제 (IndexedDB 파일도 삭제)
+          orphanedDocs.forEach(async (doc) => {
+            if (doc.storageType === 'indexedDB' && doc.storageKey) {
+              await fileStorage.deleteFile(doc.storageKey);
+            }
+          });
+          updatedDocs = currentDocs.filter(doc => doc.projectId !== projectId);
+          console.log(`[VDR] Permanently deleted ${orphanedDocs.length} documents`);
+          break;
+      }
+
+      // localStorage 업데이트
+      const manualDocs = updatedDocs.filter(d => d.source === 'manual');
+      localStorage.setItem('vdr_documents', JSON.stringify(manualDocs));
+
+      return updatedDocs;
+    });
+  };
+
   // 초기 로드 시 문서 집계
   useEffect(() => {
     aggregateDocuments();
@@ -1558,6 +1630,18 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     window.addEventListener('project-file-upload-request', handleProjectUploadRequest as EventListener);
+
+    // Phase 4: 프로젝트 삭제 이벤트 리스너
+    const handleProjectDeleted = (event: CustomEvent) => {
+      const { projectId, projectTitle } = event.detail;
+      console.log(`[VDR] Project deletion event received: ${projectTitle} (${projectId})`);
+
+      // 기본적으로 'unlink' 액션 사용 (프로젝트 연결만 해제)
+      // 필요시 'trash' 또는 'delete'로 변경 가능
+      handleOrphanedDocuments(projectId, 'unlink');
+    };
+
+    window.addEventListener('project:deleted', handleProjectDeleted as EventListener);
 
     // 개발용 더미 세션 추가
     if (sharedSessions.length === 0) {
@@ -1797,8 +1881,9 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Cleanup: 이벤트 리스너 제거
     return () => {
       window.removeEventListener('project-file-upload-request', handleProjectUploadRequest as EventListener);
+      window.removeEventListener('project:deleted', handleProjectDeleted as EventListener);
     };
-  }, []); // 의존성 배열에서 projects 제거하여 순환 참조 방지
+  }, []); // 이벤트 리스너는 한 번만 설정
 
   // 세션이 변경될 때마다 문서-세션 연결 업데이트
   useEffect(() => {
@@ -2180,6 +2265,10 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           )
         );
 
+        // 모멘텀 시스템에 문서 다운로드 추적
+        trackDocumentAccess(doc.id, 'download');
+        updateSessionActivity();
+
         // 접근 로그 기록
         recordAccessLog(doc.id, 'download', true, {
           details: {
@@ -2345,6 +2434,10 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           });
 
+          // 모멘텀 시스템에 문서 조회 추적
+          trackDocumentAccess(docId, 'view');
+          updateSessionActivity();
+
           return {
             ...doc,
             viewCount: newViewCount,
@@ -2435,6 +2528,10 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return doc;
       }));
 
+      // 모멘텀 시스템에 문서 다운로드 추적
+      trackDocumentAccess(docId, 'download');
+      updateSessionActivity();
+
       // 강화된 다운로드 로그 기록
       recordAccessLog(docId, 'download', true, {
         details: {
@@ -2471,7 +2568,8 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       console.log(`[VDR] Creating ZIP with ${docIds.length} documents`);
 
-      // JSZip 인스턴스 생성
+      // JSZip 동적 import
+      const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
 
       // 각 문서를 ZIP에 추가
@@ -2520,6 +2618,10 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
           return doc;
         }));
+
+        // 모멘텀 시스템에 문서 다운로드 추적
+        trackDocumentAccess(docId, 'download');
+        updateSessionActivity();
       }
 
       // 메타데이터 파일 추가
@@ -3384,7 +3486,6 @@ export const VDRProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     deleteDocument,
     searchDocuments,
     getDocumentsByCategory,
-    downloadDocument,
     downloadMultipleDocuments,
     viewDocument,
     getRepresentativeDocumentsForProfile,

@@ -20,13 +20,15 @@ interface DailySurpriseProps {
   className?: string;
 }
 
+// 임시 데이터를 컴포넌트 외부로 이동 (매번 새로 생성되는 것을 방지)
+const TEMP_SCORES = { kpi1: 72, kpi2: 85, kpi3: 68 };
+
 const DailySurprise: React.FC<DailySurpriseProps> = ({
   className = ""
 }) => {
   const { projects, services } = useBuildupContext();
   // const { scores } = useKPIDiagnosisContext(); // TODO: Context export 필요
-  const scores = { kpi1: 72, kpi2: 85, kpi3: 68 }; // 임시 하드코딩
-  const [surprise, setSurprise] = useState<SurpriseContent | null>(null);
+  const scores = TEMP_SCORES; // 임시 하드코딩 (안정된 참조)
   const [showDetails, setShowDetails] = useState(false);
 
   // 서프라이즈 콘텐츠 생성
@@ -139,14 +141,15 @@ const DailySurprise: React.FC<DailySurpriseProps> = ({
     return contents;
   }, [projects, services, scores]);
 
-  // 최고 우선순위 콘텐츠 선택
-  useEffect(() => {
-    if (generateSurpriseContent.length > 0) {
-      const bestContent = generateSurpriseContent.reduce((prev, current) =>
+  // 최고 우선순위 콘텐츠 선택 - useMemo로 직접 계산 (useEffect 제거)
+  const surprise = useMemo(() => {
+    const contents = generateSurpriseContent;
+    if (contents.length > 0) {
+      return contents.reduce((prev, current) =>
         current.priority > prev.priority ? current : prev
       );
-      setSurprise(bestContent);
     }
+    return null;
   }, [generateSurpriseContent]);
 
   if (!surprise) {

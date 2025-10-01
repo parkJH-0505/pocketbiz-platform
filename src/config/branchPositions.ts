@@ -14,7 +14,7 @@ import type { BranchStyle, BranchLayoutConfig } from '../types/branch-timeline.t
  */
 export const BRANCH_CONFIGURATIONS: Record<FeedType, BranchStyle> = {
   file: {
-    offsetX: 180,
+    offsetX: 450, // 왼쪽 패널(300) + 150
     color: '#3B82F6', // Blue-500 - 신뢰성, 안정성
     secondaryColor: '#DBEAFE', // Blue-100
     strokeWidth: 2,
@@ -29,7 +29,7 @@ export const BRANCH_CONFIGURATIONS: Record<FeedType, BranchStyle> = {
   },
 
   meeting: {
-    offsetX: 280,
+    offsetX: 550, // 왼쪽 패널(300) + 250
     color: '#10B981', // Emerald-500 - 성장, 진행
     secondaryColor: '#D1FAE5', // Emerald-100
     strokeWidth: 3,
@@ -44,7 +44,7 @@ export const BRANCH_CONFIGURATIONS: Record<FeedType, BranchStyle> = {
   },
 
   comment: {
-    offsetX: 140,
+    offsetX: 400, // 왼쪽 패널(300) + 100
     color: '#8B5CF6', // Violet-500 - 창의성, 소통
     secondaryColor: '#EDE9FE', // Violet-100
     strokeWidth: 1.5,
@@ -59,7 +59,7 @@ export const BRANCH_CONFIGURATIONS: Record<FeedType, BranchStyle> = {
   },
 
   todo: {
-    offsetX: 220,
+    offsetX: 500, // 왼쪽 패널(300) + 200
     color: '#F59E0B', // Amber-500 - 주의, 액션
     secondaryColor: '#FEF3C7', // Amber-100
     strokeWidth: 2,
@@ -74,7 +74,7 @@ export const BRANCH_CONFIGURATIONS: Record<FeedType, BranchStyle> = {
   },
 
   progress: {
-    offsetX: 320,
+    offsetX: 600, // 왼쪽 패널(300) + 300
     color: '#EF4444', // Red-500 - 긴급, 중요
     secondaryColor: '#FEE2E2', // Red-100
     strokeWidth: 4,
@@ -89,7 +89,7 @@ export const BRANCH_CONFIGURATIONS: Record<FeedType, BranchStyle> = {
   },
 
   team: {
-    offsetX: 160,
+    offsetX: 425, // 왼쪽 패널(300) + 125
     color: '#6366F1', // Indigo-500 - 팀워크, 협업
     secondaryColor: '#E0E7FF', // Indigo-100
     strokeWidth: 2,
@@ -118,7 +118,7 @@ export const BRANCH_LAYOUT_CONFIG: BranchLayoutConfig = {
   expandedNodeMaxWidth: 400, // 확장 시 최대 너비
 
   // 전체 레이아웃 설정
-  timelineWidth: 450, // 전체 브랜치 영역 너비
+  timelineWidth: 800, // 전체 브랜치 영역 너비 (왼쪽 패널 300 + 노드 영역 500)
   stageMinHeight: 180, // 각 단계별 최소 높이
 
   // 충돌 감지 설정
@@ -299,9 +299,9 @@ export const ACCESSIBILITY_CONFIG = {
  * 디버그 모드 설정
  */
 export const DEBUG_CONFIG = {
-  enabled: false,
-  showCollisionBoxes: false,
-  showGridLines: false,
-  showPerformanceMetrics: false,
-  logPositionCalculations: false
+  enabled: process.env.NODE_ENV === 'development',
+  showCollisionBoxes: true,
+  showGridLines: true,
+  showPerformanceMetrics: true,
+  logPositionCalculations: true
 };

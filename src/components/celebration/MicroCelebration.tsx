@@ -21,7 +21,8 @@ import {
   Flame,
   Gift
 } from 'lucide-react';
-import { celebrationTrigger, CelebrationConfig, CelebrationLevel } from '../../services/celebrationTrigger';
+import { celebrationTrigger } from '../../services/celebrationTrigger';
+import type { CelebrationConfig, CelebrationLevel } from '../../services/celebrationTrigger';
 
 interface MicroCelebrationProps {
   config: CelebrationConfig;

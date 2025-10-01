@@ -44,6 +44,7 @@ import {
 } from '../types/events.types';
 import { mockProjects, defaultBusinessSupportPM } from '../data/mockProjects';
 import { mockMeetingRecords } from '../data/mockMeetingData';
+import { trackTaskCompletion, updateSessionActivity } from '../services/momentumTracker';
 import {
   calculatePhaseProgress,
   PHASE_INFO,
@@ -2453,10 +2454,20 @@ export function BuildupProvider({ children }: { children: ReactNode }) {
 
     // Ecosystem Integration
     reportMilestoneCompleted: async (projectId: string, milestoneId: string, kpiImpact: Partial<Record<AxisKey, number>>, completedBy: string) => {
+      // 모멘텀 시스템에 작업 완료 추적
+      trackTaskCompletion(milestoneId, projectId);
+      updateSessionActivity();
+
       await buildupEcosystemConnector.reportMilestoneCompleted(projectId, milestoneId, kpiImpact, completedBy);
     },
 
     reportProjectStatusChanged: async (projectId: string, oldStatus: string, newStatus: string, reason?: string) => {
+      // 프로젝트 완료 시 모멘텀 시스템에 추적
+      if (newStatus === 'completed' && oldStatus !== 'completed') {
+        trackTaskCompletion(`project-${projectId}`, projectId);
+        updateSessionActivity();
+      }
+
       await buildupEcosystemConnector.reportProjectStatusChanged(projectId, oldStatus, newStatus, reason);
     },
 

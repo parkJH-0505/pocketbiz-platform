@@ -370,17 +370,17 @@ const AdvancedSimulatorComponent: React.FC = () => {
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-3">
-                            <div className="text-sm text-gray-600">{baseline.toFixed(1)}</div>
+                            <div className="text-sm text-gray-600">{Math.round(baseline)}</div>
                             <ArrowRight size={16} className="text-gray-400" />
                             <div className={`text-sm font-semibold ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {score.toFixed(1)}
+                              {Math.round(score)}
                             </div>
                             <div className={`text-xs px-2 py-1 rounded ${change >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                              {change >= 0 ? '+' : ''}{change.toFixed(1)}
+                              {change >= 0 ? '+' : ''}{Math.round(change)}
                             </div>
                           </div>
                           <div className="text-xs text-gray-500 mt-1">
-                            95% 신뢰구간: {confidence.lower.toFixed(1)} ~ {confidence.upper.toFixed(1)}
+                            95% 신뢰구간: {Math.round(confidence.lower)} ~ {Math.round(confidence.upper)}
                           </div>
                         </div>
                       </div>
@@ -397,7 +397,7 @@ const AdvancedSimulatorComponent: React.FC = () => {
                     <div key={axis} className="text-center p-4 bg-gray-50 rounded-lg">
                       <div className={`w-3 h-3 ${getAxisColor(axis as AxisKey)} rounded-full mx-auto mb-2`} />
                       <div className="text-sm font-medium text-gray-700">{getAxisName(axis as AxisKey)}</div>
-                      <div className="text-lg font-bold text-gray-900">{volatility.toFixed(1)}%</div>
+                      <div className="text-lg font-bold text-gray-900">{Math.round(volatility)}%</div>
                       <div className="text-xs text-gray-500">변동성</div>
                     </div>
                   ))}
@@ -423,7 +423,7 @@ const AdvancedSimulatorComponent: React.FC = () => {
                           </span>
                         </div>
                         <div className="text-xs text-blue-700 mt-1">
-                          영향도: {(effect.magnitude * 100 - 100).toFixed(0)}%, 대상: {effect.affectedAxes.join(', ')}
+                          영향도: {Math.round((effect.magnitude * 100 - 100))}%, 대상: {effect.affectedAxes.join(', ')}
                         </div>
                       </div>
                     ))}

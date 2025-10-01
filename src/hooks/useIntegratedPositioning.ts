@@ -161,7 +161,7 @@ export const useIntegratedPositioning = (
     }
   }, [viewportState.height, finalConfig.autoRecalculate]);
 
-  // 디바운스된 계산 함수
+  // 디바운스된 계산 함수 (의존성 최소화)
   const debouncedCalculation = useMemo(
     () => debounce(async (
       feedsToCalculate: FeedItem[],
@@ -177,7 +177,7 @@ export const useIntegratedPositioning = (
           isCalculating: false,
           lastCalculated: new Date(),
           metrics: {
-            totalHeight: result.positionedFeeds.length * 60, // 대략적 계산
+            totalHeight: result.positionedFeeds.length * 60,
             viewportHeight: viewportState.height,
             scrollPosition: viewportState.scrollTop,
             visibleStages: Object.keys(stages) as ProjectPhase[],
@@ -187,20 +187,21 @@ export const useIntegratedPositioning = (
               renderedNodes: result.positionedFeeds.length,
               totalNodes: feedsToCalculate.length,
               lastRenderTime: performanceRef.current.lastCalculationTime,
-              averageFps: 60 // 기본값, 실제로는 별도 측정 필요
+              averageFps: 60
             }
           }
         }));
       }
     }, finalConfig.debounceDelay),
-    [calculateLayout, finalConfig.debounceDelay, viewportState.height, viewportState.scrollTop]
+    [calculateLayout, finalConfig.debounceDelay]
   );
 
-  // 뷰포트 내 가시 피드 계산
+  // 뷰포트 내 가시 피드 계산 (의존성 제거)
   const calculateVisibleFeeds = useCallback((
-    allFeeds: FeedItemWithPosition[]
+    allFeeds: FeedItemWithPosition[],
+    scrollTop: number,
+    height: number
   ): FeedItemWithPosition[] => {
-    const { scrollTop, height } = viewportState;
     const buffer = finalConfig.viewportBuffer;
 
     return branchLayoutEngine.filterVisibleFeeds(
@@ -208,21 +209,41 @@ export const useIntegratedPositioning = (
       scrollTop - buffer,
       height + (buffer * 2)
     );
-  }, [viewportState, finalConfig.viewportBuffer]);
+  }, [finalConfig.viewportBuffer]);
 
-  // 가시 피드 업데이트 (디바운스 없이 즉시)
+  // 가시 피드 업데이트 (무한루프 방지)
   useEffect(() => {
-    const visibleFeeds = calculateVisibleFeeds(state.positionedFeeds);
+    if (state.positionedFeeds.length === 0) return;
 
-    setState(prev => ({
-      ...prev,
-      visibleFeeds
-    }));
-  }, [state.positionedFeeds, calculateVisibleFeeds]);
+    const visibleFeeds = calculateVisibleFeeds(
+      state.positionedFeeds,
+      viewportState.scrollTop,
+      viewportState.height
+    );
+
+    // 이전 값과 비교하여 다르면만 업데이트
+    setState(prev => {
+      if (prev.visibleFeeds.length !== visibleFeeds.length ||
+          prev.visibleFeeds.some((feed, index) => feed.id !== visibleFeeds[index]?.id)) {
+        return {
+          ...prev,
+          visibleFeeds
+        };
+      }
+      return prev;
+    });
+  }, [state.positionedFeeds, viewportState.scrollTop, viewportState.height, calculateVisibleFeeds]);
 
   // 메인 계산 트리거
   useEffect(() => {
+    console.log('🔧 useIntegratedPositioning 계산 트리거:', {
+      feedsCount: feeds.length,
+      stagePositionsCount: Object.keys(stagePositions).length,
+      viewportHeight: viewportState.height
+    });
+
     if (!feeds.length || !Object.keys(stagePositions).length) {
+      console.log('⚠️ 계산 조건 불충족 - 빈 상태로 설정');
       setState(prev => ({
         ...prev,
         positionedFeeds: [],
@@ -245,16 +266,40 @@ export const useIntegratedPositioning = (
 
   }, [feeds, stagePositions, debouncedCalculation]);
 
-  // 뷰포트 변경 시 가시 피드 재계산 (스크롤 시)
+  // 스크롤 전용 가시 피드 업데이트 (중복 제거)
+  const prevScrollRef = useRef({ scrollTop: 0, scrollLeft: 0 });
   useEffect(() => {
-    if (state.positionedFeeds.length > 0) {
-      const visibleFeeds = calculateVisibleFeeds(state.positionedFeeds);
-      setState(prev => ({
-        ...prev,
-        visibleFeeds
-      }));
+    // 스크롤 위치가 실제로 변경되었는지 확인
+    const prev = prevScrollRef.current;
+    if (prev.scrollTop === viewportState.scrollTop &&
+        prev.scrollLeft === viewportState.scrollLeft) {
+      return;
     }
-  }, [viewportState.scrollTop, viewportState.scrollLeft, calculateVisibleFeeds, state.positionedFeeds]);
+
+    prevScrollRef.current = {
+      scrollTop: viewportState.scrollTop,
+      scrollLeft: viewportState.scrollLeft
+    };
+
+    if (state.positionedFeeds.length > 0) {
+      const visibleFeeds = calculateVisibleFeeds(
+        state.positionedFeeds,
+        viewportState.scrollTop,
+        viewportState.height
+      );
+
+      setState(prev => {
+        if (prev.visibleFeeds.length !== visibleFeeds.length ||
+            prev.visibleFeeds.some((feed, index) => feed.id !== visibleFeeds[index]?.id)) {
+          return {
+            ...prev,
+            visibleFeeds
+          };
+        }
+        return prev;
+      });
+    }
+  }, [viewportState.scrollTop, viewportState.scrollLeft, state.positionedFeeds, calculateVisibleFeeds]);
 
   // 강제 재계산 함수
   const forceRecalculate = useCallback(() => {

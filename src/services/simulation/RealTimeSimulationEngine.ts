@@ -140,7 +140,7 @@ export class RealTimeSimulationEngine extends BrowserEventEmitter {
       return;
     }
 
-    console.log('🚀 Starting real-time simulation engine');
+    // ('🚀 Starting real-time simulation engine');
     this.isRunning = true;
 
     // 정기 업데이트 스케줄링
@@ -160,7 +160,7 @@ export class RealTimeSimulationEngine extends BrowserEventEmitter {
   stop(): void {
     if (!this.isRunning) return;
 
-    console.log('⏹️ Stopping real-time simulation engine');
+    // ('⏹️ Stopping real-time simulation engine');
     this.isRunning = false;
 
     if (this.updateTimer) {
@@ -180,7 +180,7 @@ export class RealTimeSimulationEngine extends BrowserEventEmitter {
     }
 
     this.scenarios.set(scenario.id, scenario);
-    console.log(`📊 Added scenario: ${scenario.name}`);
+    // (`📊 Added scenario: ${scenario.name}`);
 
     if (scenario.active && this.isRunning) {
       this.runScenario(scenario.id);
@@ -195,7 +195,7 @@ export class RealTimeSimulationEngine extends BrowserEventEmitter {
   removeScenario(scenarioId: string): void {
     if (this.scenarios.delete(scenarioId)) {
       this.activeResults.delete(scenarioId);
-      console.log(`🗑️ Removed scenario: ${scenarioId}`);
+      // (`🗑️ Removed scenario: ${scenarioId}`);
       this.emit('scenarioRemoved', scenarioId);
     }
   }

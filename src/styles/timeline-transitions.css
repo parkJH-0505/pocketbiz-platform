@@ -1,0 +1,487 @@
+/**
+ * @fileoverview 타임라인 전환 효과 및 상태 변화 애니메이션
+ * @description 스크롤, 필터링, 로딩 상태에 대한 부드러운 전환 효과
+ * @author PocketCompany
+ * @since 2025-01-20
+ */
+
+/* ===== 스크롤 기반 부드러운 전환 ===== */
+
+.timeline-scroll-container {
+  scroll-behavior: smooth;
+  transition: scroll-padding 0.3s ease;
+}
+
+/* 스크롤 인디케이터 */
+.scroll-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #3B82F6, #10B981, #F59E0B);
+  transform-origin: left;
+  transition: transform 0.1s ease;
+  z-index: 1000;
+}
+
+/* 스크롤 위치 기반 요소 페이드 */
+.scroll-fade-element {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.scroll-fade-element.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 시차 스크롤 효과 */
+.parallax-background {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.parallax-midground {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.parallax-foreground {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* ===== 필터 변경 시 애니메이션 ===== */
+
+.filter-transition-container {
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* 필터링 중 로딩 상태 */
+.filtering-loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.filtering-loading::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(59, 130, 246, 0.1),
+    transparent
+  );
+  animation: filterSweep 1s ease-in-out;
+}
+
+@keyframes filterSweep {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* 필터 적용/해제 애니메이션 */
+.branch-node.filter-out {
+  animation: filterOut 0.3s ease-in-out forwards;
+}
+
+.branch-node.filter-in {
+  animation: filterIn 0.3s ease-in-out forwards;
+}
+
+@keyframes filterOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    filter: grayscale(0);
+  }
+  50% {
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+    filter: grayscale(1);
+  }
+}
+
+@keyframes filterIn {
+  0% {
+    opacity: 0.2;
+    transform: scale(0.8);
+    filter: grayscale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: grayscale(0);
+  }
+}
+
+/* 그룹 필터링 효과 */
+.timeline-group.group-filtered {
+  transition: all 0.5s ease;
+  background: rgba(59, 130, 246, 0.05);
+  border-radius: 12px;
+  padding: 8px;
+  margin: 4px 0;
+}
+
+.timeline-group.group-hidden {
+  opacity: 0;
+  transform: scaleY(0);
+  margin: 0;
+  padding: 0;
+  transition: all 0.3s ease;
+}
+
+/* ===== 로딩 상태 시각적 피드백 ===== */
+
+.timeline-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.timeline-loading-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* 로딩 스피너 */
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f4f6;
+  border-top: 3px solid #3B82F6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 스켈레톤 로딩 */
+.skeleton-timeline {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e0e0e0 50%,
+    #f0f0f0 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ===== 데이터 업데이트 전환 ===== */
+
+.data-update-transition {
+  position: relative;
+}
+
+.data-update-transition.updating {
+  animation: dataUpdate 0.6s ease-in-out;
+}
+
+@keyframes dataUpdate {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  25% {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.95);
+  }
+  75% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+/* 새 데이터 하이라이트 */
+.new-data-highlight {
+  animation: newDataPulse 2s ease-in-out;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 8px;
+}
+
+@keyframes newDataPulse {
+  0%, 100% {
+    background: transparent;
+    transform: scale(1);
+  }
+  25% {
+    background: rgba(16, 185, 129, 0.2);
+    transform: scale(1.02);
+  }
+  50% {
+    background: rgba(16, 185, 129, 0.1);
+    transform: scale(1.01);
+  }
+}
+
+/* ===== 뷰 전환 애니메이션 ===== */
+
+.view-transition-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.view-slide-in {
+  animation: slideInRight 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.view-slide-out {
+  animation: slideOutLeft 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes slideInRight {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutLeft {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+/* 페이드 전환 */
+.view-fade-in {
+  animation: fadeIn 0.3s ease;
+}
+
+.view-fade-out {
+  animation: fadeOut 0.3s ease;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ===== 확대/축소 전환 ===== */
+
+.zoom-transition {
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.zoom-in {
+  animation: zoomIn 0.4s ease;
+}
+
+.zoom-out {
+  animation: zoomOut 0.4s ease;
+}
+
+@keyframes zoomIn {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes zoomOut {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+}
+
+/* ===== 연결선 동적 업데이트 ===== */
+
+.branch-path.path-updating {
+  stroke-dasharray: 5 5;
+  animation: pathUpdate 0.8s ease-in-out;
+}
+
+@keyframes pathUpdate {
+  0%, 100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  50% {
+    stroke-dashoffset: 10;
+    opacity: 0.7;
+  }
+}
+
+/* ===== 오류 상태 전환 ===== */
+
+.error-state {
+  animation: errorShake 0.5s ease-in-out;
+}
+
+@keyframes errorShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+.error-fade-in {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  animation: errorFadeIn 0.4s ease;
+}
+
+@keyframes errorFadeIn {
+  0% {
+    background: transparent;
+    border-color: transparent;
+  }
+  100% {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+}
+
+/* ===== 성공 상태 전환 ===== */
+
+.success-state {
+  animation: successPulse 0.6s ease;
+}
+
+@keyframes successPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+  }
+}
+
+/* ===== 반응형 전환 조정 ===== */
+
+@media (max-width: 768px) {
+  .view-slide-in,
+  .view-slide-out {
+    animation-duration: 0.3s;
+  }
+
+  .data-update-transition.updating {
+    animation-duration: 0.4s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-scroll-container {
+    scroll-behavior: auto;
+  }
+
+  .filter-transition-container,
+  .data-update-transition,
+  .view-transition-container {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .branch-node.filter-out,
+  .branch-node.filter-in {
+    animation: none !important;
+    transition: opacity 0.1s ease !important;
+  }
+}
+
+/* ===== 고성능 전환 최적화 ===== */
+
+.timeline-container {
+  contain: layout style paint;
+  will-change: auto;
+}
+
+.transition-active {
+  will-change: transform, opacity;
+}
+
+.transition-complete {
+  will-change: auto;
+}
+
+/* GPU 레이어 분리 */
+.hardware-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000;
+}

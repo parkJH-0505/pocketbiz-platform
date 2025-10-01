@@ -82,7 +82,15 @@ export class PredictiveModelOptimizer {
     horizon: number,
     config?: Partial<ModelConfig>
   ): Promise<PredictionResult> {
-    console.log('🔮 Starting optimized prediction...');
+    // 데이터 유효성 검사
+    if (!data || data.length === 0) {
+      return {
+        predictions: [],
+        accuracy: { overall: 0, byAxis: {} as Record<AxisKey, number> },
+        confidence: { overall: 0, byAxis: {} as Record<AxisKey, number> },
+        improvements: []
+      };
+    }
 
     // 1. 데이터 전처리 및 특징 추출
     const processedData = await this.preprocessData(data);
@@ -103,7 +111,7 @@ export class PredictiveModelOptimizer {
     // 6. 개선점 분석
     const improvements = this.analyzeImprovements(accuracy, model, processedData);
 
-    console.log('✅ Prediction completed with accuracy:', accuracy.overall.toFixed(2));
+    // Prediction completed with accuracy
 
     return {
       predictions,
@@ -553,7 +561,15 @@ export class PredictiveModelOptimizer {
     confidence: Record<AxisKey, number>;
   }>> {
     const predictions = [];
-    const lastTimestamp = data[data.length - 1].timestamp;
+    // data가 비어있거나 timestamp가 없는 경우 처리
+    if (!data || data.length === 0) {
+      return [];
+    }
+    const lastDataPoint = data[data.length - 1];
+    if (!lastDataPoint || !lastDataPoint.timestamp) {
+      return [];
+    }
+    const lastTimestamp = lastDataPoint.timestamp;
     const dayInMs = 24 * 60 * 60 * 1000;
 
     // 모델별 예측 수행

@@ -3,13 +3,14 @@
  * 기본 What-if 시뮬레이션 + 고급 시뮬레이터 통합
  */
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, Settings, Brain, TrendingUp, ArrowRight, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Zap, Settings, Brain, TrendingUp, ArrowRight, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useV2Store } from '../../store/useV2Store';
 import { SimulationControls } from '../SimulationControls';
-import { AdvancedSimulator } from '../AdvancedSimulator';
 import { ScoreChanges } from '../ScoreChanges';
+// 최적화된 AdvancedSimulator import
+import { OptimizedAdvancedSimulator, useResourceMonitor } from './OptimizedComponents';
 import { SkeletonCard } from '../LoadingOverlay';
 // 절대 경로로 Card 컴포넌트 import
 const Card = ({ children, variant = 'default', ...props }: any) => (
@@ -35,8 +36,9 @@ const CardHeader = ({ title, subtitle, action, ...props }: any) => (
 type SimulationMode = 'basic' | 'advanced';
 
 export const SimulationTab: React.FC = () => {
-  const { simulation, viewState, data } = useV2Store();
+  const { simulation, viewState, data, resetSimulation } = useV2Store();
   const [mode, setMode] = useState<SimulationMode>('basic');
+  const resourceStatus = useResourceMonitor();
 
   const currentScore = data?.current.overall || 0;
   const projectedScore = simulation.calculatedScore || currentScore;
@@ -181,7 +183,34 @@ export const SimulationTab: React.FC = () => {
                 </p>
               </div>
               <div className="p-6">
-                <AdvancedSimulator />
+                {/* 최적화된 AdvancedSimulator 사용 */}
+                {resourceStatus.isHealthy ? (
+                  <Suspense fallback={
+                    <div className="flex items-center justify-center py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-main border-t-transparent mr-3"></div>
+                      <span className="text-neutral-gray">고급 시뮬레이터 로딩 중...</span>
+                    </div>
+                  }>
+                    <OptimizedAdvancedSimulator
+                      scores={data?.current.scores || {}}
+                      onSimulate={(results: any) => {
+                        // 시뮬레이션 결과 처리
+                        console.log('Advanced simulation results:', results);
+                      }}
+                    />
+                  </Suspense>
+                ) : (
+                  <div className="text-center py-12">
+                    <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">리소스 부족</h3>
+                    <p className="text-gray-600">
+                      시스템 리소스가 부족합니다. 다른 탭을 닫고 다시 시도해주세요.
+                    </p>
+                    <div className="mt-4 text-sm text-gray-500">
+                      메모리 사용률: {resourceStatus.memoryUsage}%
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>

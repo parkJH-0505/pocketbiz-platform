@@ -287,19 +287,19 @@ const InsightCard: React.FC<{
                       <div className="text-center">
                         <p className="text-xs text-neutral-gray">영향도</p>
                         <p className="text-lg font-bold text-primary-main">
-                          {insight.metrics.impact.toFixed(0)}%
+                          {Math.round(insight.metrics.impact)}%
                         </p>
                       </div>
                       <div className="text-center">
                         <p className="text-xs text-neutral-gray">신뢰도</p>
                         <p className="text-lg font-bold text-accent-indigo">
-                          {(insight.metrics.confidence * 100).toFixed(0)}%
+                          {Math.round(insight.metrics.confidence * 100)}%
                         </p>
                       </div>
                       <div className="text-center">
                         <p className="text-xs text-neutral-gray">관련성</p>
                         <p className="text-lg font-bold text-accent-green">
-                          {(insight.metrics.relevance * 100).toFixed(0)}%
+                          {Math.round(insight.metrics.relevance * 100)}%
                         </p>
                       </div>
                     </div>
@@ -336,14 +336,14 @@ const PatternsList: React.FC<{ patterns: any[]; anomalies: any[] }> = ({ pattern
                   {pattern.type.replace(/_/g, ' ').toUpperCase()}
                 </span>
                 <span className="text-xs px-2 py-1 bg-primary-main/10 text-primary-main rounded-full">
-                  신뢰도 {(pattern.confidence * 100).toFixed(0)}%
+                  신뢰도 {Math.round(pattern.confidence * 100)}%
                 </span>
               </div>
               <p className="text-xs text-neutral-gray">
                 영향 축: {pattern.affectedAxes.join(', ')}
               </p>
               <p className="text-xs text-neutral-gray mt-1">
-                강도: {pattern.magnitude.toFixed(1)}
+                강도: {Math.round(pattern.magnitude)}
               </p>
             </div>
           ))}
@@ -361,7 +361,7 @@ const PatternsList: React.FC<{ patterns: any[]; anomalies: any[] }> = ({ pattern
                     {anomaly.axis} 축 이상 감지
                   </span>
                   <span className="text-xs px-2 py-1 bg-accent-red/10 text-accent-red rounded-full">
-                    심각도 {(anomaly.severity * 100).toFixed(0)}%
+                    심각도 {Math.round(anomaly.severity * 100)}%
                   </span>
                 </div>
                 <p className="text-xs text-neutral-gray mt-1">
@@ -391,13 +391,13 @@ const SimulationResults: React.FC<{ simulation: any }> = ({ simulation }) => {
         />
         <StatCard
           label="성공 확률"
-          value={(simulation.statistics?.mean?.GO || 0).toFixed(1)}
+          value={Math.round(simulation.statistics?.mean?.GO || 0).toString()}
           unit="%"
           color="green"
         />
         <StatCard
           label="리스크 수준"
-          value={simulation.riskMetrics?.correlationRisk ? (simulation.riskMetrics.correlationRisk * 100).toFixed(0) : '0'}
+          value={simulation.riskMetrics?.correlationRisk ? Math.round(simulation.riskMetrics.correlationRisk * 100).toString() : '0'}
           unit="%"
           color="red"
         />
@@ -448,10 +448,10 @@ const PredictionResults: React.FC<{ prediction: any; goalCalculations: any }> = 
                 <div key={axis} className="text-center">
                   <p className="text-xs text-neutral-gray mb-1">{axis}</p>
                   <p className="text-lg font-bold text-primary-main">
-                    {prediction.predictions?.[0]?.scores?.[axis]?.toFixed(1) || '-'}
+                    {prediction.predictions?.[0]?.scores?.[axis] ? Math.round(prediction.predictions[0].scores[axis]) : '-'}
                   </p>
                   <p className="text-xs text-neutral-gray">
-                    ±{((1 - (prediction.predictions?.[0]?.confidence?.[axis] || 0.5)) * 10).toFixed(1)}
+                    ±{Math.round((1 - (prediction.predictions?.[0]?.confidence?.[axis] || 0.5)) * 10)}
                   </p>
                 </div>
               ))}
@@ -459,7 +459,7 @@ const PredictionResults: React.FC<{ prediction: any; goalCalculations: any }> = 
             <div className="pt-3 border-t border-neutral-200">
               <p className="text-sm text-neutral-gray">
                 전체 정확도: <span className="font-semibold text-primary-main">
-                  {((prediction.accuracy?.overall || 0) * 100).toFixed(1)}%
+                  {Math.round((prediction.accuracy?.overall || 0) * 100)}%
                 </span>
               </p>
             </div>
@@ -486,8 +486,8 @@ const PredictionResults: React.FC<{ prediction: any; goalCalculations: any }> = 
                   </span>
                 </div>
                 <div className="text-xs text-neutral-gray">
-                  <p>현재: {change.currentScore.toFixed(1)} → 목표: {change.targetScore.toFixed(1)}</p>
-                  <p>필요 개선: +{change.requiredImprovement.toFixed(1)}점 (일일 {change.dailyRate.toFixed(2)}점)</p>
+                  <p>현재: {Math.round(change.currentScore)} → 목표: {Math.round(change.targetScore)}</p>
+                  <p>필요 개선: +{Math.round(change.requiredImprovement)}점 (일일 {Math.round(change.dailyRate * 10) / 10}점)</p>
                 </div>
               </div>
             ))}

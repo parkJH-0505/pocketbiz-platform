@@ -189,7 +189,7 @@ export const useAdvancedAI = (
     const startTime = Date.now();
 
     try {
-      console.log('🤖 Starting comprehensive AI analysis...');
+      // ('🤖 Starting comprehensive AI analysis...');
 
       // 1. AI Orchestrator 실행
       const orchestratorResult = await orchestrator.current.runAnalysis({
@@ -263,10 +263,10 @@ export const useAdvancedAI = (
         performanceMetrics
       }));
 
-      console.log(`✅ Comprehensive AI analysis completed in ${Date.now() - startTime}ms`);
+      // (`✅ Comprehensive AI analysis completed in ${Date.now() - startTime}ms`);
 
     } catch (error) {
-      console.error('Comprehensive AI analysis failed:', error);
+      // ('Comprehensive AI analysis failed:', error);
       setState(prev => ({
         ...prev,
         isLoading: false,
@@ -310,7 +310,7 @@ export const useAdvancedAI = (
           break;
       }
     } catch (error) {
-      console.error(`${type} analysis failed:`, error);
+      // (`${type} analysis failed:`, error);
       setState(prev => ({
         ...prev,
         isLoading: false,
@@ -349,7 +349,7 @@ export const useAdvancedAI = (
    */
   const clearCache = useCallback((): void => {
     orchestrator.current.clearCache();
-    console.log('🧹 AI cache cleared');
+    // ('🧹 AI cache cleared');
   }, []);
 
   /**
@@ -374,31 +374,40 @@ export const useAdvancedAI = (
 
   // 컴포넌트 마운트/언마운트 및 자동 새로고침
   useEffect(() => {
-    // 초기 분석 실행
-    if (Object.keys(currentScores).length > 0) {
-      runComprehensiveAnalysis();
-    }
+    // 초기 실행 플래그로 중복 실행 방지
+    let mounted = true;
+    const hasData = Object.keys(currentScores).length > 0;
 
-    // 자동 새로고침 설정
-    if (finalConfig.autoRefreshInterval > 0) {
+    // 초기 분석 실행 - 1초 딜레이로 중복 방지
+    const initialTimer = setTimeout(() => {
+      if (mounted && hasData && !state.isLoading) {
+        runComprehensiveAnalysis();
+      }
+    }, 1000);
+
+    // 자동 새로고침 설정 - 최소 30초 간격으로 제한
+    const refreshInterval = Math.max(finalConfig.autoRefreshInterval, 30000);
+    if (refreshInterval > 0 && hasData) {
       autoRefreshTimer.current = setInterval(() => {
-        if (Object.keys(currentScores).length > 0) {
+        if (mounted && !state.isLoading) {
           runComprehensiveAnalysis();
         }
-      }, finalConfig.autoRefreshInterval);
+      }, refreshInterval);
     }
 
-    // 실시간 시뮬레이션 시작
-    if (simulationEngine.current) {
+    // 실시간 시뮬레이션 시작 - 초기 한 번만
+    if (simulationEngine.current && !simulationEngine.current.isRunning) {
       simulationEngine.current.start();
     }
 
-    // 고급 예측 시스템 시작
-    if (predictionSystem.current) {
+    // 고급 예측 시스템 시작 - 초기 한 번만
+    if (predictionSystem.current && !predictionSystem.current.isRunning) {
       predictionSystem.current.start();
     }
 
     return () => {
+      mounted = false;
+      clearTimeout(initialTimer);
       if (autoRefreshTimer.current) {
         clearInterval(autoRefreshTimer.current);
       }
@@ -409,7 +418,7 @@ export const useAdvancedAI = (
         predictionSystem.current.stop();
       }
     };
-  }, [runComprehensiveAnalysis, finalConfig.autoRefreshInterval]);
+  }, []); // 빈 의존성 배열로 마운트 시 한 번만 실행
 
   // 점수 변경 감지
   useEffect(() => {

@@ -331,3 +331,6 @@ class CelebrationTriggerService {
 
 // 싱글톤 인스턴스 export
 export const celebrationTrigger = CelebrationTriggerService.getInstance();
+
+// Re-export types for better compatibility
+export type { CelebrationConfig, CelebrationLevel, CelebrationReason, CelebrationHistory };

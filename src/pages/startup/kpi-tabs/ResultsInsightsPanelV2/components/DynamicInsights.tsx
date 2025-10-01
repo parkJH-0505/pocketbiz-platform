@@ -5,7 +5,7 @@
 
 import React, { useMemo, useEffect, useState, memo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, TrendingDown, AlertCircle, Target, Lightbulb, BarChart3, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertCircle, Target, Lightbulb, BarChart3, Activity, Filter } from 'lucide-react';
 import { useV2Store } from '../store/useV2Store';
 import type { AxisKey } from '../types';
 
@@ -17,11 +17,20 @@ interface InsightCard {
   description: string;
   impact: 'high' | 'medium' | 'low';
   priority: number;
+  priorityScore: number; // 정확한 우선순위 점수
+  urgency: 'immediate' | 'high' | 'medium' | 'low';
+  confidence: number; // 인사이트 신뢰도 (0-100)
   actionable: boolean;
+  tags: string[]; // 분류 태그
   metrics: {
     current: number;
     change: number;
     trend: 'up' | 'down' | 'stable';
+  };
+  recommendations: {
+    primary: string;
+    secondary?: string;
+    timeline: string;
   };
 }
 
@@ -29,6 +38,8 @@ const DynamicInsightsComponent: React.FC = () => {
   const { data, simulation, viewState } = useV2Store();
   const [activeInsights, setActiveInsights] = useState<InsightCard[]>([]);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [priorityFilter, setPriorityFilter] = useState<'all' | 'immediate' | 'high' | 'medium' | 'low'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'alert' | 'opportunity' | 'achievement' | 'trend'>('all');
 
   // 카드 확장/축소 핸들러 - useCallback으로 최적화
   const handleCardExpansion = useCallback((cardId: string) => {
@@ -43,6 +54,61 @@ const DynamicInsightsComponent: React.FC = () => {
     PF: { label: '성과지표', color: '#ef4444', description: '핵심 성과 지표와 측정' },
     TO: { label: '팀조직', color: '#06b6d4', description: '조직 역량과 팀워크' }
   }), []);
+
+  // 우선순위 점수 계산 함수
+  const calculatePriorityScore = useCallback((
+    impact: 'high' | 'medium' | 'low',
+    changeAmount: number,
+    currentScore: number,
+    type: InsightCard['type']
+  ): { priorityScore: number; urgency: InsightCard['urgency']; confidence: number } => {
+    let baseScore = 0;
+    let urgency: InsightCard['urgency'] = 'low';
+    let confidence = 70; // 기본 신뢰도
+
+    // 1. 영향도 기반 점수
+    const impactScores = { high: 80, medium: 50, low: 20 };
+    baseScore += impactScores[impact];
+
+    // 2. 변화량 기반 점수
+    const changeScore = Math.min(Math.abs(changeAmount) * 2, 40);
+    baseScore += changeScore;
+
+    // 3. 현재 점수에 따른 가중치
+    if (currentScore < 30) {
+      baseScore += 30; // 위험 구간
+      urgency = 'immediate';
+      confidence += 15;
+    } else if (currentScore < 50) {
+      baseScore += 20; // 주의 구간
+      urgency = 'high';
+      confidence += 10;
+    } else if (currentScore > 85) {
+      baseScore += 15; // 우수 구간 유지 중요
+      urgency = 'medium';
+      confidence += 5;
+    }
+
+    // 4. 인사이트 타입별 가중치
+    const typeMultipliers = {
+      alert: 1.3,
+      opportunity: 1.1,
+      achievement: 0.9,
+      trend: 1.0
+    };
+    baseScore *= typeMultipliers[type];
+
+    // 5. 긴급도 결정
+    if (baseScore > 120) urgency = 'immediate';
+    else if (baseScore > 80) urgency = 'high';
+    else if (baseScore > 50) urgency = 'medium';
+
+    return {
+      priorityScore: Math.min(baseScore, 150),
+      urgency,
+      confidence: Math.min(confidence, 95)
+    };
+  }, []);
 
   // 개선된 동적 인사이트 생성 엔진 - 데이터 변경 시에만 재계산
   const generateInsights = useMemo(() => {
@@ -87,16 +153,34 @@ const DynamicInsightsComponent: React.FC = () => {
             : '전면적인 재검토와 개선 전략 필요';
         }
 
+        const priorityData = calculatePriorityScore(impactLevel, change, currentScore, change > 0 ? 'achievement' : 'alert');
+
         insights.push({
           id: `trend-${axis}`,
           type: change > 0 ? 'achievement' : 'alert',
           axis,
           title: `${axisInfo[axis].label} ${isMajorChange ? '주요' : ''} ${change > 0 ? '성장' : '하락'} 감지`,
-          description: `${changePercentage !== 0 ? `${Math.abs(changePercentage).toFixed(1)}% ` : ''}${change > 0 ? '상승' : '하락'} (${Math.abs(change).toFixed(1)}점). ${actionableAdvice}`,
+          description: `${changePercentage !== 0 ? `${Math.round(Math.abs(changePercentage))}% ` : ''}${change > 0 ? '상승' : '하락'} (${Math.round(Math.abs(change))}점). ${actionableAdvice}`,
           impact: impactLevel,
-          priority: Math.abs(change) * 15 + (isMajorChange ? 50 : 0),
+          priority: Math.round(priorityData.priorityScore / 15), // 기존 호환성을 위해 1-10 스케일로 변환
+          priorityScore: priorityData.priorityScore,
+          urgency: priorityData.urgency,
+          confidence: priorityData.confidence,
           actionable: true,
-          metrics: { current: currentScore, change, trend }
+          tags: [
+            change > 0 ? 'growth' : 'decline',
+            isMajorChange ? 'major-change' : 'minor-change',
+            axisInfo[axis].label
+          ],
+          metrics: { current: currentScore, change, trend },
+          recommendations: {
+            primary: actionableAdvice,
+            secondary: change > 0
+              ? '다른 영역으로의 확산 전략을 검토하세요'
+              : '근본 원인 분석을 통한 개선 방안 모색',
+            timeline: priorityData.urgency === 'immediate' ? '즉시' :
+                     priorityData.urgency === 'high' ? '1주일 내' : '2주일 내'
+          }
         });
       }
 
@@ -105,16 +189,32 @@ const DynamicInsightsComponent: React.FC = () => {
         const potentialGain = scoreStandardization.good - currentScore;
         const isQuickWin = change >= 0 && currentScore > scoreStandardization.average;
 
+        const oppImpact = potentialGain > 20 ? 'high' : potentialGain > 10 ? 'medium' : 'low';
+        const oppPriorityData = calculatePriorityScore(oppImpact, potentialGain, currentScore, 'opportunity');
+
         insights.push({
           id: `opportunity-${axis}`,
           type: 'opportunity',
           axis,
           title: `${axisInfo[axis].label} ${isQuickWin ? '빠른 성과' : '전략적'} 개선 기회`,
           description: `현재 ${Math.round(currentScore)}점에서 ${scoreStandardization.good}점까지 ${Math.round(potentialGain)}점 개선 가능. ${isQuickWin ? '단기간 집중 투자 추천' : '장기 전략 수립 필요'}.`,
-          impact: potentialGain > 20 ? 'high' : potentialGain > 10 ? 'medium' : 'low',
-          priority: potentialGain * 8 + (isQuickWin ? 30 : 0),
+          impact: oppImpact,
+          priority: Math.round(oppPriorityData.priorityScore / 15),
+          priorityScore: oppPriorityData.priorityScore,
+          urgency: oppPriorityData.urgency,
+          confidence: oppPriorityData.confidence,
           actionable: true,
-          metrics: { current: currentScore, change, trend: change > 0 ? 'up' : change < 0 ? 'down' : 'stable' }
+          tags: [
+            'opportunity',
+            isQuickWin ? 'quick-win' : 'strategic',
+            axisInfo[axis].label
+          ],
+          metrics: { current: currentScore, change, trend: change > 0 ? 'up' : change < 0 ? 'down' : 'stable' },
+          recommendations: {
+            primary: isQuickWin ? '단기 집중 투자로 빠른 성과 추진' : '장기 전략적 접근 필요',
+            secondary: '팀 역량과 리소스 우선순위 검토',
+            timeline: isQuickWin ? '1개월 내' : '3개월 내'
+          }
         });
       }
 
@@ -126,7 +226,7 @@ const DynamicInsightsComponent: React.FC = () => {
           type: 'alert',
           axis,
           title: `${axisInfo[axis].label} ${riskLevel === 'critical' ? '우수 성과' : '양호 성과'} 하락 위험`,
-          description: `기존 ${riskLevel === 'critical' ? '우수' : '양호'} 영역에서 ${Math.abs(change).toFixed(1)}점 하락. ${riskLevel === 'critical' ? '즉시 원인 분석 및 대응 필요' : '지속 모니터링 및 예방 조치 강화'}.`,
+          description: `기존 ${riskLevel === 'critical' ? '우수' : '양호'} 영역에서 ${Math.round(Math.abs(change))}점 하락. ${riskLevel === 'critical' ? '즉시 원인 분석 및 대응 필요' : '지속 모니터링 및 예방 조치 강화'}.`,
           impact: 'high',
           priority: 120 + Math.abs(change) + (riskLevel === 'critical' ? 30 : 0),
           actionable: true,
@@ -185,33 +285,79 @@ const DynamicInsightsComponent: React.FC = () => {
       }
     }
 
-    // 개선된 우선순위 정렬 및 다양성 보장
+    // 고도화된 우선순위 시스템
     const prioritizedInsights = insights
       .sort((a, b) => {
-        // 1차: 영향도별 정렬 (high > medium > low)
-        const impactWeight = { high: 3, medium: 2, low: 1 };
-        if (impactWeight[a.impact] !== impactWeight[b.impact]) {
-          return impactWeight[b.impact] - impactWeight[a.impact];
+        // 1차: 긴급도별 정렬 (immediate > high > medium > low)
+        const urgencyWeight = { immediate: 4, high: 3, medium: 2, low: 1 };
+        const aUrgency = (a as any).urgency || 'low';
+        const bUrgency = (b as any).urgency || 'low';
+
+        if (urgencyWeight[aUrgency] !== urgencyWeight[bUrgency]) {
+          return urgencyWeight[bUrgency] - urgencyWeight[aUrgency];
         }
-        // 2차: 우선순위 점수
-        return b.priority - a.priority;
+
+        // 2차: 정확한 우선순위 점수 (priorityScore)
+        const aPriorityScore = (a as any).priorityScore || a.priority * 15;
+        const bPriorityScore = (b as any).priorityScore || b.priority * 15;
+
+        if (Math.abs(aPriorityScore - bPriorityScore) > 10) {
+          return bPriorityScore - aPriorityScore;
+        }
+
+        // 3차: 신뢰도 (confidence)
+        const aConfidence = (a as any).confidence || 70;
+        const bConfidence = (b as any).confidence || 70;
+
+        if (Math.abs(aConfidence - bConfidence) > 5) {
+          return bConfidence - aConfidence;
+        }
+
+        // 4차: 영향도별 정렬 (high > medium > low)
+        const impactWeight = { high: 3, medium: 2, low: 1 };
+        return impactWeight[b.impact] - impactWeight[a.impact];
       })
       .filter((insight, index, array) => {
-        // 중복 제거: 동일 axis에 대한 중복 인사이트 방지
-        const sameAxisInsights = array.filter(item => item.axis === insight.axis);
+        // 스마트 중복 제거: 동일 axis에 대해 우선순위 높은 것만 유지
+        const sameAxisInsights = array.filter(item => item.axis === insight.axis && item.type !== 'trend');
         if (sameAxisInsights.length > 1) {
-          return sameAxisInsights.indexOf(insight) === 0; // 첫 번째만 유지
+          const sortedSameAxis = sameAxisInsights.sort((a, b) => {
+            const aPriorityScore = (a as any).priorityScore || a.priority * 15;
+            const bPriorityScore = (b as any).priorityScore || b.priority * 15;
+            return bPriorityScore - aPriorityScore;
+          });
+          return sortedSameAxis.indexOf(insight) === 0; // 최고 우선순위만 유지
         }
         return true;
       })
-      .slice(0, 8); // 6개에서 8개로 확장
+      .slice(0, 10); // 표시 인사이트 개수 증가
 
     return prioritizedInsights;
-  }, [data]);
+  }, [data, calculatePriorityScore]);
+
+  // 필터링된 인사이트 계산
+  const filteredInsights = useMemo(() => {
+    let filtered = generateInsights;
+
+    // 우선순위 필터
+    if (priorityFilter !== 'all') {
+      filtered = filtered.filter(insight => {
+        const urgency = (insight as any).urgency || 'low';
+        return urgency === priorityFilter;
+      });
+    }
+
+    // 타입 필터
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter(insight => insight.type === typeFilter);
+    }
+
+    return filtered;
+  }, [generateInsights, priorityFilter, typeFilter]);
 
   useEffect(() => {
-    setActiveInsights(generateInsights);
-  }, [generateInsights]);
+    setActiveInsights(filteredInsights);
+  }, [filteredInsights]);
 
   // 카드 타입별 스타일
   const getCardStyle = (insight: InsightCard) => {
@@ -271,6 +417,51 @@ const DynamicInsightsComponent: React.FC = () => {
         </div>
       </div>
 
+      {/* 필터링 컨트롤 */}
+      <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+        <div className="flex items-center gap-2">
+          <Filter size={16} className="text-gray-500" />
+          <span className="text-sm font-medium text-gray-700">필터:</span>
+        </div>
+
+        {/* 우선순위 필터 */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-600">긴급도:</span>
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value as any)}
+            className="text-xs px-2 py-1 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-main"
+          >
+            <option value="all">전체</option>
+            <option value="immediate">즉시</option>
+            <option value="high">높음</option>
+            <option value="medium">보통</option>
+            <option value="low">낮음</option>
+          </select>
+        </div>
+
+        {/* 타입 필터 */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-600">유형:</span>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as any)}
+            className="text-xs px-2 py-1 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-main"
+          >
+            <option value="all">전체</option>
+            <option value="alert">경고</option>
+            <option value="opportunity">기회</option>
+            <option value="achievement">성과</option>
+            <option value="trend">트렌드</option>
+          </select>
+        </div>
+
+        {/* 결과 카운트 */}
+        <div className="ml-auto text-xs text-gray-500">
+          {activeInsights.length}개 인사이트 표시
+        </div>
+      </div>
+
       {/* 인사이트 카드들 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <AnimatePresence>
@@ -308,10 +499,39 @@ const DynamicInsightsComponent: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 임팩트 뱃지 */}
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getImpactColor(insight.impact)}`}>
-                    {insight.impact === 'high' ? '높음' : insight.impact === 'medium' ? '보통' : '낮음'}
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    {/* 긴급도 뱃지 */}
+                    {(insight as any).urgency && (
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        (insight as any).urgency === 'immediate' ? 'bg-red-100 text-red-700' :
+                        (insight as any).urgency === 'high' ? 'bg-orange-100 text-orange-700' :
+                        (insight as any).urgency === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {(insight as any).urgency === 'immediate' ? '즉시' :
+                         (insight as any).urgency === 'high' ? '높음' :
+                         (insight as any).urgency === 'medium' ? '보통' : '낮음'}
+                      </span>
+                    )}
+
+                    {/* 임팩트 뱃지 */}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getImpactColor(insight.impact)}`}>
+                      {insight.impact === 'high' ? '높음' : insight.impact === 'medium' ? '보통' : '낮음'}
+                    </span>
+
+                    {/* 신뢰도 표시 */}
+                    {(insight as any).confidence && (
+                      <div className="flex items-center gap-1">
+                        <div className="w-12 h-1 bg-gray-200 rounded">
+                          <div
+                            className="h-full bg-blue-500 rounded"
+                            style={{ width: `${(insight as any).confidence}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-500">{(insight as any).confidence}%</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* 메트릭스 표시 */}
@@ -362,7 +582,7 @@ const DynamicInsightsComponent: React.FC = () => {
                         <div className="text-xs text-neutral-gray space-y-1">
                           <p>• 현재 성과: {insight.metrics.current}점 ({axisInfo[insight.axis].description})</p>
                           <p>• 변화량: {insight.metrics.change > 0 ? '+' : ''}{insight.metrics.change}점</p>
-                          <p>• 우선순위: {insight.priority.toFixed(0)}</p>
+                          <p>• 우선순위: {insight.priority}</p>
                         </div>
                       </div>
 

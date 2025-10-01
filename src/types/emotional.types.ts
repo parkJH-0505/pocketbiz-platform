@@ -140,3 +140,13 @@ export const EMOTIONAL_THRESHOLDS = {
     low: 20
   }
 };
+
+// Re-export all types for better compatibility
+export type {
+  MoodType,
+  EmotionalFactors,
+  EmotionalState,
+  EmotionalTrend,
+  EmotionalHistory,
+  MoodConfig
+};

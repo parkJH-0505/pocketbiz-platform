@@ -99,12 +99,12 @@ const ResultsInsightsPanelV2Core: React.FC = () => {
 
         // 성공 피드백 (한 번만)
         if (integratedData && Object.keys(integratedData).length > 0) {
-          console.log('✅ V2 Dashboard connected to real KPI data');
+          // V2 Dashboard connected to real KPI data
         }
       } catch (error) {
         if (!isMounted) return;
 
-        console.error('❌ Failed to load real data:', error);
+        // Failed to load real data
 
         const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
 
@@ -117,9 +117,9 @@ const ResultsInsightsPanelV2Core: React.FC = () => {
         // 폴백으로 Mock 데이터 로드
         try {
           loadData();
-          console.log('⚠️ Using fallback mock data for V2 Dashboard');
+          // Using fallback mock data for V2 Dashboard
         } catch (fallbackError) {
-          console.error('❌ Fallback data loading failed:', fallbackError);
+          // Fallback data loading failed
           setError('데이터를 불러올 수 없습니다. 새로고침 후 다시 시도해주세요.');
         }
       }
@@ -132,7 +132,7 @@ const ResultsInsightsPanelV2Core: React.FC = () => {
       try {
         await loadPeerData();
       } catch (error) {
-        console.warn('⚠️ Peer data loading failed:', error);
+        // Peer data loading failed
       }
     };
 

@@ -99,6 +99,39 @@ export interface V2ScoreData {
   changes: Record<AxisKey, number>;
 }
 
+// ========== 실시간 모니터링 Types ==========
+export interface RealTimeMonitoringState {
+  isEnabled: boolean;
+  lastUpdate: number | null;
+  changeHistory: DataChangeRecord[];
+  detectionThreshold: number;
+  updateInterval: number;
+  activeChanges: Map<string, DataChangeRecord>;
+  alertQueue: DataAlert[];
+}
+
+export interface DataChangeRecord {
+  id?: string;
+  axis: AxisKey;
+  oldValue: number;
+  newValue: number;
+  timestamp: number;
+  changePercent?: number;
+  severity?: 'low' | 'medium' | 'high';
+}
+
+export interface DataAlert {
+  id: string;
+  type: 'data-change' | 'threshold-breach' | 'anomaly' | 'system';
+  axis?: AxisKey;
+  message: string;
+  timestamp: number;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  actionRequired: boolean;
+  autoResolve?: boolean;
+  resolvedAt?: number;
+}
+
 export interface V2PeerData {
   count: number;
   distribution: {
@@ -175,6 +208,7 @@ export interface V2Store {
   animation: V2AnimationState;
   data: V2ScoreData | null;
   peerData: V2PeerData | null;
+  realTimeMonitoring: RealTimeMonitoringState;
 
   // View Actions
   setSelectedAxis: (axis: AxisKey | null) => void;
@@ -199,6 +233,17 @@ export interface V2Store {
   loadPeerData: (filters?: PeerFilters) => Promise<void>;
   refreshData: () => Promise<void>;
   setData: (data: V2ScoreData) => void;
+
+  // Real-time Monitoring Actions
+  enableRealTimeMonitoring: () => void;
+  disableRealTimeMonitoring: () => void;
+  updateDetectionThreshold: (threshold: number) => void;
+  updateInterval: (interval: number) => void;
+  addChangeDetection: (change: DataChangeRecord) => void;
+  removeChangeDetection: (changeId: string) => void;
+  clearAlertQueue: () => void;
+  removeAlert: (alertId: string) => void;
+  updateLastCheckTime: () => void;
 
   // Error Handling Actions
   setError: (error: string | null) => void;

@@ -25,6 +25,7 @@ import {
   PlusCircle,
   Download,
   Upload,
+  Zap,
   Edit,
   Trash2,
   Share2,
@@ -54,7 +55,8 @@ import {
   calculatePhaseProgress,
   getPhaseIndex
 } from '../../../utils/projectPhaseUtils';
-import Timeline from '../../../components/overview/Timeline';
+import OverviewTabV3 from '../../../components/overview/OverviewTabV3';
+import TimelineErrorBoundary from '../../../components/error/TimelineErrorBoundary';
 
 interface Task {
   id: string;
@@ -1359,14 +1361,16 @@ export default function ProjectDetail() {
 
       {/* Content */}
       <div className="flex-1 overflow-auto">
-        {/* Overview Tab - 3단계 타임라인 구조 */}
+        {/* Overview Tab - 브랜치 타임라인 V3 */}
         {activeTab === 'overview' && (
-          <Timeline
-            project={project}
-            meetings={projectMeetings}
-            onPhaseClick={(phase) => console.log('Phase clicked:', phase)}
-          />
+          <TimelineErrorBoundary>
+            <OverviewTabV3
+              project={project}
+              debugMode={true}
+            />
+          </TimelineErrorBoundary>
         )}
+
 
         {/* 미팅 기록 Tab */}
         {activeTab === 'meetings' && (
