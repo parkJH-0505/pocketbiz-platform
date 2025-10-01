@@ -32,41 +32,6 @@ export const CompactLayout: React.FC<CompactLayoutProps> = ({
   onRegenerateAI,
   className = ''
 }) => {
-  // Extract data for Page 3
-  const analysisResults = useMemo(() => {
-    // Phase 4.5에서 실제 구현
-    return {
-      risks: reportData.insights
-        ?.filter(i => i.type === 'risk')
-        .map(i => ({
-          severity: 'critical' as const,
-          title: i.title || 'Risk',
-          description: i.description || '',
-          affectedKPIs: [],
-          suggestedActions: [],
-          detectedBy: 'system'
-        })) || [],
-      correlations: reportData.insights
-        ?.filter(i => i.type === 'correlation')
-        .map(i => ({
-          type: 'derived' as const,
-          title: i.title || 'Metric',
-          description: i.description || '',
-          interpretation: '',
-          score: 0,
-          priority: 'medium' as const,
-          affectedKPIs: []
-        })) || [],
-      actions: reportData.insights
-        ?.filter(i => i.type === 'action')
-        .map(i => ({
-          priority: 'high' as const,
-          title: i.title || 'Action',
-          description: i.description || ''
-        })) || []
-    };
-  }, [reportData.insights]);
-
   return (
     <div className={`report-v3-compact ${className}`}>
       {/* Compact CSS 임포트 */}
@@ -114,9 +79,7 @@ export const CompactLayout: React.FC<CompactLayoutProps> = ({
 
       {/* Page 3: Insights & Action Plan */}
       <Page3InsightsAction
-        risks={analysisResults.risks}
-        correlations={analysisResults.correlations}
-        actions={analysisResults.actions}
+        reportData={reportData}
         className="page-break"
       />
 
@@ -132,13 +95,13 @@ export const CompactLayout: React.FC<CompactLayoutProps> = ({
       {/* Phase Info */}
       <div className="mt-8 p-4 bg-green-50 border border-green-200 rounded-lg text-center">
         <p className="text-sm text-green-900 font-semibold">
-          ✅ Compact Layout (Phase 4.3 - Page 1 구현 완료)
+          ✅ Compact Layout (Phase 4.5 - Page 3 구현 완료)
         </p>
         <p className="text-xs text-green-700 mt-1">
           Feature Flag: VITE_USE_COMPACT_LAYOUT=false (현재 비활성)
         </p>
         <p className="text-xs text-gray-600 mt-2">
-          Phase 4.4~4.6: Page 2, 3, 4 구현 예정
+          Phase 4.6: Page 4 구현 예정
         </p>
       </div>
     </div>
