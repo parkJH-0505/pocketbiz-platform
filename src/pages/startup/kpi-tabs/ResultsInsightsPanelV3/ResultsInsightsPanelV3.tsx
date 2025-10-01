@@ -14,6 +14,9 @@ import { ReportHeader } from './components/layout/ReportHeader';
 import { ReportFooter } from './components/layout/ReportFooter';
 import { ReportSection } from './components/layout/ReportSection';
 
+// Phase 4: Compact Layout (조건부 사용)
+import { CompactLayout } from './components/compact/CompactLayout';
+
 // 인사이트 컴포넌트들 - Lazy Loading
 const ExecutiveSummary = lazy(() => import('./components/insights/ExecutiveSummary').then(m => ({ default: m.ExecutiveSummary })));
 const KeyInsights = lazy(() => import('./components/insights/KeyInsights').then(m => ({ default: m.KeyInsights })));
@@ -52,6 +55,9 @@ import type { ContactInfo } from './types/reportV3UI.types';
 import type { AxisKey } from '@/types';
 
 const ResultsInsightsPanelV3: React.FC = () => {
+  // Phase 4: Feature Flag - Compact Layout 사용 여부
+  const useCompactLayout = import.meta.env.VITE_USE_COMPACT_LAYOUT === 'true';
+
   const performanceMonitor = useMemo(() => getPerformanceMonitor(), []);
   const claudeAI = useMemo(() => getClaudeAIService(), []);
 
@@ -517,6 +523,71 @@ const ResultsInsightsPanelV3: React.FC = () => {
     };
   }, [performanceMonitor]);
 
+  // Phase 4: Compact Layout 조건부 렌더링
+  if (useCompactLayout) {
+    return (
+      <Profiler
+        id="ResultsInsightsPanelV3-Compact"
+        onRender={(id, phase, actualDuration, baseDuration, startTime, commitTime) => {
+          performanceMonitor.onRenderCallback(id, phase, actualDuration, baseDuration, startTime, commitTime);
+        }}
+      >
+        <div className="report-v3-wrapper">
+          {/* 상단 컨트롤 바 (PDF 출력 등) */}
+          <div className="flex items-center justify-between mb-4 p-4 bg-white border border-gray-200 rounded-lg">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">KPI 진단 레포트 V3</h2>
+              <p className="text-sm text-gray-600">Compact Layout (Phase 4)</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleRefresh}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+                <span className="text-sm">새로고침</span>
+              </button>
+              <button
+                onClick={exportToPDF}
+                disabled={!reportData || isLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+              >
+                <FileDown size={16} />
+                <span className="text-sm">PDF 출력</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Compact Layout */}
+          {isLoading ? (
+            <LoadingState />
+          ) : error ? (
+            <div className="p-8 bg-red-50 border border-red-200 rounded-lg text-center">
+              <p className="text-red-800 font-semibold mb-2">오류 발생</p>
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          ) : reportData && processedData ? (
+            <CompactLayout
+              reportData={reportData}
+              processedData={processedData}
+              cluster={{
+                sector: reportData.metadata.cluster?.sector || 'tech',
+                stage: reportData.metadata.cluster?.stage || 'seed'
+              }}
+            />
+          ) : (
+            <div className="p-8 bg-gray-50 border border-gray-200 rounded-lg text-center">
+              <p className="text-gray-600">진단 데이터가 없습니다.</p>
+              <p className="text-sm text-gray-500 mt-2">KPI 진단을 먼저 완료해주세요.</p>
+            </div>
+          )}
+        </div>
+      </Profiler>
+    );
+  }
+
+  // 기존 레이아웃 (Feature Flag = false)
   return (
     <Profiler
       id="ResultsInsightsPanelV3"
