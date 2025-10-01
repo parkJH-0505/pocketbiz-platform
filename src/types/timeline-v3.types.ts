@@ -331,25 +331,25 @@ export const TIMELINE_DESIGN_SYSTEM = {
   },
 
   // ========================================
-  // Phase 배경색 (Glassmorphism - 통일)
+  // Phase 배경색 (Glassmorphism - Visible.vc 스타일)
   // ========================================
   phaseBackground: {
     planning: {                                // Phase 1-3: 계획
-      bg: 'rgba(15, 82, 222, 0.03)',           // 매우 연한 파랑
-      border: 'rgba(15, 82, 222, 0.15)',       // 섬세한 테두리
-      opacity: 0.08,
-      blur: '10px'                             // Glassmorphism
+      bg: 'rgba(15, 82, 222, 0.01)',           // 거의 보이지 않는 파랑
+      border: 'rgba(15, 82, 222, 0.08)',       // 매우 섬세한 테두리
+      opacity: 0.02,                           // Visible.vc 수준
+      blur: '10px'
     },
     execution: {                               // Phase 4-5: 실행
-      bg: 'rgba(15, 82, 222, 0.05)',           // 조금 더 진한 파랑
-      border: 'rgba(15, 82, 222, 0.2)',
-      opacity: 0.1,
+      bg: 'rgba(15, 82, 222, 0.015)',          // 약간 더 보임
+      border: 'rgba(15, 82, 222, 0.1)',
+      opacity: 0.025,
       blur: '10px'
     },
     completion: {                              // Phase 6-7: 완료
-      bg: 'rgba(15, 82, 222, 0.02)',           // 가장 연함
-      border: 'rgba(15, 82, 222, 0.1)',
-      opacity: 0.05,
+      bg: 'rgba(15, 82, 222, 0.008)',          // 거의 투명
+      border: 'rgba(15, 82, 222, 0.06)',
+      opacity: 0.015,
       blur: '10px'
     }
   },
@@ -440,6 +440,19 @@ export const TIMELINE_DESIGN_SYSTEM = {
       strokeWidth: 1,
       strokeDasharray: '4,4'                   // 점선
     },
+    gridPattern: {
+      // Visible.vc 스타일 - 매우 섬세한 그리드
+      backgroundImage: `
+        linear-gradient(rgba(15, 82, 222, 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(15, 82, 222, 0.015) 1px, transparent 1px)
+      `,
+      backgroundSize: '40px 40px'
+    },
+    dotPattern: {
+      // 점 패턴 (선택사항)
+      backgroundImage: 'radial-gradient(circle, rgba(15, 82, 222, 0.02) 1px, transparent 1px)',
+      backgroundSize: '30px 30px'
+    },
     metricLabel: {
       fontFamily: theme.typography.fontFamily.mono, // 모노스페이스
       fontSize: '11px',
@@ -447,10 +460,11 @@ export const TIMELINE_DESIGN_SYSTEM = {
       fontWeight: 500
     },
     glassEffect: {
-      background: 'rgba(255, 255, 255, 0.7)',  // 반투명 흰색
-      backdropFilter: 'blur(10px)',            // 배경 흐림
-      border: '1px solid rgba(15, 82, 222, 0.15)',
-      boxShadow: '0 8px 32px rgba(15, 82, 222, 0.06)'
+      background: 'rgba(255, 255, 255, 0.8)',  // 더 불투명 (Visible.vc 스타일)
+      backdropFilter: 'blur(12px)',            // 더 강한 블러
+      WebkitBackdropFilter: 'blur(12px)',      // Safari 지원
+      border: '1px solid rgba(15, 82, 222, 0.12)',
+      boxShadow: '0 8px 32px rgba(15, 82, 222, 0.08)'
     }
   }
 } as const;

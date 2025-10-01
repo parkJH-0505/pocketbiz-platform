@@ -105,18 +105,21 @@ const ActivityNodes: React.FC<ActivityNodesProps> = React.memo(({
                 style={{
                   background: isHovered
                     ? TIMELINE_DESIGN_SYSTEM.dataScience.glassEffect.background
-                    : 'rgba(255, 255, 255, 0.9)',
+                    : 'rgba(255, 255, 255, 0.85)',
                   backdropFilter: isHovered
                     ? TIMELINE_DESIGN_SYSTEM.dataScience.glassEffect.backdropFilter
-                    : 'blur(4px)',
+                    : 'blur(8px)',
+                  WebkitBackdropFilter: isHovered
+                    ? TIMELINE_DESIGN_SYSTEM.dataScience.glassEffect.WebkitBackdropFilter
+                    : 'blur(8px)',
                   border: isHovered
                     ? TIMELINE_DESIGN_SYSTEM.dataScience.glassEffect.border
-                    : '1px solid rgba(15, 82, 222, 0.1)',
+                    : '1px solid rgba(15, 82, 222, 0.08)',
                   color: TIMELINE_DESIGN_SYSTEM.phaseStatus.current,
                   fontSize: TIMELINE_DESIGN_SYSTEM.typography.activityMeta.size,
                   fontWeight: TIMELINE_DESIGN_SYSTEM.typography.activityTitle.weight,
                   transition: TIMELINE_DESIGN_SYSTEM.transitions.hover,
-                  transform: isHovered ? 'scale(1.1)' : 'scale(1)',
+                  transform: isHovered ? 'scale(1.1) translateY(-2px)' : 'scale(1)',
                   boxShadow: isHovered
                     ? TIMELINE_DESIGN_SYSTEM.shadows.glassmorphism
                     : TIMELINE_DESIGN_SYSTEM.shadows.node,

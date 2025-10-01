@@ -403,7 +403,17 @@ const OverviewTabV3: React.FC<OverviewTabV3Props> = ({
   // 렌더링
   // ==========================================================================
   return (
-    <div className="overview-tab-v3 relative w-full" style={{ height: `${totalHeight}px` }}>
+    <div
+      className="overview-tab-v3 relative w-full"
+      style={{
+        height: `${totalHeight}px`,
+        backgroundImage: `
+          linear-gradient(rgba(15, 82, 222, 0.015) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(15, 82, 222, 0.015) 1px, transparent 1px)
+        `,
+        backgroundSize: '40px 40px'
+      }}
+    >
       {/* Layer 2: SVG Canvas */}
       <TimelineCanvas width="100%" height={totalHeight}>
         {/* Layer 1: Phase Background (Phase별 배경색 - 항상 표시) */}

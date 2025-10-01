@@ -487,49 +487,49 @@
 }
 
 /* ========================================
-   Phase 7-4: Primary 파랑 계열 인터랙션 효과
+   Phase 7-4: Primary 파랑 계열 인터랙션 효과 (Visible.vc 스타일)
    ======================================== */
 
-/* 노드 글로우 (Activity 노드, Phase 노드) */
+/* 노드 글로우 (Activity 노드, Phase 노드) - Visible.vc 스타일 */
 .node-glow {
-  filter: drop-shadow(0 0 12px rgba(15, 82, 222, 0.5))
-          drop-shadow(0 0 24px rgba(15, 82, 222, 0.3));
-  animation: pulseGlow 2s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px rgba(15, 82, 222, 0.6))
+          drop-shadow(0 0 35px rgba(15, 82, 222, 0.4));
+  animation: pulseGlow 2.5s ease-in-out infinite;
 }
 
 /* Branch 하이라이트 */
 .branch-highlight {
-  filter: drop-shadow(0 0 8px rgba(15, 82, 222, 0.4))
-          drop-shadow(0 0 16px rgba(15, 82, 222, 0.2));
+  filter: drop-shadow(0 0 12px rgba(15, 82, 222, 0.5))
+          drop-shadow(0 0 20px rgba(15, 82, 222, 0.3));
 }
 
-/* Phase 하이라이트 (현재 진행중) */
+/* Phase 하이라이트 (현재 진행중) - 강한 Glow */
 .phase-active {
-  filter: drop-shadow(0 0 12px rgba(15, 82, 222, 0.4))
-          drop-shadow(0 0 24px rgba(15, 82, 222, 0.2));
+  filter: drop-shadow(0 0 20px rgba(15, 82, 222, 0.5))
+          drop-shadow(0 0 35px rgba(15, 82, 222, 0.3));
   animation: phaseActive 3s ease-in-out infinite;
 }
 
-/* 글로우 펄스 (진행중 노드) */
+/* 글로우 펄스 (진행중 노드) - Visible.vc 스타일 강화 */
 @keyframes pulseGlow {
   0%, 100% {
-    filter: drop-shadow(0 0 8px rgba(15, 82, 222, 0.3))
-            drop-shadow(0 0 16px rgba(15, 82, 222, 0.2));
+    filter: drop-shadow(0 0 15px rgba(15, 82, 222, 0.4))
+            drop-shadow(0 0 25px rgba(15, 82, 222, 0.3));
   }
   50% {
-    filter: drop-shadow(0 0 16px rgba(15, 82, 222, 0.6))
-            drop-shadow(0 0 32px rgba(15, 82, 222, 0.4));
+    filter: drop-shadow(0 0 25px rgba(15, 82, 222, 0.7))
+            drop-shadow(0 0 40px rgba(15, 82, 222, 0.5));
   }
 }
 
 /* Phase 활성 펄스 */
 @keyframes phaseActive {
   0%, 100% {
-    filter: drop-shadow(0 0 8px rgba(15, 82, 222, 0.3));
+    filter: drop-shadow(0 0 15px rgba(15, 82, 222, 0.4));
     transform: scale(1);
   }
   50% {
-    filter: drop-shadow(0 0 20px rgba(15, 82, 222, 0.5));
+    filter: drop-shadow(0 0 30px rgba(15, 82, 222, 0.6));
     transform: scale(1.05);
   }
 }

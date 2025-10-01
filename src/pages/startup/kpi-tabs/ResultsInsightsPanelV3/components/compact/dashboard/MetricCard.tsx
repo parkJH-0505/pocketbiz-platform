@@ -4,13 +4,12 @@
  */
 
 import React from 'react';
-import { LucideIcon } from 'lucide-react';
 
 interface MetricCardProps {
   label: string;
   value: string | number;
   unit?: string;
-  icon: LucideIcon;
+  icon: React.ElementType;
   description?: string;
   color: {
     text: string;

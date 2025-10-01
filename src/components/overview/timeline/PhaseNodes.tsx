@@ -63,14 +63,23 @@ const PhaseNodes: React.FC<PhaseNodesProps> = React.memo(({
               }}
             >
               <div
-                className="h-full p-2.5 rounded-lg border-l-4 hover:shadow-md"
+                className="h-full p-2.5 rounded-lg border-l-4"
                 style={{
                   background: TIMELINE_DESIGN_SYSTEM.dataScience.glassEffect.background,
                   backdropFilter: TIMELINE_DESIGN_SYSTEM.dataScience.glassEffect.backdropFilter,
+                  WebkitBackdropFilter: TIMELINE_DESIGN_SYSTEM.dataScience.glassEffect.WebkitBackdropFilter,
+                  borderLeft: `4px solid ${phaseColor}`,
+                  border: TIMELINE_DESIGN_SYSTEM.dataScience.glassEffect.border,
                   borderLeft: `4px solid ${phaseColor}`,
                   boxShadow: TIMELINE_DESIGN_SYSTEM.shadows.phaseBox,
                   transition: TIMELINE_DESIGN_SYSTEM.transitions.hover,
                   cursor: onPhaseClick ? 'pointer' : 'default'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = TIMELINE_DESIGN_SYSTEM.shadows.glassmorphism;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = TIMELINE_DESIGN_SYSTEM.shadows.phaseBox;
                 }}
                 onClick={() => onPhaseClick?.(phase.id)}
               >
