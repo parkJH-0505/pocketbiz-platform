@@ -179,7 +179,9 @@ async function processNumericValue(
   response: KPIResponse,
   cluster: ClusterInfo
 ): Promise<NumericProcessedValue> {
-  const rawValue = typeof response.value === 'number' ? response.value : 0;
+  // 응답 형식: {raw: {value: 10}} 또는 {value: 10}
+  const responseData = (response as any).raw || response;
+  const rawValue = typeof responseData.value === 'number' ? responseData.value : 0;
 
   // 단위 결정
   const unit = determineUnit(kpi, rawValue);
@@ -211,7 +213,8 @@ async function processRubricValue(
     const stageRule = await getKPIStageRule(kpi.kpi_id, cluster.stage);
 
     // rubric 응답에서 selectedIndex 추출 (1-based index)
-    const rawResponse = response as any;
+    // 응답 형식: {raw: {selectedIndex: 2}} 또는 {selectedIndex: 2}
+    const rawResponse = (response as any).raw || response;
     let selectedIndex = rawResponse.selectedIndex ?? rawResponse.rubricValue ?? 1;
 
     // 유효한 선택지가 없으면 첫 번째 사용 가능한 선택지로 fallback
@@ -266,7 +269,9 @@ async function processStageValue(
 ): Promise<RubricProcessedValue> {
   try {
     const stageRule = await getKPIStageRule(kpi.kpi_id, cluster.stage);
-    const rawResponse = response as any;
+
+    // 응답 형식: {raw: {selectedIndex: 2}} 또는 {selectedIndex: 2} 또는 {stage: "stage-1"}
+    const rawResponse = (response as any).raw || response;
 
     // Stage 응답에서 선택지 추출
     // response.stage = "stage-1", "stage-2", "stage-3" 등
@@ -326,7 +331,10 @@ async function processMultiSelectValue(
 ): Promise<MultiSelectProcessedValue> {
   try {
     const stageRule = await getKPIStageRule(kpi.kpi_id, cluster.stage);
-    const selectedIndices = (response as any).selectedIndices || [];
+
+    // 응답 형식: {raw: {selectedIndices: [1,2,3]}} 또는 {selectedIndices: [1,2,3]}
+    const rawResponse = (response as any).raw || response;
+    const selectedIndices = rawResponse.selectedIndices || [];
 
     if (!stageRule?.choices) {
       throw new Error('No choices available for MultiSelect KPI');
@@ -381,9 +389,10 @@ async function processCalculationValue(
   response: KPIResponse,
   cluster: ClusterInfo
 ): Promise<CalculationProcessedValue> {
-  const responseData = response as any;
-  const calculatedValue = responseData.calculatedValue || 0;
-  const inputs = responseData.inputs || {};
+  // 응답 형식: {raw: {calculatedValue: 100, inputs: {...}}} 또는 {calculatedValue: 100, inputs: {...}}
+  const rawResponse = (response as any).raw || response;
+  const calculatedValue = rawResponse.calculatedValue || 0;
+  const inputs = rawResponse.inputs || {};
 
   // 단위 및 포맷 결정
   const unit = determineCalculationUnit(kpi);
