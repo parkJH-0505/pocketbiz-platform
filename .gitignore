@@ -36,3 +36,4 @@ src/pages/startup/*Test*.tsx
 # Temp files
 cleanup.bat
 nul
+.env
