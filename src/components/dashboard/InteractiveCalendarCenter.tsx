@@ -49,7 +49,7 @@ import { useKPIDiagnosis } from '../../contexts/KPIDiagnosisContext';
 import { useBuildupContext } from '../../contexts/BuildupContext';
 import { useVDRContext } from '../../contexts/VDRContext';
 import { useCalendarContext } from '../../contexts/CalendarContext';
-import { CalendarService } from '../../services/CalendarService';
+import { CalendarService } from '../../services/calendarService';
 import type { MatchingResult } from '../../types/smartMatching/types';
 
 // 뷰 모드 정의

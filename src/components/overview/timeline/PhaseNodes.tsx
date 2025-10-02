@@ -70,7 +70,6 @@ const PhaseNodes: React.FC<PhaseNodesProps> = React.memo(({
                   WebkitBackdropFilter: TIMELINE_DESIGN_SYSTEM.dataScience.glassEffect.WebkitBackdropFilter,
                   borderLeft: `4px solid ${phaseColor}`,
                   border: TIMELINE_DESIGN_SYSTEM.dataScience.glassEffect.border,
-                  borderLeft: `4px solid ${phaseColor}`,
                   boxShadow: TIMELINE_DESIGN_SYSTEM.shadows.phaseBox,
                   transition: TIMELINE_DESIGN_SYSTEM.transitions.hover,
                   cursor: onPhaseClick ? 'pointer' : 'default'

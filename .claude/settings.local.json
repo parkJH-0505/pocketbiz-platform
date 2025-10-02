@@ -113,7 +113,9 @@
       "Bash(ls:*)",
       "Bash(timeout 60 npm run dev)",
       "Bash(timeout 5 sleep 5)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(git merge:*)",
+      "Bash(timeout 60 npm run build)"
     ],
     "deny": [],
     "ask": []
