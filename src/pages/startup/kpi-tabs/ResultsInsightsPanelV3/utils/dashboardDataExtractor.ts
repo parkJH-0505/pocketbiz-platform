@@ -86,12 +86,28 @@ export function extractDashboardData(reportData: ReportData): DashboardData {
       };
     });
 
+  // RadarEnhancedData를 currentScores/comparisonScores로 변환
+  const currentScores: Record<string, number> = {};
+  const comparisonScores: Record<string, number> = {};
+
+  if (radarData?.mainData) {
+    radarData.mainData.forEach(point => {
+      currentScores[point.axisKey] = point.value;
+    });
+  }
+
+  if (radarData?.comparisonData) {
+    radarData.comparisonData.forEach(point => {
+      comparisonScores[point.axisKey] = point.value;
+    });
+  }
+
   // Axis Scores 추출
-  const axisScores = Object.entries(radarData.currentScores || {}).map(([axis, score]) => {
+  const axisScores = Object.entries(currentScores).map(([axis, score]) => {
     // 트렌드 계산 (비교 데이터가 있으면)
     let trend: 'up' | 'down' | 'stable' = 'stable';
-    if (radarData.comparisonData && radarData.comparisonData[axis]) {
-      const diff = score - radarData.comparisonData[axis];
+    if (comparisonScores[axis] !== undefined) {
+      const diff = score - comparisonScores[axis];
       if (diff > 5) trend = 'up';
       else if (diff < -5) trend = 'down';
     }
@@ -115,8 +131,8 @@ export function extractDashboardData(reportData: ReportData): DashboardData {
     axisScores,
     aiSummary: null, // AI Summary는 별도 생성
     radarData: {
-      currentScores: radarData.currentScores || {},
-      comparisonScores: radarData.comparisonData
+      currentScores,
+      comparisonScores
     }
   };
 }

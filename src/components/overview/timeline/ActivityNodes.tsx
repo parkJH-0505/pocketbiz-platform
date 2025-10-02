@@ -38,7 +38,7 @@ const ActivityNodes: React.FC<ActivityNodesProps> = React.memo(({
     <>
       {activities.map((activity, index) => {
         const endX = activity.branchX;
-        const endY = activity.branchY;
+        const endY = activity.displayY;  // Phase 7: 배치된 위치 사용
         const isHovered = hoveredActivityId === activity.id;
 
         // Phase 6: 통합 디자인 시스템 사용 (Primary 파랑 계열)
@@ -48,6 +48,12 @@ const ActivityNodes: React.FC<ActivityNodesProps> = React.memo(({
 
         // Phase 5: 순차 애니메이션 delay (30ms씩)
         const animationDelay = index * 30;
+
+        // Phase 7: 날짜 포맷 (10월 2일)
+        const formattedDate = activity.timestamp.toLocaleDateString('ko-KR', {
+          month: 'long',
+          day: 'numeric'
+        });
 
         return (
           <g key={`node-${activity.id}`}>
@@ -136,6 +142,22 @@ const ActivityNodes: React.FC<ActivityNodesProps> = React.memo(({
                 {activity.title}
               </div>
             </foreignObject>
+
+            {/* 날짜 표시 - Phase 7: 노드 오른쪽에 별도 표시 */}
+            <text
+              x={endX + 220}
+              y={endY + 4}
+              fontSize="10"
+              fill="rgb(113, 113, 122)"
+              textAnchor="start"
+              style={{
+                animation: `fadeInScale 200ms ease-out ${animationDelay + 50}ms forwards`,
+                opacity: 0,
+                fontWeight: '500'
+              }}
+            >
+              {formattedDate}
+            </text>
           </g>
         );
       })}

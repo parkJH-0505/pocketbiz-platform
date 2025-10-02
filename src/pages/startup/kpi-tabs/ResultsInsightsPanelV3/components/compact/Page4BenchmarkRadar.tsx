@@ -5,7 +5,7 @@
  */
 
 import React, { useMemo } from 'react';
-import type { RadarData } from '@/types/reportV3.types';
+import type { RadarEnhancedData } from '../../types/reportV3UI.types';
 import type { ProcessedKPIData } from '@/types/reportV3.types';
 import type { ClusterInfo } from '@/types/kpi.types';
 import { extractBenchmarkRadarData } from '../../utils/benchmarkDataExtractor';
@@ -15,7 +15,7 @@ import { PercentileRanking } from './benchmark/PercentileRanking';
 import { GapAnalysis } from './benchmark/GapAnalysis';
 
 interface Page4BenchmarkRadarProps {
-  radarData: RadarData;
+  radarData: RadarEnhancedData;
   processedData: ProcessedKPIData[];
   cluster: ClusterInfo;
   overallScore: number;
@@ -36,7 +36,7 @@ export const Page4BenchmarkRadar: React.FC<Page4BenchmarkRadarProps> = ({
   );
 
   return (
-    <div className={`page-4-benchmark-radar ${className}`} style={{ minHeight: '1200px' }}>
+    <div className={`page-4-benchmark-radar page-break ${className}`}>
       {/* 헤더 */}
       <div className="mb-4">
         <h3 className="text-xl font-bold text-gray-900 mb-2">

@@ -3,7 +3,8 @@
  * Page 4용 벤치마크 및 레이더 데이터 추출
  */
 
-import type { ProcessedKPIData, RadarData } from '@/types/reportV3.types';
+import type { ProcessedKPIData } from '@/types/reportV3.types';
+import type { RadarEnhancedData } from '../types/reportV3UI.types';
 
 export interface FullRadarChartData {
   axes: Array<{
@@ -58,16 +59,34 @@ export interface BenchmarkRadarData {
  * Extract Benchmark & Radar data from processed data
  */
 export function extractBenchmarkRadarData(
-  radarData: RadarData,
+  radarData: RadarEnhancedData,
   processedData: ProcessedKPIData[]
 ): BenchmarkRadarData {
-  const { currentScores = {}, comparisonData = {}, axes = [] } = radarData;
+  // Transform RadarEnhancedData to flat structure
+  const currentScores: Record<string, number> = {};
+  const comparisonScores: Record<string, number> = {};
+  const axes: string[] = [];
+
+  // Extract current scores from mainData
+  if (radarData?.mainData) {
+    radarData.mainData.forEach(point => {
+      currentScores[point.axisKey] = point.value;
+      axes.push(point.axisKey);
+    });
+  }
+
+  // Extract comparison scores from comparisonData
+  if (radarData?.comparisonData) {
+    radarData.comparisonData.forEach(point => {
+      comparisonScores[point.axisKey] = point.value;
+    });
+  }
 
   // Full Radar Chart Data
   const radarChartData: FullRadarChartData = {
     axes: axes.map((axis) => {
       const currentScore = currentScores[axis] || 0;
-      const benchmarkScore = comparisonData[axis] || currentScore;
+      const benchmarkScore = comparisonScores[axis] || currentScore;
       const gap = currentScore - benchmarkScore;
 
       return {
@@ -79,13 +98,13 @@ export function extractBenchmarkRadarData(
       };
     }),
     currentScores,
-    benchmarkScores: comparisonData
+    benchmarkScores: comparisonScores
   };
 
   // Benchmark Comparisons
   const comparisons: BenchmarkComparison[] = axes.map((axis) => {
     const myScore = currentScores[axis] || 0;
-    const industryAvg = comparisonData[axis] || 50;
+    const industryAvg = comparisonScores[axis] || 50;
     const topQuartile = industryAvg + 20; // Mock top quartile
     const gap = myScore - industryAvg;
 

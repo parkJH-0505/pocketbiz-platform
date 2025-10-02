@@ -40,7 +40,7 @@ const PhaseBackground: React.FC<PhaseBackgroundProps> = ({
 
         // 교차 패턴: 홀수/짝수 Phase마다 약간 다른 배경 (은근한 구분)
         const isEven = phase.order % 2 === 0;
-        const baseOpacity = isEven ? styleConfig.opacity * 1.5 : styleConfig.opacity;
+        const baseOpacity = isEven ? styleConfig.opacity * 2.5 : styleConfig.opacity;
         const opacity = isHovered ? baseOpacity + 0.05 : baseOpacity;
 
         return (
@@ -71,7 +71,7 @@ const PhaseBackground: React.FC<PhaseBackgroundProps> = ({
               y={yStart + height / 2}
               fontSize="120"
               fontWeight="700"
-              fill="rgba(15, 82, 222, 0.02)"
+              fill="rgba(15, 82, 222, 0.05)"
               textAnchor="start"
               dominantBaseline="middle"
               style={{
@@ -91,8 +91,8 @@ const PhaseBackground: React.FC<PhaseBackgroundProps> = ({
                 x2={containerWidth}
                 y2={yEnd}
                 stroke="url(#phase-divider-gradient)"
-                strokeWidth={1}
-                strokeOpacity={0.3}
+                strokeWidth={2}
+                strokeOpacity={0.5}
                 style={{
                   pointerEvents: 'none'
                 }}

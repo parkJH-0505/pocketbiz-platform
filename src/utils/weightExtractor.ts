@@ -78,7 +78,7 @@ export async function extractClusterWeights(
         axis: kpi.axis,
         weight,
         weightInfo: info,
-        applicableStages: kpi.applicable_stages?.split(',').map(s => s.trim()) || []
+        applicableStages: kpi.applicable_stages || []
       });
 
       weightCounts[weight]++;
@@ -91,7 +91,7 @@ export async function extractClusterWeights(
         axis: kpi.axis,
         weight: 'x1',
         weightInfo: WEIGHT_CONFIG['x1'],
-        applicableStages: kpi.applicable_stages?.split(',').map(s => s.trim()) || []
+        applicableStages: kpi.applicable_stages || []
       });
       weightCounts['x1']++;
     }

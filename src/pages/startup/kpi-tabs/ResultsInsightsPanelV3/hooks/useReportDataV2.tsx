@@ -43,8 +43,11 @@ export function useReportData(): UseReportDataReturn {
   const pipelineRef = useRef<ReportDataPipeline | null>(null);
 
   // 컨텍스트에서 데이터 가져오기
-  const { kpis, responses, axisScores } = useKPIDiagnosis();
+  const { kpiData, responses, axisScores } = useKPIDiagnosis();
   const { cluster } = useCluster();
+
+  // kpiData.libraries가 실제 KPI 정의 배열
+  const kpis = kpiData?.libraries || [];
 
   // Sector/Stage 코드를 clusterKnowledge 키로 변환
   const sectorMap: Record<string, string> = {
@@ -63,7 +66,7 @@ export function useReportData(): UseReportDataReturn {
     'A-5': 'Scale'
   };
 
-  // ClusterInfo 형태로 변환 (clusterKnowledge와 호환되는 형식)
+  // ClusterInfo 형태로 변환
   const clusterInfo = useMemo(() => {
     const mappedSector = sectorMap[cluster.sector] || 'Technology';
     const mappedStage = stageMap[cluster.stage] || 'Seed';
@@ -73,8 +76,12 @@ export function useReportData(): UseReportDataReturn {
       name: `${cluster.sector} - ${cluster.stage}`,
       industry: 'startup',
       size: 'small',
-      sector: mappedSector,  // ✅ clusterKnowledge 조회용
-      stage: mappedStage     // ✅ clusterKnowledge 조회용
+      // reportDataProcessor는 원본 코드(S-1, A-1)를 기대함
+      sector: cluster.sector,  // 'S-1' (원본)
+      stage: cluster.stage,     // 'A-1' (원본)
+      // clusterKnowledge 조회용 매핑값 추가
+      mappedSector,
+      mappedStage
     };
   }, [cluster.sector, cluster.stage]);
 
@@ -161,6 +168,11 @@ export function useReportData(): UseReportDataReturn {
     setError(null);
 
     try {
+      console.log('📊 Starting report generation...', {
+        kpisCount: (kpis || []).length,
+        responsesCount: Object.keys(responses || {}).length
+      });
+
       // Stage 1: 데이터 수집
       const { validResponses, partialInfo } = await pipeline.collectData(
         kpis || [],
@@ -168,8 +180,14 @@ export function useReportData(): UseReportDataReturn {
         clusterInfo
       );
 
+      console.log('✅ Stage 1 Complete - Data Collection:', {
+        validResponses: validResponses.size,
+        partialInfo
+      });
+
       // 데이터가 없으면 중단
       if (validResponses.size === 0) {
+        console.error('❌ No valid responses found');
         setError('진단 데이터가 없습니다. KPI 진단을 먼저 완료해주세요.');
         setIsLoading(false);
         return;
@@ -182,12 +200,20 @@ export function useReportData(): UseReportDataReturn {
         clusterInfo
       );
 
+      console.log('✅ Stage 2 Complete - Data Processing:', {
+        rawProcessedCount: rawProcessed.length
+      });
+
       // 추가 최적화 처리
       const processed = await optimizedProcessor.processKPIData(rawProcessed, {
         useCache: true,
         onProgress: (progress) => {
           console.log(`📋 Processing: ${progress.toFixed(1)}%`);
         }
+      });
+
+      console.log('✅ Optimization Complete:', {
+        processedCount: processed.length
       });
 
       setProcessedData(processed);
@@ -199,6 +225,12 @@ export function useReportData(): UseReportDataReturn {
         partialInfo
       );
 
+      console.log('✅ Stage 3 Complete - Report Generation:', {
+        overallScore: report.summary.overallScore,
+        completionRate: report.summary.completionRate,
+        totalKPIs: report.summary.totalKPIs
+      });
+
       // 결과 저장
       setReportData(report);
 
@@ -209,18 +241,10 @@ export function useReportData(): UseReportDataReturn {
         reportData: report
       };
 
-      // 성공 로깅 비활성화 (너무 많은 로그 출력 방지)
-      // if (process.env.NODE_ENV === 'development') {
-      //   console.log('✅ Report generated successfully:', {
-      //     totalKPIs: partialInfo.total,
-      //     completedKPIs: partialInfo.completed,
-      //     completionRate: partialInfo.completionRate,
-      //     overallScore: report.summary.overallScore
-      //   });
-      // }
+      console.log('✅ Report generated successfully!');
 
     } catch (err) {
-      console.error('Report generation failed:', err);
+      console.error('❌ Report generation failed:', err);
       setError(err instanceof Error ? err.message : '레포트 생성에 실패했습니다.');
     } finally {
       setIsLoading(false);
@@ -239,8 +263,18 @@ export function useReportData(): UseReportDataReturn {
    * 데이터 변경 감지 및 자동 처리
    */
   useEffect(() => {
+    console.log('🔍 useReportData Context Data:', {
+      kpisCount: kpis?.length || 0,
+      responsesCount: Object.keys(responses || {}).length,
+      sampleKpiIds: kpis?.slice(0, 3).map(k => k.kpi_id) || [],
+      sampleResponseKeys: Object.keys(responses || {}).slice(0, 3),
+      axisScoresAvailable: !!axisScores,
+      clusterInfo
+    });
+
     // 필수 데이터 체크
     if (!responses || Object.keys(responses).length === 0) {
+      console.warn('⚠️ No responses available, skipping report generation');
       return;
     }
 
@@ -250,7 +284,7 @@ export function useReportData(): UseReportDataReturn {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [responses, axisScores, processReportDataRaw]);
+  }, [responses, axisScores, processReportDataRaw, kpis, clusterInfo]);
 
   /**
    * 레포트 재생성

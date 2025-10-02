@@ -4,6 +4,7 @@
  */
 
 import type { ProcessedKPIData, NumericProcessedValue, RubricProcessedValue, MultiSelectProcessedValue } from '@/types/reportV3.types';
+import { calculateKPIScore } from '@/utils/scoreCalculator';
 
 export interface UnifiedKPIRow {
   id: string;
@@ -38,9 +39,12 @@ export function buildUnifiedKPIRows(processedData: ProcessedKPIData[]): UnifiedK
     // 응답값 포맷팅
     const response = formatResponseValue(kpi.input_type, processedValue);
 
+    // 점수 계산
+    const score = calculateKPIScore(processedValue, kpi, benchmarkInfo);
+
     // 벤치마크 차이 계산
     const benchmark = benchmarkInfo
-      ? processedValue.normalizedScore - benchmarkInfo.industryAverage
+      ? score - benchmarkInfo.industryAverage
       : null;
 
     return {
@@ -51,7 +55,7 @@ export function buildUnifiedKPIRows(processedData: ProcessedKPIData[]): UnifiedK
       kpiName: kpi.question,
       inputType: kpi.input_type,
       response,
-      score: processedValue.normalizedScore,
+      score,
       risk: insights.riskLevel,
       benchmark,
       details: {
@@ -88,27 +92,39 @@ function formatResponseValue(
   inputType: string,
   processedValue: NumericProcessedValue | RubricProcessedValue | MultiSelectProcessedValue | any
 ): string {
-  switch (inputType) {
+  // inputType 정규화 (대소문자 무시)
+  const normalizedType = inputType.toLowerCase();
+
+  switch (normalizedType) {
+    case 'numeric':
     case 'numeric_input':
-      const numValue = (processedValue as NumericProcessedValue).value;
-      return numValue >= 1000
-        ? numValue.toLocaleString('ko-KR')
-        : numValue.toFixed(1);
+      const numericVal = processedValue as NumericProcessedValue;
+      return numericVal.displayValue || '-';
 
     case 'percentage_input':
-      return `${(processedValue as NumericProcessedValue).value.toFixed(1)}%`;
+      return `${(processedValue as NumericProcessedValue).rawValue?.toFixed(1) || 0}%`;
 
     case 'rubric':
       const rubricValue = processedValue as RubricProcessedValue;
-      return `Level ${rubricValue.selectedLevel}/${rubricValue.maxLevel}`;
+      return rubricValue.selectedChoice?.label || '-';
 
+    case 'multiselect':
     case 'multi_select':
     case 'single_select':
       const multiValue = processedValue as MultiSelectProcessedValue;
-      return `${multiValue.selectedItems.length}개 선택`;
+      return `${multiValue.selectedChoices?.length || 0}개 선택`;
+
+    case 'calculation':
+      const calcValue = processedValue as any;
+      return calcValue.displayValue || '-';
+
+    case 'stage':
+      // Stage 타입은 특별 처리
+      return processedValue.displayValue || '-';
 
     default:
-      return '-';
+      // fallback: displayValue가 있으면 사용
+      return (processedValue as any).displayValue || '-';
   }
 }
 

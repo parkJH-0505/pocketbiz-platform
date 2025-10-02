@@ -32,23 +32,44 @@ export function calculateKPIScore(
   kpi?: KPIDefinition,
   benchmark?: number
 ): number {
+  let score: number;
+
   switch (processedValue.type) {
     case 'rubric':
-      return calculateRubricScore(processedValue as RubricProcessedValue);
+      score = calculateRubricScore(processedValue as RubricProcessedValue);
+      break;
 
     case 'numeric':
-      return calculateNumericScore(processedValue as NumericProcessedValue, benchmark);
+      score = calculateNumericScore(processedValue as NumericProcessedValue, benchmark);
+      break;
 
     case 'multiselect':
-      return calculateMultiSelectScore(processedValue as MultiSelectProcessedValue);
+      score = calculateMultiSelectScore(processedValue as MultiSelectProcessedValue);
+      break;
 
     case 'calculation':
-      return calculateCalculationScore(processedValue as CalculationProcessedValue, kpi);
+      score = calculateCalculationScore(processedValue as CalculationProcessedValue, kpi);
+      break;
 
     default:
       console.warn(`Unknown processed value type: ${(processedValue as any).type}`);
-      return 0;
+      score = 0;
   }
+
+  // NaN 체크 및 상세 로깅
+  if (isNaN(score)) {
+    console.error('❌ calculateKPIScore returned NaN:', {
+      kpiId: kpi?.kpi_id,
+      kpiName: kpi?.name,
+      axis: kpi?.axis,
+      type: processedValue.type,
+      processedValue: processedValue,
+      benchmark
+    });
+    return 0; // NaN 대신 0 반환
+  }
+
+  return score;
 }
 
 /**
@@ -72,7 +93,7 @@ export function calculateNumericScore(
   value: NumericProcessedValue,
   benchmark?: number
 ): number {
-  const numValue = value.value;
+  const numValue = value.rawValue; // 수정: value.value → value.rawValue
 
   // 벤치마크가 없으면 기본 로직 사용
   if (!benchmark) {
@@ -110,14 +131,8 @@ export function calculateNumericScore(
  * 선택된 항목들의 가중치 합계
  */
 export function calculateMultiSelectScore(value: MultiSelectProcessedValue): number {
-  // 이미 계산된 totalScore 사용
-  if (value.totalScore !== undefined) {
-    return Math.max(0, Math.min(100, value.totalScore));
-  }
-
-  // totalScore가 없으면 선택된 개수 비율로 계산
-  const selectionRate = value.selectedCount / Math.max(1, value.totalOptions);
-  return Math.round(selectionRate * 100);
+  // totalScore 사용 (항상 존재해야 함)
+  return Math.max(0, Math.min(100, value.totalScore));
 }
 
 /**
@@ -128,7 +143,7 @@ export function calculateCalculationScore(
   value: CalculationProcessedValue,
   kpi?: KPIDefinition
 ): number {
-  const result = value.result;
+  const result = value.calculatedValue; // 수정: value.result → value.calculatedValue
 
   // 계산 결과가 없으면 0점
   if (result === null || result === undefined || isNaN(result)) {
@@ -208,14 +223,35 @@ export function calculateWeightedScore(
   let totalWeight = 0;
 
   scores.forEach(({ score, weight }) => {
+    // NaN 체크 - NaN이면 건너뛰기
+    if (isNaN(score)) {
+      console.warn('⚠️ Skipping NaN score in calculateWeightedScore');
+      return;
+    }
+
     const weightValue = weight === 'x3' ? 3 : weight === 'x2' ? 2 : 1;
     totalWeightedScore += score * weightValue;
     totalWeight += weightValue;
   });
 
-  if (totalWeight === 0) return 0;
+  if (totalWeight === 0) {
+    console.warn('⚠️ Total weight is 0 in calculateWeightedScore');
+    return 0;
+  }
 
-  return Math.round((totalWeightedScore / totalWeight) * 10) / 10;
+  const result = Math.round((totalWeightedScore / totalWeight) * 10) / 10;
+
+  // 결과가 NaN인지 확인
+  if (isNaN(result)) {
+    console.error('❌ calculateWeightedScore result is NaN', {
+      totalWeightedScore,
+      totalWeight,
+      scoresCount: scores.length
+    });
+    return 0;
+  }
+
+  return result;
 }
 
 /**

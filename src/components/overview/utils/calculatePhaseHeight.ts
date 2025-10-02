@@ -10,36 +10,32 @@ import type { BranchActivity } from '../../../types/timeline-v3.types';
 import type { Project } from '../../../types/buildup.types';
 
 /**
- * 프로젝트 단계별 구간 높이 계산
+ * 프로젝트 단계별 구간 높이 계산 (Phase 7: 노드 기반 간소화)
  *
- * 활동 5개 이하: 240px 고정
- * 활동 5개 초과: 활동당 30px씩 증가
- * 최대 480px 제한
+ * 높이 = 상단여백 + (노드 개수 * 노드 높이) + 하단여백
  *
  * @param phase 프로젝트 단계
  * @param activities 해당 단계의 활동들
- * @returns 구간 높이 (240px ~ 480px)
+ * @returns 구간 높이
  *
  * @example
- * // 활동 3개 → 240px
+ * // 활동 0개 → 80px (최소 높이)
+ * calculatePhaseHeight(phase, []);
+ *
+ * // 활동 3개 → 20 + 120 + 20 = 160px
  * calculatePhaseHeight(phase, [a1, a2, a3]);
  *
- * // 활동 7개 → 300px (240 + 2*30)
- * calculatePhaseHeight(phase, [a1, a2, a3, a4, a5, a6, a7]);
- *
- * // 활동 20개 → 480px (최대값)
- * calculatePhaseHeight(phase, [...20 activities]);
+ * // 활동 10개 → 20 + 400 + 20 = 440px
+ * calculatePhaseHeight(phase, [...10 activities]);
  */
 export const calculatePhaseHeight = (
   phase: Project['phases'][0],
   activities: BranchActivity[]
 ): number => {
-  const {
-    PHASE_BASE_HEIGHT,
-    PHASE_MAX_HEIGHT,
-    PHASE_ACTIVITY_THRESHOLD,
-    PHASE_ACTIVITY_HEIGHT
-  } = TIMELINE_CONSTANTS;
+  const NODE_HEIGHT = 40;         // 노드 간 간격 (px)
+  const PADDING_TOP = 20;         // Phase 상단 여백 (px)
+  const PADDING_BOTTOM = 20;      // Phase 하단 여백 (px)
+  const MIN_HEIGHT = 80;          // 최소 높이 (활동이 없을 때)
 
   // ========================================================================
   // 1. 해당 단계에 속한 활동들 필터링
@@ -55,25 +51,18 @@ export const calculatePhaseHeight = (
   const activityCount = phaseActivities.length;
 
   // ========================================================================
-  // 2. 활동 5개 이하 → 기본 높이
+  // 2. 활동이 없으면 최소 높이
   // ========================================================================
-  if (activityCount <= PHASE_ACTIVITY_THRESHOLD) {
-    return PHASE_BASE_HEIGHT;
+  if (activityCount === 0) {
+    return MIN_HEIGHT;
   }
 
   // ========================================================================
-  // 3. 활동 5개 초과 → 동적 확장
+  // 3. 높이 계산 (노드 개수 기반)
   // ========================================================================
-  const extraCount = activityCount - PHASE_ACTIVITY_THRESHOLD;
-  const extraHeight = extraCount * PHASE_ACTIVITY_HEIGHT;
-  const calculatedHeight = PHASE_BASE_HEIGHT + extraHeight;
+  const calculatedHeight = PADDING_TOP + (activityCount * NODE_HEIGHT) + PADDING_BOTTOM;
 
-  // ========================================================================
-  // 4. 최대 높이 제한
-  // ========================================================================
-  const finalHeight = Math.min(calculatedHeight, PHASE_MAX_HEIGHT);
-
-  return finalHeight;
+  return calculatedHeight;
 };
 
 /**

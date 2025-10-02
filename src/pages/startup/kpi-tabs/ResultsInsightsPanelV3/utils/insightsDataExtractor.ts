@@ -3,7 +3,7 @@
  * Page 3용 데이터 추출 (Risks, Correlations, Unit Economics, Action Plan)
  */
 
-import type { ReportData } from '@/types/reportV3.types';
+import type { ReportData } from '../types/reportV3UI.types';
 
 export interface CompactRisk {
   id: string;
@@ -56,15 +56,12 @@ export interface InsightsActionData {
  */
 export function extractInsightsActionData(reportData: ReportData): InsightsActionData {
   const {
-    riskAlerts = [],
-    correlations = [],
-    unitEconomics = {},
-    actionPlan = [],
-    processedData = []
+    criticalAlerts = [],
+    insights = []
   } = reportData;
 
-  // Extract Compact Risks (top 5 most severe)
-  const extractedRisks: CompactRisk[] = riskAlerts
+  // Extract Compact Risks from criticalAlerts (top 5 most severe)
+  const extractedRisks: CompactRisk[] = criticalAlerts
     .slice(0, 5)
     .map((alert, index) => {
       // Infer severity from alert text
@@ -75,31 +72,26 @@ export function extractInsightsActionData(reportData: ReportData): InsightsActio
       // Extract category (first few words)
       const category = alert.split(':')[0] || alert.substring(0, 20);
 
-      // Find affected KPIs (simple heuristic)
-      const affectedKPIs = processedData
-        .filter(item =>
-          item.insights.riskLevel === 'high' ||
-          alert.toLowerCase().includes(item.kpi.question.toLowerCase().substring(0, 10))
-        )
-        .slice(0, 2)
-        .map(item => item.kpi.question.substring(0, 30) + '...');
-
       return {
         id: `risk-${index}`,
         severity: severity as 'critical' | 'high' | 'medium',
         category,
         title: alert.substring(0, 60),
         impact: alert,
-        affectedKPIs
+        affectedKPIs: [] // No processedData available
       };
     });
 
-  // Extract Correlations (derived metrics)
-  const extractedCorrelations: CorrelationInsight[] = correlations
-    .slice(0, 4)
-    .map((corr, index) => {
-      const isPositive = /긍정|증가|개선|향상/.test(corr);
-      const isNegative = /부정|감소|악화|하락/.test(corr);
+  // Extract Correlations from insights (type: 'correlation')
+  const correlationInsights = insights
+    .filter(i => i.type === 'correlation' || i.description?.includes('상관') || i.description?.includes('관계'))
+    .slice(0, 4);
+
+  const extractedCorrelations: CorrelationInsight[] = correlationInsights
+    .map((insight, index) => {
+      const text = insight.description || insight.title || '';
+      const isPositive = /긍정|증가|개선|향상|positive/i.test(text);
+      const isNegative = /부정|감소|악화|하락|negative/i.test(text);
 
       return {
         id: `corr-${index}`,
@@ -107,85 +99,81 @@ export function extractInsightsActionData(reportData: ReportData): InsightsActio
         metric1: `Metric ${index * 2 + 1}`,
         metric2: `Metric ${index * 2 + 2}`,
         strength: 60 + Math.random() * 30, // Mock strength
-        insight: corr
+        insight: text
       };
     });
 
-  // Extract Unit Economics
+  // Extract Unit Economics (mocked since not available in new structure)
   const extractedUnitEconomics: UnitEconomicsData = {
     metrics: [
       {
         label: 'CAC',
-        value: unitEconomics.cac || 0,
+        value: 0,
         unit: '원',
         benchmark: 50000,
-        status: unitEconomics.cac && unitEconomics.cac < 50000 ? 'excellent' :
-                unitEconomics.cac && unitEconomics.cac < 80000 ? 'good' : 'attention'
+        status: 'attention'
       },
       {
         label: 'LTV',
-        value: unitEconomics.ltv || 0,
+        value: 0,
         unit: '원',
         benchmark: 150000,
-        status: unitEconomics.ltv && unitEconomics.ltv > 150000 ? 'excellent' :
-                unitEconomics.ltv && unitEconomics.ltv > 100000 ? 'good' : 'attention'
+        status: 'attention'
       },
       {
         label: 'LTV/CAC',
-        value: unitEconomics.ltv && unitEconomics.cac
-          ? unitEconomics.ltv / unitEconomics.cac
-          : 0,
+        value: 0,
         unit: '배',
         benchmark: 3,
-        status: unitEconomics.ltv && unitEconomics.cac && (unitEconomics.ltv / unitEconomics.cac) > 3
-          ? 'excellent'
-          : unitEconomics.ltv && unitEconomics.cac && (unitEconomics.ltv / unitEconomics.cac) > 2
-          ? 'good'
-          : 'attention'
+        status: 'attention'
       },
       {
         label: 'Burn Rate',
-        value: unitEconomics.burnRate || 0,
+        value: 0,
         unit: '원/월',
         benchmark: 10000000,
-        status: unitEconomics.burnRate && unitEconomics.burnRate < 10000000 ? 'excellent' :
-                unitEconomics.burnRate && unitEconomics.burnRate < 20000000 ? 'good' : 'attention'
+        status: 'attention'
       }
     ]
   };
 
-  // Extract Action Plan (top 6 items)
-  const extractedActionPlan: CompactActionItem[] = actionPlan
-    .slice(0, 6)
-    .map((action, index) => {
-      // Infer priority
-      const isCritical = /즉시|긴급|심각|Critical/i.test(action);
-      const isHigh = /우선|중요|High/i.test(action);
-      const priority = isCritical ? 'critical' : isHigh ? 'high' : 'medium';
+  // Extract Action Plan from insights with type 'recommendation' or 'opportunity'
+  const actionInsights = insights
+    .filter(i =>
+      i.type === 'recommendation' ||
+      i.type === 'opportunity' ||
+      i.priority === 'critical' ||
+      i.priority === 'high'
+    )
+    .slice(0, 6);
 
-      // Infer timeframe
-      const isImmediate = /즉시|1주|1개월/i.test(action);
-      const isShort = /3개월|단기/i.test(action);
+  const extractedActionPlan: CompactActionItem[] = actionInsights
+    .map((insight, index) => {
+      const text = insight.description || insight.title || '';
+
+      // Infer priority from insight priority
+      const priority = insight.priority === 'critical' ? 'critical' :
+                      insight.priority === 'high' ? 'high' : 'medium';
+
+      // Infer timeframe from text
+      const isImmediate = /즉시|1주|1개월|immediate/i.test(text);
+      const isShort = /3개월|단기|short/i.test(text);
       const timeframe = isImmediate ? 'immediate' : isShort ? 'short' : 'medium';
 
-      // Extract category
-      const category = action.split(':')[0] || action.substring(0, 15);
-
-      // Find related KPIs
-      const relatedKPIs = processedData
-        .filter(item => item.insights.riskLevel === 'high')
-        .slice(0, 2)
-        .map(item => item.kpi.question.substring(0, 25));
+      // Extract category from type or first part of title
+      const category = insight.title?.split(':')[0] ||
+                      insight.type?.charAt(0).toUpperCase() + insight.type?.slice(1) ||
+                      '일반';
 
       return {
         id: `action-${index}`,
         priority: priority as 'critical' | 'high' | 'medium',
         category,
-        title: action.substring(0, 60),
-        description: action,
-        estimatedImpact: isCritical ? '높음' : isHigh ? '중간' : '낮음',
+        title: (insight.title || text).substring(0, 60),
+        description: text,
+        estimatedImpact: priority === 'critical' ? '높음' : priority === 'high' ? '중간' : '낮음',
         timeframe: timeframe as 'immediate' | 'short' | 'medium',
-        relatedKPIs
+        relatedKPIs: [] // No processedData available
       };
     });
 

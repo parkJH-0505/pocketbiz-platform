@@ -22,8 +22,14 @@ export const RadarPreview: React.FC<RadarPreviewProps> = ({
 
   // SVG 경로 계산
   const { path, comparisonPath, points } = useMemo(() => {
-    const axes = Object.keys(currentScores);
+    const axes = Object.keys(currentScores || {});
     const count = axes.length;
+
+    // 데이터가 없으면 빈 경로 반환
+    if (count === 0) {
+      return { path: '', comparisonPath: '', points: [] };
+    }
+
     const centerX = 120;
     const centerY = 120;
     const radius = 100;
@@ -73,6 +79,20 @@ export const RadarPreview: React.FC<RadarPreviewProps> = ({
       points: labelPoints
     };
   }, [currentScores, comparisonScores]);
+
+  // 데이터가 없으면 빈 상태 표시
+  if (points.length === 0) {
+    return (
+      <div className={`bg-white border border-gray-200 rounded-lg p-4 ${className}`}>
+        <h4 className="text-sm font-semibold text-gray-700 mb-3 text-center">
+          5축 균형 미리보기
+        </h4>
+        <div className="flex items-center justify-center h-60 text-gray-400 text-sm">
+          데이터를 불러오는 중...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`bg-white border border-gray-200 rounded-lg p-4 ${className}`}>

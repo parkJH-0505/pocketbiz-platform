@@ -17,10 +17,9 @@ import type {
   MultiSelectProcessedValue,
   CalculationProcessedValue,
   WeightInfo,
-  WeightLevel,
-  SECTOR_NAMES,
-  STAGE_NAMES
+  WeightLevel
 } from '../types/reportV3.types';
+import { SECTOR_NAMES, STAGE_NAMES } from '../types/reportV3.types';
 import { getKPIStageRule } from '../data/kpiLoader';
 import {
   calculateKPIScore,
@@ -151,6 +150,10 @@ async function processKPIValue(
     case 'Rubric':
       return processRubricValue(kpi, response, cluster);
 
+    case 'Stage':
+      // Stage 타입 전용 처리
+      return processStageValue(kpi, response, cluster);
+
     case 'MultiSelect':
     case 'Checklist':
       return processMultiSelectValue(kpi, response, cluster);
@@ -206,10 +209,19 @@ async function processRubricValue(
 ): Promise<RubricProcessedValue> {
   try {
     const stageRule = await getKPIStageRule(kpi.kpi_id, cluster.stage);
-    const selectedIndex = (response as any).selectedIndex || 0;
 
+    // rubric 응답에서 selectedIndex 추출 (1-based index)
+    const rawResponse = response as any;
+    let selectedIndex = rawResponse.selectedIndex ?? rawResponse.rubricValue ?? 1;
+
+    // 유효한 선택지가 없으면 첫 번째 사용 가능한 선택지로 fallback
     if (!stageRule?.choices || !stageRule.choices[selectedIndex]) {
-      throw new Error(`Invalid choice index: ${selectedIndex}`);
+      console.warn(`Invalid choice index ${selectedIndex} for KPI ${kpi.kpi_id}, using fallback`);
+      const availableIndices = Object.keys(stageRule?.choices || {}).map(Number);
+      if (availableIndices.length === 0) {
+        throw new Error(`No valid choices available for KPI ${kpi.kpi_id}`);
+      }
+      selectedIndex = availableIndices[0];
     }
 
     const selectedChoice = stageRule.choices[selectedIndex];
@@ -240,6 +252,66 @@ async function processRubricValue(
       selectedChoice: { index: 0, label: '데이터 없음', score: 0 },
       level: 'needs_improvement',
       interpretation: '루브릭 데이터를 확인해 주세요.'
+    };
+  }
+}
+
+/**
+ * Stage 타입 값 처리
+ */
+async function processStageValue(
+  kpi: KPIDefinition,
+  response: KPIResponse,
+  cluster: ClusterInfo
+): Promise<RubricProcessedValue> {
+  try {
+    const stageRule = await getKPIStageRule(kpi.kpi_id, cluster.stage);
+    const rawResponse = response as any;
+
+    // Stage 응답에서 선택지 추출
+    // response.stage = "stage-1", "stage-2", "stage-3" 등
+    let selectedIndex = 1; // 기본값
+
+    if (rawResponse.stage) {
+      const stageMatch = rawResponse.stage.match(/stage-(\d+)/);
+      if (stageMatch) {
+        selectedIndex = parseInt(stageMatch[1]);
+      }
+    } else if (rawResponse.selectedIndex !== undefined) {
+      selectedIndex = rawResponse.selectedIndex;
+    }
+
+    // 유효한 선택지 확인
+    if (!stageRule?.choices || !stageRule.choices[selectedIndex]) {
+      console.warn(`Invalid stage choice ${selectedIndex} for KPI ${kpi.kpi_id}`);
+      const availableIndices = Object.keys(stageRule?.choices || {}).map(Number);
+      if (availableIndices.length === 0) {
+        throw new Error(`No valid choices available for KPI ${kpi.kpi_id}`);
+      }
+      selectedIndex = availableIndices[0];
+    }
+
+    const selectedChoice = stageRule.choices[selectedIndex];
+
+    return {
+      type: 'rubric',
+      selectedIndex,
+      selectedChoice: {
+        index: selectedIndex,
+        label: selectedChoice.label,
+        score: selectedChoice.score
+      },
+      level: determineLevel(selectedChoice.score),
+      interpretation: generateRubricInterpretation(selectedChoice, kpi, cluster)
+    };
+  } catch (error) {
+    console.error(`Failed to process stage value for ${kpi.kpi_id}:`, error);
+    return {
+      type: 'rubric',
+      selectedIndex: 0,
+      selectedChoice: { index: 0, label: 'Unknown', score: 0 },
+      level: 'needs_improvement',
+      interpretation: 'Stage 데이터를 확인해 주세요.'
     };
   }
 }

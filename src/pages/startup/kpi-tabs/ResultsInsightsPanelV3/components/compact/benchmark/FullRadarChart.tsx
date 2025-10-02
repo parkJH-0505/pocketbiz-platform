@@ -18,6 +18,12 @@ export const FullRadarChart: React.FC<FullRadarChartProps> = ({
   const { currentPath, benchmarkPath, labelPoints } = useMemo(() => {
     const { axes } = data;
     const count = axes.length;
+
+    // 데이터가 없으면 빈 경로 반환
+    if (count === 0) {
+      return { currentPath: '', benchmarkPath: '', labelPoints: [] };
+    }
+
     const centerX = 200;
     const centerY = 200;
     const radius = 150;
@@ -62,6 +68,23 @@ export const FullRadarChart: React.FC<FullRadarChartProps> = ({
 
     return { currentPath, benchmarkPath, labelPoints };
   }, [data]);
+
+  // 데이터가 없으면 빈 상태 표시
+  if (labelPoints.length === 0) {
+    return (
+      <div className={`full-radar-chart ${className}`}>
+        <div className="mb-3">
+          <h4 className="text-sm font-bold text-gray-900">📈 5-Axis Radar Chart</h4>
+          <p className="text-xs text-gray-600">
+            파란색: 현재 점수 • 회색: 업계 평균
+          </p>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-center h-96">
+          <p className="text-gray-400 text-sm">데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`full-radar-chart ${className}`}>

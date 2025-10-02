@@ -63,6 +63,27 @@ const TimelineCanvas: React.FC<TimelineCanvasProps> = React.memo(({
           <stop offset="100%" stopColor="#3B82F6" stopOpacity="1" />
         </radialGradient>
 
+        {/* Phase 7-4: Phase 구분선 그라디언트 (Visible.vc 스타일) */}
+        <linearGradient id="phase-divider-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="rgb(15, 82, 222)" stopOpacity="0" />
+          <stop offset="50%" stopColor="rgb(15, 82, 222)" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="rgb(15, 82, 222)" stopOpacity="0" />
+        </linearGradient>
+
+        {/* Phase 7-5: MainTimeline 세로 그라디언트 (상단/하단 페이드) */}
+        <linearGradient id="main-timeline-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="rgb(15, 82, 222)" stopOpacity="0.2" />
+          <stop offset="10%" stopColor="rgb(15, 82, 222)" stopOpacity="0.9" />
+          <stop offset="90%" stopColor="rgb(15, 82, 222)" stopOpacity="0.9" />
+          <stop offset="100%" stopColor="rgb(15, 82, 222)" stopOpacity="0.2" />
+        </linearGradient>
+
+        {/* Phase 7-5: Branch 가로 그라디언트 (시작→끝 투명도 증가) */}
+        <linearGradient id="branch-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="rgb(15, 82, 222)" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="rgb(15, 82, 222)" stopOpacity="0.9" />
+        </linearGradient>
+
         {/* Phase 5-3: SVG 아이콘 정의 */}
         {/* 체크 마크 (Phase 완료) */}
         <symbol id="icon-check" viewBox="0 0 24 24">

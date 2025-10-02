@@ -43,9 +43,14 @@ export interface BranchActivity {
   timestamp: Date;                               // 정확한 발생 시점
   title: string;                                 // 표시 제목
 
-  // === 계산된 좌표 (Phase 1에서 추가) ===
-  branchY: number;                               // 시간 비례 Y좌표
-  branchX: number;                               // 겹침 방지 X좌표
+  // === 계산된 좌표 (Phase 7: actualY/displayY 분리) ===
+  actualY: number;                               // 실제 발생 시점 Y좌표 (메인 축, 시간 비례)
+  displayY: number;                              // 배치된 Y좌표 (Phase 내 순서 기반)
+  branchX: number;                               // X좌표 (레인 위치)
+
+  // === Phase 정보 (Phase 7: 추가) ===
+  phaseId: string;                               // 속한 Phase ID
+  indexInPhase: number;                          // Phase 내 순서 (0부터 시작)
 
   // === 시각화 속성 (Phase 2에서 사용) ===
   color: string;                                 // 타입별 색상 (#10B981, #3B82F6 등)
@@ -178,7 +183,7 @@ export const TIMELINE_CONSTANTS = {
   // 브랜치
   BRANCH_BASE_X: 400,          // 브랜치 시작 X좌표 (px) - Phase 박스 고려
   BRANCH_LANE_WIDTH: 100,      // 레인 너비 (px)
-  BRANCH_LANE_COUNT: 3,        // 레인 개수
+  BRANCH_LANE_COUNT: 4,        // 레인 개수 (Phase 7: 3→4, 타입별 고정 레인)
   BRANCH_ZIGZAG_OFFSET: 30,    // 지그재그 오프셋 (px)
   PROXIMITY_THRESHOLD: 60,     // 근접 판정 임계값 (px) - 겹침 방지
 
@@ -189,6 +194,18 @@ export const TIMELINE_CONSTANTS = {
   // 여백
   CANVAS_PADDING_TOP: 60,      // 상단 여백 (px)
   CANVAS_PADDING_BOTTOM: 60,   // 하단 여백 (px)
+} as const;
+
+/**
+ * 활동 타입별 고정 레인 할당 (Phase 7: 작업 2)
+ * - 각 타입은 항상 동일한 레인에 배치
+ * - 동일 타입 내에서만 Y 근접성 기반 레인 오프셋 적용
+ */
+export const LANE_ASSIGNMENT = {
+  file: 0,      // Lane 1: 400px (BRANCH_BASE_X + 0 * 100)
+  meeting: 1,   // Lane 2: 500px (BRANCH_BASE_X + 1 * 100)
+  comment: 2,   // Lane 3: 600px (BRANCH_BASE_X + 2 * 100)
+  todo: 3       // Lane 4: 700px (BRANCH_BASE_X + 3 * 100)
 } as const;
 
 /**
@@ -289,43 +306,44 @@ export const TIMELINE_DESIGN_SYSTEM = {
   },
 
   // ========================================
-  // Activity 타입별 색상 (Primary 파랑 계열 통일)
+  // Activity 타입별 색상 (Phase 7: 차분한 색상 구분)
+  // Primary Blue 기준 비슷한 톤/채도의 색상들 (눈에 피곤하지 않음)
   // ========================================
   activityType: {
     meeting: {
-      main: theme.colors.primary.main,         // rgb(15, 82, 222) - 파랑 (가장 진함)
-      light: theme.colors.primary.light,       // rgba(15, 82, 222, 0.1)
+      main: 'rgb(88, 28, 135)',                // 어두운 보라 (Deep Purple)
+      light: 'rgba(88, 28, 135, 0.1)',
       icon: '📅',
       size: 12,                                // 가장 큼 (중요 이벤트)
       importance: 'high' as const,
-      strokeOpacity: 0.9,
+      strokeOpacity: 0.85,
       strokeWidth: 4
     },
     file: {
-      main: 'rgba(15, 82, 222, 0.85)',         // Primary 85% 투명도
-      light: theme.colors.primary.light,       // rgba(15, 82, 222, 0.1)
+      main: 'rgb(15, 118, 110)',               // 어두운 청록 (Dark Teal)
+      light: 'rgba(15, 118, 110, 0.1)',
       icon: '📄',
       size: 10,                                // 중간
       importance: 'medium' as const,
-      strokeOpacity: 0.7,
+      strokeOpacity: 0.85,
       strokeWidth: 3
     },
     comment: {
-      main: 'rgba(15, 82, 222, 0.6)',          // Primary 60% 투명도
-      light: theme.colors.primary.light,       // rgba(15, 82, 222, 0.1)
+      main: 'rgb(120, 53, 15)',                // 어두운 주황 (Deep Orange)
+      light: 'rgba(120, 53, 15, 0.1)',
       icon: '💬',
       size: 8,                                 // 작음
       importance: 'low' as const,
-      strokeOpacity: 0.5,
+      strokeOpacity: 0.85,
       strokeWidth: 2
     },
     todo: {
-      main: 'rgba(15, 82, 222, 0.75)',         // Primary 75% 투명도
-      light: theme.colors.primary.light,       // rgba(15, 82, 222, 0.1)
+      main: 'rgb(15, 82, 222)',                // Primary 파랑 유지
+      light: 'rgba(15, 82, 222, 0.1)',
       icon: '✅',
       size: 9,                                 // 중간-작음
       importance: 'medium' as const,
-      strokeOpacity: 0.6,
+      strokeOpacity: 0.85,
       strokeWidth: 2.5
     }
   },
@@ -412,13 +430,15 @@ export const TIMELINE_DESIGN_SYSTEM = {
   },
 
   // ========================================
-  // 그림자 (Subtle & Professional)
+  // 그림자 (Visible.vc 스타일 - 강한 Glow)
   // ========================================
   shadows: {
     node: '0 2px 8px rgba(15, 82, 222, 0.12)',           // 파랑 계열 그림자
-    nodeHover: '0 4px 16px rgba(15, 82, 222, 0.2)',      // 호버 시 강조
+    nodeHover: 'drop-shadow(0 0 20px rgba(15, 82, 222, 0.6)) drop-shadow(0 0 35px rgba(15, 82, 222, 0.4))',      // Visible.vc 강한 Glow
     phaseBox: '0 2px 12px rgba(15, 82, 222, 0.08)',      // 섬세한 그림자
-    branch: '0 1px 4px rgba(15, 82, 222, 0.1)',
+    branch: 'drop-shadow(0 0 8px rgba(15, 82, 222, 0.3))',  // 브랜치 Glow
+    branchHover: 'drop-shadow(0 0 15px rgba(15, 82, 222, 0.5)) drop-shadow(0 0 25px rgba(15, 82, 222, 0.3))',  // 브랜치 호버 Glow
+    mainTimeline: 'drop-shadow(0 0 20px rgba(15, 82, 222, 0.5)) drop-shadow(0 0 35px rgba(15, 82, 222, 0.3))',  // 메인 타임라인 Glow
     glassmorphism: '0 8px 32px rgba(15, 82, 222, 0.06)'  // 글래스모피즘 효과
   },
 

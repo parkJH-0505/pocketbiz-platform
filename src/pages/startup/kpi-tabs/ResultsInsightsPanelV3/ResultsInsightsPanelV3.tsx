@@ -72,17 +72,27 @@ const ResultsInsightsPanelV3: React.FC = () => {
   const { reportData, isLoading, error, regenerateReport, exportToPDF, processedData } = useReportData();
 
   // KPIDiagnosisContext에서 직접 데이터 가져오기 (fallback용)
-  const { axisScores: contextAxisScores, overallScore: contextOverallScore, progress: contextProgress, kpis: contextKPIs } = useKPIDiagnosis();
+  const {
+    axisScores: contextAxisScores,
+    overallScore: contextOverallScore,
+    progress: contextProgress,
+    kpiData,
+    responses: contextResponses
+  } = useKPIDiagnosis();
 
-  // 디버그: Context 데이터 로깅 비활성화 (너무 많은 로그 출력 방지)
-  // useEffect(() => {
-  //   console.log('🔍 V3 Context Data:', {
-  //     axisScores: contextAxisScores,
-  //     overallScore: contextOverallScore,
-  //     progress: contextProgress,
-  //     kpisCount: contextKPIs?.length
-  //   });
-  // }, [contextAxisScores, contextOverallScore, contextProgress, contextKPIs]);
+  // kpiData.libraries가 실제 KPI 정의 배열
+  const contextKPIs = kpiData?.libraries || [];
+
+  // 디버그: 데이터 확인
+  useEffect(() => {
+    console.log('🔍 V3 Debug:', {
+      contextKPIs: contextKPIs?.length,
+      contextResponses: Object.keys(contextResponses || {}).length,
+      reportData: !!reportData,
+      processedData: processedData?.length,
+      useCompactLayout
+    });
+  }, [contextKPIs, contextResponses, reportData, processedData, useCompactLayout]);
 
   // 연락처 정보 (설정에서 가져오거나 하드코딩)
   const contactInfo: ContactInfo = useMemo(() => ({
@@ -250,16 +260,88 @@ const ResultsInsightsPanelV3: React.FC = () => {
     };
   }, [contextAxisScores, contextOverallScore, contextProgress, contextKPIs]);
 
-  // reportData가 있어도 비어있으면(overallScore === 0) defaultReportData 사용
-  const actualReportData = (reportData && reportData.summary?.overallScore > 0)
-    ? reportData
-    : defaultReportData;
+  // reportData 보정: 필드들이 0/비어있으면 Context 또는 defaultReportData 값 사용
+  const actualReportData = useMemo(() => {
+    if (!reportData || !reportData.summary) {
+      return defaultReportData;
+    }
 
-  // 디버그: actualReportData 확인 비활성화 (너무 많은 로그 출력 방지)
+    let correctedData = { ...reportData };
+    let needsCorrection = false;
+
+    // summary 전체 보정
+    const summaryNeedsCorrection =
+      reportData.summary.overallScore === 0 ||
+      reportData.summary.completionRate === 0 ||
+      !reportData.summary.totalKPIs;
+
+    if (summaryNeedsCorrection) {
+      correctedData = {
+        ...correctedData,
+        summary: {
+          overallScore: reportData.summary.overallScore === 0 && contextOverallScore
+            ? contextOverallScore
+            : reportData.summary.overallScore || defaultReportData.summary.overallScore,
+          completionRate: reportData.summary.completionRate === 0 && contextProgress
+            ? contextProgress.percentage
+            : reportData.summary.completionRate || defaultReportData.summary.completionRate,
+          criticalKPIs: reportData.summary.criticalKPIs || defaultReportData.summary.criticalKPIs,
+          status: reportData.summary.status || defaultReportData.summary.status
+        },
+        metadata: {
+          ...correctedData.metadata,
+          totalKPIs: reportData.metadata.totalKPIs || (contextProgress?.total) || defaultReportData.metadata.totalKPIs
+        }
+      };
+      needsCorrection = true;
+    }
+
+    // radarData 보정: mainData가 비어있거나 모든 값이 0이면 Context 값으로 재생성
+    if (contextAxisScores && correctedData.radarData) {
+      const hasValidRadarData = correctedData.radarData.mainData &&
+                                correctedData.radarData.mainData.length > 0 &&
+                                correctedData.radarData.mainData.some(point => point.value > 0);
+
+      if (!hasValidRadarData) {
+        // Context의 axisScores로 radarData 재생성
+        const axes: AxisKey[] = ['GO', 'EC', 'PT', 'PF', 'TO'];
+        const axisNames = {
+          'GO': 'Go-to-Market',
+          'EC': 'Economics',
+          'PT': 'Product & Tech',
+          'PF': 'Performance',
+          'TO': 'Team & Org'
+        };
+
+        correctedData = {
+          ...correctedData,
+          radarData: {
+            ...correctedData.radarData,
+            mainData: axes.map(axis => ({
+              axis: axisNames[axis],
+              axisKey: axis,
+              value: contextAxisScores[axis] || 0,
+              fullMark: 100,
+              status: (contextAxisScores[axis] || 0) >= 80 ? 'excellent' as const :
+                     (contextAxisScores[axis] || 0) >= 60 ? 'good' as const :
+                     (contextAxisScores[axis] || 0) >= 40 ? 'fair' as const : 'needs_attention' as const,
+              weight: 'x2' as const
+            }))
+          }
+        };
+        needsCorrection = true;
+      }
+    }
+
+    return needsCorrection ? correctedData : reportData;
+  }, [reportData, defaultReportData, contextOverallScore, contextAxisScores, contextProgress]);
+
+  // 디버그: actualReportData 확인 비활성화 (운영 환경)
   // useEffect(() => {
   //   console.log('📊 V3 actualReportData:', {
   //     hasReportData: !!reportData,
-  //     usingDefault: !reportData,
+  //     reportDataOverallScore: reportData?.summary?.overallScore,
+  //     usingDefault: !reportData || reportData.summary?.overallScore === 0,
   //     overallScore: actualReportData.summary.overallScore,
   //     completionRate: actualReportData.summary.completionRate,
   //     totalKPIs: actualReportData.metadata.totalKPIs,
@@ -604,11 +686,11 @@ const ResultsInsightsPanelV3: React.FC = () => {
             </div>
           ) : reportData && processedData ? (
             <CompactLayout
-              reportData={reportData}
+              reportData={actualReportData}
               processedData={processedData}
               cluster={{
-                sector: reportData.metadata.cluster?.sector || 'tech',
-                stage: reportData.metadata.cluster?.stage || 'seed'
+                sector: actualReportData.metadata.cluster?.sector || 'tech',
+                stage: actualReportData.metadata.cluster?.stage || 'seed'
               }}
               aiSummary={aiExecutiveSummary}
               isGeneratingAI={isGeneratingAI}

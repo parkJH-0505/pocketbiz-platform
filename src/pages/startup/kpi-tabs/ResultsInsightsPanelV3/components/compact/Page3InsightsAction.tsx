@@ -5,7 +5,7 @@
  */
 
 import React, { useMemo } from 'react';
-import type { ReportData } from '@/types/reportV3.types';
+import type { ReportData } from '../../types/reportV3UI.types';
 import { extractInsightsActionData } from '../../utils/insightsDataExtractor';
 import { CompactRiskCard } from './insights/CompactRiskCard';
 import { CorrelationGrid } from './insights/CorrelationGrid';
@@ -28,7 +28,7 @@ export const Page3InsightsAction: React.FC<Page3InsightsActionProps> = ({
   );
 
   return (
-    <div className={`page-3-insights-action ${className}`} style={{ minHeight: '1200px' }}>
+    <div className={`page-3-insights-action page-break ${className}`}>
       {/* 헤더 */}
       <div className="mb-4">
         <h3 className="text-xl font-bold text-gray-900 mb-2">

@@ -120,3 +120,59 @@ export const getBranchMidpoint = (
 
   return { x, y };
 };
+
+/**
+ * 직각선 경로 생성 (모서리 둥글게)
+ *
+ * Git 스타일 브랜치 타임라인 구현
+ * - 메인 축에서 수평으로 시작
+ * - 모서리 둥글게 처리 (Q 명령어)
+ * - 분기점 명확 표시
+ *
+ * @param startX 시작 X (메인 축, 200)
+ * @param startY 시작 Y (activity.branchY)
+ * @param endX 종료 X (activity.branchX, 400-700)
+ * @param endY 종료 Y (activity.branchY, startY와 동일)
+ * @param laneIndex 레인 인덱스 (0-2) - 미래 확장용
+ * @param cornerRadius 모서리 둥근 정도 (기본 8)
+ * @returns SVG path 문자열
+ *
+ * @example
+ * const path = generateOrthogonalPath(200, 150, 400, 150, 0, 8);
+ * // M 200,150 H 222 Q 230,150 230,150 H 400
+ */
+export const generateOrthogonalPath = (
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+  laneIndex: number = 0,
+  cornerRadius: number = 8
+): string => {
+  // 수평 시작 구간 길이 (메인 축에서 떨어지는 거리)
+  const horizontalOffset = 30;
+  const midX = startX + horizontalOffset;
+
+  // 모서리 둥글게 (cornerRadius)
+  const r = Math.min(cornerRadius, horizontalOffset / 2);
+
+  // Case 1: 같은 Y좌표 (현재 모든 케이스)
+  if (Math.abs(startY - endY) < 1) {
+    // M: 시작점
+    // H: 수평선 (모서리 반지름만큼 빼기)
+    // Q: 2차 베지어 (모서리 둥글게)
+    // H: 끝까지 수평선
+    return `M ${startX},${startY} H ${midX - r} Q ${midX},${startY} ${midX},${startY} H ${endX}`;
+  }
+
+  // Case 2: 다른 Y좌표 (미래 대비 - Phase 경계 넘을 때)
+  const yDirection = endY > startY ? 1 : -1;
+  return `
+    M ${startX},${startY}
+    H ${midX - r}
+    Q ${midX},${startY} ${midX},${startY + r * yDirection}
+    V ${endY - r * yDirection}
+    Q ${midX},${endY} ${midX + r},${endY}
+    H ${endX}
+  `.replace(/\s+/g, ' ').trim();
+};

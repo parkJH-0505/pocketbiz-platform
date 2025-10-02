@@ -106,10 +106,23 @@ export class ReportDataPipeline {
     const validResponses = new Map<string, KPIResponse>();
     const partialInfo = this.analyzePartialData(kpis, responses);
 
-    // 유효한 응답만 필터링
+    // 유효한 응답만 필터링 (더 관대한 검증)
     Object.entries(responses).forEach(([kpiId, response]) => {
-      if (response && response.kpi_id === kpiId) {
-        validResponses.set(kpiId, response);
+      if (response) {
+        // response.kpi_id가 있으면 확인, 없으면 key를 사용
+        if (!response.kpi_id || response.kpi_id === kpiId) {
+          validResponses.set(kpiId, response);
+        }
+      }
+    });
+
+    console.log('🔍 Pipeline collectData:', {
+      totalResponses: Object.keys(responses).length,
+      validResponsesCount: validResponses.size,
+      sampleResponseKeys: Object.keys(responses).slice(0, 3),
+      partialInfo: {
+        completed: partialInfo.completed,
+        completionRate: partialInfo.completionRate
       }
     });
 
@@ -378,19 +391,37 @@ export class ReportDataPipeline {
   private calculateAxisScores(processedData: ProcessedKPIData[]): Record<AxisKey, number> {
     const scores: Record<AxisKey, number> = {} as any;
     const axes: AxisKey[] = ['GO', 'EC', 'PT', 'PF', 'TO'];
+    const nanSummary: Record<string, number> = {};
 
     axes.forEach(axis => {
       const axisData = processedData.filter(d => d.kpi.axis === axis);
       if (axisData.length > 0) {
-        const axisScores = axisData.map(d => ({
-          score: calculateKPIScore(d.processedValue, d.kpi),
-          weight: d.weight.level
-        }));
+        const axisScores = axisData.map(d => {
+          const score = calculateKPIScore(d.processedValue, d.kpi);
+          return {
+            score,
+            weight: d.weight.level
+          };
+        });
+
+        // NaN 카운트만 기록
+        const nanCount = axisScores.filter(s => isNaN(s.score)).length;
+        if (nanCount > 0) {
+          nanSummary[axis] = nanCount;
+        }
+
         scores[axis] = calculateWeightedScore(axisScores);
       } else {
         scores[axis] = 0;
       }
     });
+
+    // NaN 요약만 한 번 출력
+    if (Object.keys(nanSummary).length > 0) {
+      console.error('❌ NaN scores detected:', nanSummary, '(see individual KPI errors above)');
+    }
+
+    console.log('📊 Axis Scores:', scores);
 
     return scores;
   }
@@ -399,14 +430,28 @@ export class ReportDataPipeline {
    * 전체 점수 계산
    */
   private calculateOverallScore(processedData: ProcessedKPIData[]): number {
-    if (processedData.length === 0) return 0;
+    if (processedData.length === 0) {
+      console.warn('⚠️ calculateOverallScore: No processed data');
+      return 0;
+    }
 
-    const allScores = processedData.map(d => ({
-      score: calculateKPIScore(d.processedValue, d.kpi),
-      weight: d.weight.level
-    }));
+    const allScores = processedData.map(d => {
+      const score = calculateKPIScore(d.processedValue, d.kpi);
+      return {
+        score,
+        weight: d.weight.level
+      };
+    });
 
-    return calculateWeightedScore(allScores);
+    const result = calculateWeightedScore(allScores);
+
+    console.log('📊 Overall Score:', {
+      total: processedData.length,
+      valid: allScores.filter(s => !isNaN(s.score)).length,
+      result
+    });
+
+    return result;
   }
 
   /**

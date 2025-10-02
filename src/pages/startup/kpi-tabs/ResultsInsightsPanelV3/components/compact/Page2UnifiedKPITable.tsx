@@ -33,7 +33,7 @@ export const Page2UnifiedKPITable: React.FC<Page2UnifiedKPITableProps> = ({
 }) => {
   const [sortKey, setSortKey] = useState<SortKey>('priority');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set(['x1'])); // x1은 기본적으로 접힌 상태
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set()); // 모든 그룹 펼친 상태로 시작
 
   // Unified KPI Rows 생성
   const unifiedRows = useMemo(
@@ -172,7 +172,7 @@ export const Page2UnifiedKPITable: React.FC<Page2UnifiedKPITableProps> = ({
   };
 
   return (
-    <div className={`page-2-unified-table ${className}`} style={{ minHeight: '1200px' }}>
+    <div className={`page-2-unified-table page-break ${className}`}>
       {/* 헤더 */}
       <div className="mb-4">
         <h3 className="text-xl font-bold text-gray-900 mb-2">

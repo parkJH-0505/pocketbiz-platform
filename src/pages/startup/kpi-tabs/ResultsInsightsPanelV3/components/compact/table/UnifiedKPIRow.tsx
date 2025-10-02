@@ -20,6 +20,9 @@ export const UnifiedKPIRow: React.FC<UnifiedKPIRowProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
 
+  // 점수 안전 처리
+  const safeScore = isNaN(row.score) || row.score === undefined ? 0 : row.score;
+
   // 가중치 뱃지 색상
   const getWeightBadgeColor = (weight: 'x3' | 'x2' | 'x1') => {
     switch (weight) {
@@ -111,17 +114,17 @@ export const UnifiedKPIRow: React.FC<UnifiedKPIRowProps> = ({
         {/* 점수 */}
         <td className="px-3 py-3">
           <div className="flex items-center gap-2">
-            <span className={`text-sm font-bold ${getScoreColor(row.score)}`}>
-              {row.score.toFixed(1)}
+            <span className={`text-sm font-bold ${getScoreColor(safeScore)}`}>
+              {safeScore.toFixed(1)}
             </span>
             <div className="w-12 h-1.5 bg-gray-200 rounded-full overflow-hidden">
               <div
                 className={`h-full ${
-                  row.score >= 80 ? 'bg-green-500' :
-                  row.score >= 60 ? 'bg-blue-500' :
-                  row.score >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                  safeScore >= 80 ? 'bg-green-500' :
+                  safeScore >= 60 ? 'bg-blue-500' :
+                  safeScore >= 40 ? 'bg-yellow-500' : 'bg-red-500'
                 }`}
-                style={{ width: `${Math.min(row.score, 100)}%` }}
+                style={{ width: `${Math.min(safeScore, 100)}%` }}
               />
             </div>
           </div>
@@ -190,7 +193,7 @@ export const UnifiedKPIRow: React.FC<UnifiedKPIRowProps> = ({
                     <div>
                       <span className="text-xs text-gray-600">내 점수</span>
                       <p className="text-sm font-semibold text-indigo-600">
-                        {row.score.toFixed(1)}점
+                        {safeScore.toFixed(1)}점
                       </p>
                     </div>
                     <div>

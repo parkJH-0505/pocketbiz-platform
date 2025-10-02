@@ -11,10 +11,12 @@ import { TIMELINE_CONSTANTS } from '../../types/timeline-v3.types';
 import type { InteractionState } from '../../types/timeline-interaction.types';
 import { useTimelineData } from './utils/useTimelineData';
 import { calculateBranchY, getProjectTimeRange } from './utils/calculateBranchY';
-import { calculateBranchX } from './utils/calculateBranchX';
+import { calculateBranchX, getMaxBranchX } from './utils/calculateBranchX';
 import { calculateTotalTimelineHeight, getPhaseYPositions } from './utils/calculatePhaseHeight';
+import { assignPhaseBasedYCoordinates } from './utils/assignPhaseBasedYCoordinates';
 import { convertProjectPhasesToTimeline, getPhaseProgress } from './utils/convertProjectPhases';
 import { calculateStageTiming, type AnimationStage } from './utils/animationController';
+import { getTimeIntervals } from './utils/getTimeIntervals';
 import {
   measurePerformance,
   measureMemory,
@@ -26,9 +28,11 @@ import {
 
 // Layer 2-3 컴포넌트
 import TimelineCanvas from './timeline/TimelineCanvas';
+import TimeGrid from './timeline/TimeGrid';
 import PhaseBackground from './timeline/PhaseBackground';
 import MainTimeline from './timeline/MainTimeline';
 import PhaseNodes from './timeline/PhaseNodes';
+import BranchPoints from './timeline/BranchPoints';
 import BranchPaths from './timeline/BranchPaths';
 import ActivityNodes from './timeline/ActivityNodes';
 
@@ -105,31 +109,38 @@ const OverviewTabV3: React.FC<OverviewTabV3Props> = ({
   );
 
   // ==========================================================================
-  // 좌표 계산 적용 (Phase 2 Step 5: 성능 측정 포함)
+  // 단계별 Y 위치 (Phase 7: rawActivities 기반으로 먼저 계산)
+  // ==========================================================================
+  const phaseYPositions = useMemo(
+    () => getPhaseYPositions({ ...project, phases: timelinePhases }, rawActivities as any),
+    [project, timelinePhases, rawActivities]
+  );
+
+  // ==========================================================================
+  // 좌표 계산 적용 (Phase 7: Phase 기반 Y좌표 할당)
   // ==========================================================================
   const activities = useMemo(() => {
     let coordTime = 0;
 
-    // Step 1: Y좌표 계산 (성능 측정)
+    // Step 1: Phase 기반 Y좌표 할당 (actualY, displayY 분리)
     const { duration: yCalcTime } = measurePerformance(
       'Y 좌표 계산',
       () => {},
       PERFORMANCE_THRESHOLDS.FRAME_TIME
     );
 
-    const withY = rawActivities.map(activity => ({
-      ...activity,
-      branchY: calculateBranchY(
-        activity.timestamp,
-        projectStart,
-        projectEnd,
-        totalHeight
-      )
-    }));
+    const withY = assignPhaseBasedYCoordinates(
+      rawActivities,
+      timelinePhases,
+      phaseYPositions,
+      projectStart,
+      projectEnd,
+      totalHeight
+    );
 
     coordTime += yCalcTime;
 
-    // Step 2: X좌표 계산 (Y좌표가 있어야 근접 판정 가능)
+    // Step 2: X좌표 계산 (displayY 기반)
     const { duration: xCalcTime } = measurePerformance(
       'X 좌표 계산',
       () => {},
@@ -137,21 +148,15 @@ const OverviewTabV3: React.FC<OverviewTabV3Props> = ({
     );
 
     const withXY = withY.map((activity, index) => {
-      const branchX = calculateBranchX(withY, index, activity.branchY);
-
-      // Phase 5: 레인별 Y좌표 오프셋 적용 (겹침 방지)
-      const { BRANCH_BASE_X, BRANCH_LANE_WIDTH } = TIMELINE_CONSTANTS;
-      const laneIndex = Math.round((branchX - BRANCH_BASE_X) / BRANCH_LANE_WIDTH);
-      const clampedLaneIndex = Math.max(0, Math.min(2, laneIndex));
-
-      // 레인별 Y 오프셋: [0, 40, 80] - 겹침 완전 방지를 위한 대폭 증가
-      const yOffsets = [0, 40, 80];
-      const yOffset = yOffsets[clampedLaneIndex] || 0;
+      const branchX = calculateBranchX(
+        withY as any,
+        index,
+        activity.displayY  // Phase 7: displayY 사용
+      );
 
       return {
         ...activity,
-        branchX,
-        branchY: activity.branchY + yOffset
+        branchX
       };
     });
 
@@ -164,15 +169,28 @@ const OverviewTabV3: React.FC<OverviewTabV3Props> = ({
     }));
 
     return withXY;
-  }, [rawActivities, projectStart, projectEnd, totalHeight]);
+  }, [rawActivities, timelinePhases, phaseYPositions, projectStart, projectEnd, totalHeight]);
 
   // ==========================================================================
-  // 단계별 Y 위치
+  // Phase 7 작업 4: 시간 그리드 간격 계산
   // ==========================================================================
-  const phaseYPositions = useMemo(
-    () => getPhaseYPositions({ ...project, phases: timelinePhases }, activities),
-    [project, timelinePhases, activities]
-  );
+  const timeIntervals = useMemo(() => {
+    return getTimeIntervals(
+      projectStart,
+      projectEnd,
+      totalHeight,
+      calculateBranchY
+    );
+  }, [projectStart, projectEnd, totalHeight]);
+
+  // ==========================================================================
+  // 캔버스 너비 계산 (Phase 7: 4레인 시스템)
+  // ==========================================================================
+  const canvasWidth = useMemo(() => {
+    const maxBranchX = getMaxBranchX();
+    // 오른쪽 여백 추가 (레이블 공간 확보)
+    return maxBranchX + 300; // 730 + 300 = 1030px
+  }, []);
 
   // ==========================================================================
   // Phase 2 Step 3: 인터랙션 핸들러 - Phase 5-4: useCallback 최적화
@@ -202,10 +220,10 @@ const OverviewTabV3: React.FC<OverviewTabV3Props> = ({
   // ==========================================================================
   // Phase 6: 패널 클릭 핸들러 (모달 → 패널)
   // ==========================================================================
-  // 활동 클릭 핸들러 - 노드 위치에서 패널 펼침
+  // 활동 클릭 핸들러 - 노드 위치에서 패널 펼침 (Phase 7: displayY 사용)
   const handleActivityClick = useCallback((activity: BranchActivity) => {
     setSelectedActivity(activity);
-    setPanelPosition({ x: activity.branchX, y: activity.branchY });
+    setPanelPosition({ x: activity.branchX, y: activity.displayY });
     setPanelOpen(true);
   }, []);
 
@@ -298,6 +316,52 @@ const OverviewTabV3: React.FC<OverviewTabV3Props> = ({
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [panelOpen, handlePanelClose]);
+
+  // ==========================================================================
+  // Phase 7: 최신 파일/미팅 자동 열기 + 스크롤
+  // ==========================================================================
+  useEffect(() => {
+    // 애니메이션이 완료되고, 활동이 있고, 아직 패널이 열리지 않았을 때만 실행
+    if (animationStage < 4 || activities.length === 0 || panelOpen) return;
+
+    // 최신 파일 찾기
+    const latestFile = activities
+      .filter(a => a.type === 'file')
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
+
+    // 최신 미팅 찾기
+    const latestMeeting = activities
+      .filter(a => a.type === 'meeting')
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
+
+    // 둘 중 더 최신 것 선택
+    let activityToOpen: BranchActivity | null = null;
+
+    if (latestFile && latestMeeting) {
+      activityToOpen = latestFile.timestamp > latestMeeting.timestamp ? latestFile : latestMeeting;
+    } else if (latestFile) {
+      activityToOpen = latestFile;
+    } else if (latestMeeting) {
+      activityToOpen = latestMeeting;
+    }
+
+    if (activityToOpen) {
+      // 패널 열기
+      setSelectedActivity(activityToOpen);
+      setPanelPosition({ x: activityToOpen.branchX, y: activityToOpen.displayY });
+      setPanelOpen(true);
+
+      // 자동 스크롤 (약간의 딜레이 후)
+      const targetY = activityToOpen.displayY;
+      setTimeout(() => {
+        const scrollTarget = targetY - 200; // 노드가 화면 상단에서 200px 아래 위치하도록
+        window.scrollTo({
+          top: Math.max(0, scrollTarget), // 음수 방지
+          behavior: 'smooth'
+        });
+      }, 500);
+    }
+  }, [animationStage, activities, panelOpen]);
 
   // ==========================================================================
   // Phase 4 Step 2-3: 로딩 상태 관리
@@ -416,6 +480,12 @@ const OverviewTabV3: React.FC<OverviewTabV3Props> = ({
     >
       {/* Layer 2: SVG Canvas */}
       <TimelineCanvas width="100%" height={totalHeight}>
+        {/* Layer 0: Time Grid (시간 참조 그리드 - 항상 표시) */}
+        <TimeGrid
+          intervals={timeIntervals}
+          canvasWidth={canvasWidth}
+        />
+
         {/* Layer 1: Phase Background (Phase별 배경색 - 항상 표시) */}
         <PhaseBackground
           phases={timelinePhases}
@@ -436,6 +506,11 @@ const OverviewTabV3: React.FC<OverviewTabV3Props> = ({
               if (debugMode) console.log('Phase clicked:', phaseId);
             }}
           />
+        )}
+
+        {/* Layer 3: Branch Points (Stage 3에서 표시) */}
+        {animationStage >= 3 && (
+          <BranchPoints activities={activities} />
         )}
 
         {/* Layer 3: Branch Paths (Stage 3에서 표시) */}
@@ -464,7 +539,7 @@ const OverviewTabV3: React.FC<OverviewTabV3Props> = ({
         position={tooltipPosition}
       />
 
-      {/* Layer 5: Activity Detail Panel (Phase 6: 노드 위치 기준 패널) */}
+      {/* Layer 5: Activity Detail Panel (Phase 7: Accordion 스타일 확장 패널) */}
       <ActivityDetailPanel
         activity={selectedActivity}
         isOpen={panelOpen}

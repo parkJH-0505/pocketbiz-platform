@@ -263,12 +263,15 @@ function parseRulesetText(rulesetText: string): Partial<StageRule> {
     
     lines.forEach((line) => {
       // 번호와 내용 추출: "1. 내용 (점수점)" 형식
-      const match = line.match(/(\d+)\.\s*(.+?)(?:\s*\((\d+)점\))?$/);
-      
+      // 괄호 포함 버전과 없는 버전 모두 처리
+      const match = line.match(/(\d+)\.\s*(.+?)\s*(?:\((\d+)점\))?\s*$/);
+
       if (match) {
-        const [, , labelText, scoreText] = match;
-        const label = labelText.trim();
+        const [, indexText, labelText, scoreText] = match;
+        // label에서 점수 괄호 제거 (혹시 포함되어 있을 경우)
+        const label = labelText.replace(/\s*\(\d+점\)\s*$/, '').trim();
         const score = scoreText ? parseInt(scoreText) : 0;
+        const choiceIndex = parseInt(indexText); // CSV의 실제 번호 사용 (1, 2, 3, ...)
         
         // MultiSelect 타입인지 확인
         // MultiSelect은 보통 여러 항목을 선택할 수 있고 각 항목이 가중치(weight)를 가짐
@@ -329,7 +332,7 @@ function parseRulesetText(rulesetText: string): Partial<StageRule> {
         
         if (isMultiSelect) {
           choices.push({
-            index: choices.length,
+            index: choiceIndex, // 1-based index 사용
             label: label,
             score: 0,
             weight: score
@@ -337,7 +340,7 @@ function parseRulesetText(rulesetText: string): Partial<StageRule> {
         } else {
           // 일반 Rubric 타입
           choices.push({
-            index: choices.length,
+            index: choiceIndex, // 1-based index 사용
             label: label,
             score: score
           });

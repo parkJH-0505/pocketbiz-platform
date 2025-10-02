@@ -84,13 +84,15 @@ export const CompactLayout: React.FC<CompactLayoutProps> = ({
       />
 
       {/* Page 4: Benchmarking & Radar */}
-      <Page4BenchmarkRadar
-        radarData={reportData.radarData}
-        processedData={processedData}
-        cluster={cluster}
-        overallScore={reportData.summary.overallScore}
-        className="page-break"
-      />
+      {reportData.radarData && (
+        <Page4BenchmarkRadar
+          radarData={reportData.radarData}
+          processedData={processedData}
+          cluster={cluster}
+          overallScore={reportData.summary.overallScore}
+          className="page-break"
+        />
+      )}
 
       {/* Phase Info */}
       <div className="mt-8 p-4 bg-green-50 border border-green-200 rounded-lg text-center">
